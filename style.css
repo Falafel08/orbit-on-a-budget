@@ -291,7 +291,7 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .panel p { color: var(--nebentext); margin: 6px 0; }
 .panel .seg button { font: inherit; min-height: 40px; padding: 0 14px; border: 1px solid var(--linie); background: transparent; color: var(--text); border-radius: 10px; }
 .panel .seg button[aria-pressed="true"] { background: var(--akzent); border-color: var(--akzent); }
-.panel .actions { display: flex; justify-content: flex-end; margin-top: 20px; }
+.panel .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .panel .actions button, .panel .danger { font: inherit; min-height: 44px; padding: 0 18px; border-radius: 10px; border: none; background: var(--akzent); color: #fff; }
 .panel .danger { background: transparent; border: 1px solid var(--schlecht); color: var(--schlecht); }
 

@@ -201,14 +201,25 @@ function openCredits() {
   panel.replaceChildren(
     el('h2', {}, t('credits')),
     ...['creditsIdea', 'creditsTeam', 'creditsCode', 'creditsEvent'].map((k) => el('p', {}, t(k))),
-    // Quellen mit Links (Jury: Validität). NASA-Daten zuerst, dann weitere Quellen, dann Spiel-Annahmen.
+    el('div', { class: 'actions' },
+      el('button', { type: 'button', onclick: openSources }, t('sources')),
+      el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
+  if (!panel.open) panel.showModal();
+}
+
+// Quellen mit Links (Jury: Validität), aus den Credits erreichbar. NASA-Daten zuerst, dann weitere, dann Spiel-Annahmen.
+function openSources() {
+  const panel = $('panel');
+  panel.replaceChildren(
+    el('h2', {}, t('sources')),
     ...[['srcNasa', nasaSources], ['srcOther', otherSources]].flatMap(([head, list]) => [
       el('h3', {}, t(head)),
       el('ul', { class: 'sources' }, list.map((x) => el('li', {}, el('a', { href: x.url, target: '_blank', rel: 'noopener' }, x[getLang()]))))]),
     el('h3', {}, t('srcAssumed')),
     el('p', { class: 'hint' }, t('srcAssumedText')),
-    el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
-  panel.showModal();
+    el('div', { class: 'actions' },
+      el('button', { type: 'button', onclick: openCredits }, t('back')),
+      el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
 }
 
 function updateSound() {
