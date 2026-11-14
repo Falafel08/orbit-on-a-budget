@@ -1,6 +1,7 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
+import { facts } from './data/facts.js';
 import { missions, instruments, buses, panels, rockets, starship, contracts, CAMPAIGN_START } from './data/parts.js';
-import { settleContract, isBankrupt } from './src/campaign.js';
+import { settleContract, isBankrupt, cheapestMission } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
@@ -41,8 +42,9 @@ function contractMission(c) {
 }
 
 // Starship gibt es nur in der Kampagne, ab dem zweiten Auftrag
-const rocketList = () => [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : []),
-  ...(state.mission && state.mission.contract && company.index >= 1 ? [starship] : [])];
+const campaignRockets = (index) => [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : []), ...(index >= 1 ? [starship] : [])];
+const rocketList = () => (state.mission && state.mission.contract ? campaignRockets(company.index)
+  : [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : [])]);
 
 // Forschung läuft im Hintergrund weiter, solange das Spiel offen ist
 setInterval(() => {
@@ -92,7 +94,9 @@ const instPower = () => state.instruments.reduce((p, i) => p + i.power, 0);
 const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
 const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0);
 const powerAvailable = () => (state.bus ? state.bus.power : 0) + (state.panel ? state.panel.power : 0);
-const insuranceCost = () => (state.insured && state.rocket && !state.rocket.uninsurable ? Math.round(state.rocket.cost * 0.08 * 10) / 10 : 0);
+// Versicherung: 8 % des Raketenpreises, auf 1.000 $ genau (bei 0,1 Mio. $ wurde der Mitflug-Preis zu 0 und wirkte nicht)
+const insurancePrice = (rocket) => Math.round(rocket.cost * 0.08 * 1000) / 1000;
+const insuranceCost = () => (state.insured && state.rocket && !state.rocket.uninsurable ? insurancePrice(state.rocket) : 0);
 const chosen = () => [...state.instruments, state.bus, state.panel, state.rocket, insuranceCost() ? { cost: insuranceCost() } : null].filter(Boolean);
 // Teile, die die aktuelle Mission anbietet
 const offered = (items) => (state.mission && state.mission.allowed ? items.filter((x) => state.mission.allowed.includes(x.id)) : items);
@@ -157,6 +161,7 @@ function go(phase) {
 }
 
 function startMission(m) {
+  leftStep = null; // neue Mission: links oben anfangen
   Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null });
   render();
 }
@@ -241,9 +246,18 @@ function card(cat, item) {
 // Schritte: Instrumente, Satellit (Bus und Solarpanel), Rakete
 const STEP_CATS = [['instrument'], ['bus', 'panel'], ['rocket']];
 
+// Neu zeichnen ohne Springen: Scroll-Position und Fokus bleiben, Einblenden nur beim Schrittwechsel.
+// Sonst rutschte z. B. der Versicherungs-Haken nach dem Klick aus dem Bild.
+let leftStep = null;
 function renderLeft() {
   const cats = STEP_CATS[state.build].map((k) => catalogs.find((c) => c.kind === k));
-  $('left').replaceChildren(...[
+  const left = $('left');
+  const sameStep = leftStep === state.build;
+  const scroll = sameStep ? left.scrollTop : 0;
+  const focusables = () => [...left.querySelectorAll('.card, input, .steps button')];
+  const focusIndex = sameStep ? focusables().indexOf(document.activeElement) : -1;
+  leftStep = state.build;
+  left.replaceChildren(...[
     el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
       type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
       onclick: () => { state.build = i; render(); },
@@ -251,19 +265,21 @@ function renderLeft() {
     el('p', { class: 'hint' }, t(cats[0].hint)),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
-      el('div', { class: 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
+      el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
     state.build === 2 && state.rocket && state.rocket.uninsurable ? el('p', { class: 'hint' }, t('noInsurance')) : null,
     state.build === 2 && state.rocket && !state.rocket.uninsurable ? el('label', { class: 'insure card' },
       el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
-      el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(Math.round(state.rocket.cost * 0.08 * 10) / 10) }))) : null].filter(Boolean));
+      el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) }))) : null].filter(Boolean));
+  left.scrollTop = scroll;
+  if (focusIndex >= 0) focusables()[focusIndex]?.focus({ preventScroll: true });
 }
 
-function meter(label, value, max, text) {
+function meter(label, value, max, text, atLeast = false) {
   const fill = el('span');
   fill.style.width = `${Math.min(100, max ? (value / max) * 100 : 0)}%`; // CSSOM, erlaubt unter style-src 'self'
   return el('div', {},
     el('div', { class: 'meter-label' }, el('span', {}, label), el('span', {}, text)),
-    el('div', { class: `bar${value > max ? ' over' : ''}` }, fill));
+    el('div', { class: `bar${(atLeast ? value < max : value > max) ? ' over' : ''}` }, fill));
 }
 
 function showInfo(item) {
@@ -276,7 +292,7 @@ function renderRight() {
   const m = state.mission;
   const left = budgetLeft(m.budget, chosen());
   const meters = [];
-  if (!m.free) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`));
+  if (!m.free) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`, true));
   if (state.bus) {
     meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
     meters.push(meter(t('powerDraw'), instPower(), powerAvailable(), `${instPower()} / ${powerAvailable()} W`));
@@ -513,6 +529,7 @@ function renderResult() {
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
+    r.fact ? el('p', { class: 'fact' }, el('strong', {}, t('funFact')), ' ', r.fact[getLang()]) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
     state.mission.contract && r.fee ? el('p', { class: 'rp-earned' }, t('feeReceived', { c: money(r.fee) })) : '',
     state.mission.contract ? el('p', { class: 'hint' }, t('cashNow', { c: money(company.cash) })) : '',
@@ -625,7 +642,7 @@ $('next').addEventListener('click', () => {
       company.cash = settleContract(company.cash, r, contract.fee);
       if (r.success) company.index += 1;
       const next = contracts[company.index];
-      if (next && isBankrupt(company.cash, next.cheapest)) company.over = true;
+      if (next && isBankrupt(company.cash, cheapestMission(contractMission(next), { instruments, buses, panels }, campaignRockets(company.index)))) company.over = true;
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
       saveCompany();
       r.fee = r.success ? contract.fee : 0;
@@ -633,6 +650,7 @@ $('next').addEventListener('click', () => {
     r.repeat = r.success && !r.rp && !state.mission.free && !contract;
     research.rp += r.rp;
     saveResearch();
+    if (r.reachedOrbit) r.fact = facts[Math.floor(Math.random() * facts.length)]; // beim Start festgelegt, ändert sich beim Neuzeichnen nicht
     state.result = r;
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
@@ -655,9 +673,15 @@ $('back').addEventListener('click', () => {
 $('lang').addEventListener('click', () => { setLang(getLang() === 'en' ? 'de' : 'en'); render(); });
 $('credits-btn').addEventListener('click', openCredits);
 $('sound').addEventListener('click', () => { setMusic(!isPlaying()); updateSound(); });
-// Musik war beim letzten Mal an: beim ersten Klick wieder starten (Browser erlauben Ton erst nach Klick)
-if (wantsMusic()) addEventListener('pointerdown', () => { if (!isPlaying()) { setMusic(true); updateSound(); } }, { once: true });
+// Musik ist Standard: beim ersten Klick oder Tastendruck starten (Browser erlauben Ton erst danach).
+// Der Ton-Knopf selbst zählt nicht, sonst schaltet derselbe Klick die Musik gleich wieder aus.
+function firstInput(e) {
+  if (e.target.closest && e.target.closest('#sound')) return;
+  removeEventListener('pointerdown', firstInput); removeEventListener('keydown', firstInput);
+  if (wantsMusic() && !isPlaying()) { setMusic(true); updateSound(); }
+}
+addEventListener('pointerdown', firstInput); addEventListener('keydown', firstInput);
 
-setLang(getLang());
+setLang(getLang(), false);
 startSpace($('space'));
 render();

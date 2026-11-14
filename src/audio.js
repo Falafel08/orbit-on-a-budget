@@ -36,5 +36,6 @@ export function setMusic(on) {
 }
 
 export function wantsMusic() {
-  try { return localStorage.getItem('music') === '1'; } catch { return false; }
+  // Standard an (Linus 14.11.), aus nur, wenn jemand sie ausgeschaltet hat
+  try { return localStorage.getItem('music') !== '0'; } catch { return true; }
 }

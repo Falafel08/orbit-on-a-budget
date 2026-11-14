@@ -145,19 +145,19 @@ const DE = {
 for (const list of [missions, instruments, buses, panels, rockets, [starship]]) for (const x of list) x.de = DE[x.id];
 
 // Kampagne: Aufträge der Reihe nach. base = Mission, deren Teile angeboten werden.
-// cheapest = billigste Lösung in Mio. $ (zum Erkennen einer Pleite), mit den Spieldaten durchgerechnet.
-export const CAMPAIGN_START = 150; // ein Fehlschlag ist verkraftbar, zwei nicht
+// Die Pleite-Grenze rechnet src/campaign.js (cheapestMission) aus den verfügbaren Raketen aus.
+export const CAMPAIGN_START = 150; // Pleite-Grenze rechnet cheapestMission, seit Starship liegt sie niedrig
 export const contracts = [
-  { id: 'c1', base: 'cubesat', minScience: 8, fee: 2, cheapest: 0.47,
+  { id: 'c1', base: 'cubesat', minScience: 8, fee: 2,
     client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
     de: { client: 'Raumfahrt-AG einer Uni', goal: 'Starte einen kleinen CubeSat mit Kamera für Studierende.' } },
-  { id: 'c2', base: 'weather', minScience: 55, fee: 130, cheapest: 69.3,
+  { id: 'c2', base: 'weather', minScience: 55, fee: 130,
     client: 'National weather service', goal: 'Put a weather satellite into an 800 km orbit.',
     de: { client: 'Nationaler Wetterdienst', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' } },
-  { id: 'c3', base: 'ocean', minScience: 125, fee: 190, cheapest: 115,
+  { id: 'c3', base: 'ocean', minScience: 125, fee: 190,
     client: 'Ocean research institute', goal: 'Measure sea level with a radar satellite.',
     de: { client: 'Institut für Meeresforschung', goal: 'Miss die Meereshöhe mit einem Radar-Satelliten.' } },
-  { id: 'c4', base: 'weather', minScience: 100, fee: 160, cheapest: 107,
+  { id: 'c4', base: 'weather', minScience: 100, fee: 160,
     client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
     de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
 ];

@@ -9,6 +9,7 @@ const STR = {
     projReuseInfo: 'The first stage of Orbiter-1 lands and flies again. Every flight gets 40% cheaper.',
     needs: 'Needs: {x}', startResearch: 'Start research ({n} RP)', team: 'Research team at work',
     speed2: '2x speed', skip: 'Skip ({n} RP)', doneLbl: 'Done', notEnoughRp: 'Not enough research points',
+    funFact: 'Space fact:',
     rpEarned: '+{n} research points', ownRocketName: 'Orbiter-1 (your rocket)',
     ownRocketInfo: 'Your own rocket. Its delta-v comes from the rocket equation. Flights so far: {n}. Each flight makes the next one cheaper.',
     researchDone: 'Research finished: {x}',
@@ -69,6 +70,7 @@ const STR = {
     projReuseInfo: 'Die erste Stufe von Orbiter-1 landet und fliegt wieder. Jeder Flug wird 40 % billiger.',
     needs: 'Braucht: {x}', startResearch: 'Forschung starten ({n} FP)', team: 'Forschungsteam bei der Arbeit',
     speed2: 'Doppelte Geschwindigkeit', skip: 'Überspringen ({n} FP)', doneLbl: 'Fertig', notEnoughRp: 'Zu wenig Forschungspunkte',
+    funFact: 'Weltraum-Fakt:',
     rpEarned: '+{n} Forschungspunkte', ownRocketName: 'Orbiter-1 (deine Rakete)',
     ownRocketInfo: 'Deine eigene Rakete. Ihr Delta-v kommt aus der Raketengleichung. Bisherige Flüge: {n}. Jeder Flug macht den nächsten billiger.',
     researchDone: 'Forschung fertig: {x}',
@@ -123,14 +125,16 @@ const STR = {
 };
 
 let lang = 'en';
-try { lang = localStorage.getItem('lang') || (navigator.language.startsWith('de') ? 'de' : 'en'); } catch { /* Standard EN */ }
+// Standard Englisch (Linus 14.11.). Gespeichert wird nur eine echte Wahl über den Knopf, unter neuem Namen:
+// Der alte Schlüssel 'lang' enthielt oft nur die automatisch erkannte Browsersprache.
+try { lang = localStorage.getItem('lang-choice') || 'en'; } catch { /* Standard EN */ }
 if (!STR[lang]) lang = 'en';
 
 export const getLang = () => lang;
-export function setLang(l) {
+export function setLang(l, save = true) {
   lang = l;
   document.documentElement.lang = l;
-  try { localStorage.setItem('lang', l); } catch { /* ohne Speicher */ }
+  if (save) try { localStorage.setItem('lang-choice', l); } catch { /* ohne Speicher */ }
 }
 export function t(key, vars = {}) {
   const s = STR[lang][key] ?? STR.en[key] ?? key;

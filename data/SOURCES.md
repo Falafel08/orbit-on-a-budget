@@ -20,3 +20,8 @@
 | Orbiter-1 (your own rocket): stage masses, specific impulse, price and how it gets cheaper | Game design, fictional rocket | n/a | Game assumption |
 
 NASA prices are total costs to NASA and include more than the rocket itself. NASA logos are not used anywhere in this project.
+
+## Space facts after a successful launch
+
+All from NASA pages, fetched 14 Nov 2026, US public domain. Listed with each fact in `data/facts.js`:
+ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts, Voyager 1 mission page, NASA library page on space debris (science.nasa.gov / nasa.gov).

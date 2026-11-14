@@ -1,0 +1,28 @@
+// Weltraum-Fakten nach einem erfolgreichen Start (Idee: Josias, Skizze NASA1.pdf).
+// Jeder Fakt mit NASA-Quelle, abgerufen 14.11.2026. Auch in data/SOURCES.md.
+export const facts = [
+  { en: 'The International Space Station circles Earth about every 90 minutes. Its crew sees 16 sunrises a day.',
+    de: 'Die Internationale Raumstation umkreist die Erde etwa alle 90 Minuten. Die Crew sieht 16 Sonnenaufgänge am Tag.',
+    source: 'https://www.nasa.gov/international-space-station/space-station-facts-and-figures/' },
+  { en: 'The space station flies about 8 km every second.',
+    de: 'Die Raumstation fliegt etwa 8 km pro Sekunde.',
+    source: 'https://www.nasa.gov/international-space-station/space-station-facts-and-figures/' },
+  { en: 'The space station weighs about 420 tonnes.',
+    de: 'Die Raumstation wiegt etwa 420 Tonnen.',
+    source: 'https://www.nasa.gov/international-space-station/space-station-facts-and-figures/' },
+  { en: 'The James Webb Space Telescope works about 1.5 million km from Earth.',
+    de: 'Das James-Webb-Teleskop arbeitet etwa 1,5 Millionen km von der Erde entfernt.',
+    source: 'https://science.nasa.gov/mission/webb/' },
+  { en: 'The Moon moves about 2.5 cm farther away from Earth every year.',
+    de: 'Der Mond entfernt sich jedes Jahr etwa 2,5 cm weiter von der Erde.',
+    source: 'https://science.nasa.gov/moon/facts/' },
+  { en: 'About 1.3 million Earths would fit inside the Sun.',
+    de: 'In die Sonne würden etwa 1,3 Millionen Erden passen.',
+    source: 'https://science.nasa.gov/sun/facts/' },
+  { en: 'Voyager 1 launched in 1977. It is the most distant object humans have built and left our solar system\'s bubble in 2012.',
+    de: 'Voyager 1 startete 1977. Sie ist das am weitesten entfernte Objekt, das Menschen gebaut haben, und hat 2012 die Blase unseres Sonnensystems verlassen.',
+    source: 'https://science.nasa.gov/mission/voyager/voyager-1/' },
+  { en: 'Space junk in low orbit can fly at up to 29,000 km/h.',
+    de: 'Weltraumschrott in niedriger Umlaufbahn kann bis zu 29.000 km/h schnell sein.',
+    source: 'https://www.nasa.gov/headquarters/library/find/bibliographies/space-debris/' },
+];
