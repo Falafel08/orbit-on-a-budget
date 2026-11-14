@@ -30,6 +30,7 @@ npm test
 ## Credits
 - **Idea and game design:** Linus Fritz (initiator)
 - **Code:** written with AI (Claude), directed by Linus Fritz
+- **Team:** Josias Wolff (home screen design)
 
 ## Data
 Sources and licenses are listed in `data/SOURCES.md`.
