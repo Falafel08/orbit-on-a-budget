@@ -1,5 +1,5 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
-import { missions, instruments, buses, panels, rockets, contracts, CAMPAIGN_START } from './data/parts.js';
+import { missions, instruments, buses, panels, rockets, starship, contracts, CAMPAIGN_START } from './data/parts.js';
 import { settleContract, isBankrupt } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
@@ -40,7 +40,9 @@ function contractMission(c) {
   return { ...base, id: `campaign-${c.id}`, name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash, minScience: c.minScience, contract: c, de: null };
 }
 
-const rocketList = () => (research.done['own-rocket'] ? [...rockets, ownRocket()] : rockets);
+// Starship gibt es nur in der Kampagne, ab dem zweiten Auftrag
+const rocketList = () => [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : []),
+  ...(state.mission && state.mission.contract && company.index >= 1 ? [starship] : [])];
 
 // Forschung läuft im Hintergrund weiter, solange das Spiel offen ist
 setInterval(() => {
@@ -90,7 +92,7 @@ const instPower = () => state.instruments.reduce((p, i) => p + i.power, 0);
 const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
 const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0);
 const powerAvailable = () => (state.bus ? state.bus.power : 0) + (state.panel ? state.panel.power : 0);
-const insuranceCost = () => (state.insured && state.rocket ? Math.round(state.rocket.cost * 0.08 * 10) / 10 : 0);
+const insuranceCost = () => (state.insured && state.rocket && !state.rocket.uninsurable ? Math.round(state.rocket.cost * 0.08 * 10) / 10 : 0);
 const chosen = () => [...state.instruments, state.bus, state.panel, state.rocket, insuranceCost() ? { cost: insuranceCost() } : null].filter(Boolean);
 // Teile, die die aktuelle Mission anbietet
 const offered = (items) => (state.mission && state.mission.allowed ? items.filter((x) => state.mission.allowed.includes(x.id)) : items);
@@ -218,7 +220,8 @@ const catalogs = [
     rows: (r) => [...(r.maxPayload !== undefined
       ? [[t('carriesToOrbit'), kg(r.maxPayload)], [t('yourSatellite'), kg(payload())]]
       : [[t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]),
-    [t('successRate'), `${(r.reliability * 100).toFixed(r.reliability > 0.99 ? 1 : 0)} %`]], picked: (r) => !!state.rocket && state.rocket.id === r.id },
+    [t('successRate'), `${(r.reliability * 100).toFixed(r.reliability > 0.99 ? 1 : 0)} %`],
+    ...(r.claim ? [[t('dataSource'), t('spacexClaim')]] : [])], picked: (r) => !!state.rocket && state.rocket.id === r.id },
 ];
 
 function card(cat, item) {
@@ -249,7 +252,8 @@ function renderLeft() {
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
       el('div', { class: 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
-    state.build === 2 && state.rocket ? el('label', { class: 'insure card' },
+    state.build === 2 && state.rocket && state.rocket.uninsurable ? el('p', { class: 'hint' }, t('noInsurance')) : null,
+    state.build === 2 && state.rocket && !state.rocket.uninsurable ? el('label', { class: 'insure card' },
       el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
       el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(Math.round(state.rocket.cost * 0.08 * 10) / 10) }))) : null].filter(Boolean));
 }
@@ -605,7 +609,7 @@ $('next').addEventListener('click', () => {
     if (state.build < 2) { state.build += 1; render(); return; }
     const r = missionResult({ ...state, insurance: insuranceCost() });
     if (r.reachedOrbit) {
-      const out = launchOutcome(state.rocket.reliability ?? 1, state.insured);
+      const out = launchOutcome(state.rocket.reliability ?? 1, !!insuranceCost());
       r.attempts = out.attempts;
       if (!out.launched) {
         Object.assign(r, { reachedOrbit: false, success: false, sciencePerMillion: 0 });

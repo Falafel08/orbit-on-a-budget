@@ -15,13 +15,13 @@ export const missions = [
     id: 'weather', level: 'Intermediate', name: 'Weather satellite',
     goal: 'Put a weather satellite into an 800 km orbit to watch clouds and storms.',
     budget: 120, minScience: 55, requiredDv: 9500, verified: false,
-    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'pegasus', 'falcon9', 'own'],
+    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'pegasus', 'falcon9', 'own', 'starship'],
   },
   {
     id: 'ocean', level: 'Hard', name: 'Ocean satellite',
     goal: 'Measure sea level from an 800 km orbit. The radar needs a lot of power.',
     budget: 120, minScience: 125, requiredDv: 9500, verified: false,
-    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'pegasus', 'falcon9', 'own'],
+    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'pegasus', 'falcon9', 'own', 'starship'],
   },
   {
     id: 'free', level: 'Unrestricted', name: 'Free play', free: true,
@@ -102,6 +102,15 @@ export const rockets = [
   },
 ];
 
+// Starship: nicht in der NASA-Datenbank, nur Angaben von SpaceX. Nur in der Kampagne, ab Auftrag 2.
+// 100 t: SpaceX Starship Users Guide (2020), gilt für niedrigen Orbit. 10 Mio. $: Musks Ziel (CNBC, 11.02.2022).
+// Erfolgsquote: 10 von 15 Testflügen (Wikipedia, Stand 14.11.2026). Kein Versicherer deckt Testflüge (Spiel-Annahme).
+export const starship = {
+  id: 'starship', name: 'Starship', cost: 10, maxPayload: 100000, reliability: 0.67,
+  claim: true, uninsurable: true,
+  info: 'SpaceX\'s giant rocket, still in test flights. Price and payload are SpaceX\'s own targets, not NASA data. 10 of 15 test flights worked. No insurer covers it.',
+};
+
 // Deutsche Namen und Texte, an jeden Datensatz gehängt (tr() in src/i18n.js liest sie)
 const BUS_DE = 'Der Körper des Satelliten. Er trägt die Instrumente und gibt ihnen Strom, Funk und einen Computer.';
 const DE = {
@@ -130,9 +139,10 @@ const DE = {
   'bus-l': { name: 'Großer Bus', info: BUS_DE },
   rideshare: { name: 'CubeSat-Mitflug', info: 'Dein CubeSat fliegt auf der Rakete von jemand anderem mit. Das ist billig, aber nur für CubeSats bis 3U.' },
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
+  starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. Preis und Nutzlast sind Ziele von SpaceX, keine NASA-Daten. 10 von 15 Testflügen haben geklappt. Kein Versicherer deckt sie.' },
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
-for (const list of [missions, instruments, buses, panels, rockets]) for (const x of list) x.de = DE[x.id];
+for (const list of [missions, instruments, buses, panels, rockets, [starship]]) for (const x of list) x.de = DE[x.id];
 
 // Kampagne: Aufträge der Reihe nach. base = Mission, deren Teile angeboten werden.
 // cheapest = billigste Lösung in Mio. $ (zum Erkennen einer Pleite), mit den Spieldaten durchgerechnet.

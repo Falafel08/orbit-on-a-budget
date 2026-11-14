@@ -10,6 +10,10 @@
 | Split of CubeSat mass into bus and instruments (half each), CubeSat power, bus and instrument prices, masses and power | Game assumption | n/a | To be checked |
 | Launch success rate Falcon 9: about 99.6 % (about 2 in-flight failures in more than 600 flights) | Public launch records, https://en.wikipedia.org/wiki/List_of_Falcon_9_and_Falcon_Heavy_launches | CC BY-SA (facts only, no text copied) | Used |
 | Launch success rate Pegasus XL: 90 % (27 of 30 launches) | Public launch records, https://keeptrack.space/launches/vehicles/pegasus-xl (July 2026) | Facts only | Used |
+| Starship payload: over 100 t to low Earth orbit (SpaceX claim, not NASA data; not for an 800 km orbit) | SpaceX Starship Users Guide, March 2020, https://www.spacex.com/media/starship_users_guide_v1.pdf | Manufacturer claim, facts only | Used, marked "SpaceX claim" in the game |
+| Starship price: $10M per flight is Elon Musk's target, not a real price | CNBC, 11 Feb 2022, https://www.cnbc.com/2022/02/11/elon-musk-spacexs-starship-is-solution-to-efficient-space-travel.html | Facts only | Used, marked "SpaceX claim" |
+| Starship success rate: 67 % (10 of 15 test flights) | Public launch records, https://en.wikipedia.org/wiki/SpaceX_Starship (14 Nov 2026) | CC BY-SA (facts only, no text copied) | Used |
+| Game assumption: no insurer covers Starship test flights; Starship only in the campaign, from contract 2 | Game design | — | Used |
 | Success rate of the CubeSat rideshare (95 %), of your own rocket (75 % rising to 99 %, with quality program 85 % to 99.8 %), insurance price (8 % of the rocket) | Game assumption | n/a | Game assumption |
 | Campaign: start money, contracts, client fees; reliability curve and quality program of your own rocket | Game design | n/a | Game assumption |
 | Rocket equation, standard gravity 9.80665 m/s² | Physics (Tsiolkovsky) | n/a | Used for Orbiter-1 |
