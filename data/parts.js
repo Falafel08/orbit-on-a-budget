@@ -107,8 +107,23 @@ export const rockets = [
 // Erfolgsquote: 10 von 15 Testflügen (Wikipedia, Stand 14.11.2026). Kein Versicherer deckt Testflüge (Spiel-Annahme).
 export const starship = {
   id: 'starship', name: 'Starship', cost: 10, maxPayload: 100000, reliability: 0.67,
+  capacity: { moon: 100000, mars: 100000 }, needsRefuel: true, // über den Erdorbit hinaus nur mit Betankung im Orbit
   claim: true, uninsurable: true,
   info: 'SpaceX\'s giant rocket, still in test flights. Price and payload are SpaceX\'s own targets, not NASA data. 10 of 15 test flights worked. No insurer covers it.',
+};
+
+// Mond und Mars (Level 3 und 4). capacity = Nutzlast je Ziel in kg.
+// Falcon Heavy: Preis 178 Mio. $ laut NASA-Startvertrag Europa Clipper (2021). Nutzlast 16,8 t zum Mars (Angabe SpaceX);
+// für den Mond gilt im Spiel derselbe Wert, das ist vorsichtig, denn zum Mond trägt sie mehr.
+export const falconHeavy = {
+  id: 'falconHeavy', name: 'Falcon Heavy', cost: 178, reliability: 0.99, capacity: { moon: 16800, mars: 16800 },
+  info: 'Three Falcon 9 cores side by side. NASA paid about $178M to launch Europa Clipper with it. Carries 16.8 t to Mars (SpaceX figure).',
+};
+// SLS: über 27 t zum Mond (NASA, SLS Lift Capabilities). 2,2 Mrd. $ pro Rakete (NASA Inspector General, IG-22-003).
+// Erfolgsquote: Spiel-Annahme.
+export const sls = {
+  id: 'sls', name: 'SLS', cost: 2200, reliability: 0.95, capacity: { moon: 27000 },
+  info: 'NASA\'s Moon rocket. It carries more than 27 t to the Moon. NASA\'s Inspector General puts one rocket at about $2.2 billion.',
 };
 
 // Deutsche Namen und Texte, an jeden Datensatz gehängt (tr() in src/i18n.js liest sie)
@@ -139,26 +154,28 @@ const DE = {
   'bus-l': { name: 'Großer Bus', info: BUS_DE },
   rideshare: { name: 'CubeSat-Mitflug', info: 'Dein CubeSat fliegt auf der Rakete von jemand anderem mit. Das ist billig, aber nur für CubeSats bis 3U.' },
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
+  falconHeavy: { info: 'Drei Falcon-9-Stufen nebeneinander. Die NASA zahlte etwa 178 Mio. $ für den Start von Europa Clipper damit. Trägt 16,8 t zum Mars (Angabe von SpaceX).' },
+  sls: { info: 'Die Mondrakete der NASA. Sie trägt mehr als 27 t zum Mond. Laut NASA-Prüfbericht kostet eine Rakete etwa 2,2 Mrd. $.' },
   starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. Preis und Nutzlast sind Ziele von SpaceX, keine NASA-Daten. 10 von 15 Testflügen haben geklappt. Kein Versicherer deckt sie.' },
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
-for (const list of [missions, instruments, buses, panels, rockets, [starship]]) for (const x of list) x.de = DE[x.id];
+for (const list of [missions, instruments, buses, panels, rockets, [starship, falconHeavy, sls]]) for (const x of list) x.de = DE[x.id];
 
 // Kampagne: Aufträge der Reihe nach. base = Mission, deren Teile angeboten werden.
 // Die Pleite-Grenze rechnet src/campaign.js (cheapestMission) aus den verfügbaren Raketen aus.
 // 110: Ein Fehlstart mit Falcon 9 bei Auftrag 2 (82 Mio. $) ist verkraftbar, danach bleibt nur noch Starship (23 Mio. $). Scheitert auch der, ist die Firma pleite.
 export const CAMPAIGN_START = 110;
 export const contracts = [
-  { id: 'c1', level: 1, base: 'cubesat', minScience: 8, fee: 2,
+  { id: 'c1', level: 1, dest: 'leo', base: 'cubesat', minScience: 8, fee: 2,
     client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
     de: { client: 'Raumfahrt-AG einer Uni', goal: 'Starte einen kleinen CubeSat mit Kamera für Studierende.' } },
-  { id: 'c2', level: 1, base: 'weather', minScience: 55, fee: 130,
+  { id: 'c2', level: 1, dest: 'leo', base: 'weather', minScience: 55, fee: 130,
     client: 'National weather service', goal: 'Put a weather satellite into an 800 km orbit.',
     de: { client: 'Nationaler Wetterdienst', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' } },
-  { id: 'c3', level: 1, base: 'ocean', minScience: 125, fee: 190,
+  { id: 'c3', level: 1, dest: 'leo', base: 'ocean', minScience: 125, fee: 190,
     client: 'Ocean research institute', goal: 'Measure sea level with a radar satellite.',
     de: { client: 'Institut für Meeresforschung', goal: 'Miss die Meereshöhe mit einem Radar-Satelliten.' } },
-  { id: 'c4', level: 1, base: 'weather', minScience: 100, fee: 160,
+  { id: 'c4', level: 1, dest: 'leo', base: 'weather', minScience: 100, fee: 160,
     client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
     de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
   // Level 2: eine kleine Raumstation aus fünf Modulen (Idee Mentor und Josias, 14.11.).
@@ -171,15 +188,30 @@ export const contracts = [
     ['s4', 'Habitat module', 'Wohnmodul', 'Beds, kitchen and air for a crew of three.', 'Betten, Küche und Luft für drei Leute.', 9000, 55, 150],
     ['s5', 'Docking node', 'Andockknoten', 'Lets spacecraft dock. After this the station is complete.', 'Hier docken Raumschiffe an. Danach ist die Station fertig.', 3000, 25, 110],
   ].map(([id, name, nameDe, goal, goalDe, mass, cost, fee]) => ({
-    id, level: 2, module: { mass, cost, name, de: { name: nameDe } }, fee,
+    id, level: 2, dest: 'leo', module: { mass, cost, name, de: { name: nameDe } }, fee,
+    client: name, goal, de: { client: nameDe, goal: goalDe },
+  })),
+  // Level 3: Mondbasis, Level 4: Mars. Massen, Baukosten und Zahlungen sind Spiel-Annahmen.
+  // Das Wohnmodul (20 t) passt nicht in Falcon Heavy: entweder die teure SLS oder Starship nach der Forschung „Betankung“.
+  ...[
+    ['m1', 3, 'moon', 'Lunar lander and power', 'Mondlander mit Kraftwerk', 'Solar power and a landing pad at the south pole of the Moon.', 'Solarstrom und ein Landeplatz am Südpol des Mondes.', 9000, 180, 520],
+    ['m2', 3, 'moon', 'Moon rover', 'Mond-Rover', 'A rover that drives to the dark craters to look for ice.', 'Ein Rover, der zu den dunklen Kratern fährt und Eis sucht.', 4000, 120, 420],
+    ['m3', 3, 'moon', 'Moon habitat', 'Mond-Wohnmodul', 'A home for four people. Too heavy for Falcon Heavy.', 'Ein Zuhause für vier Leute. Zu schwer für Falcon Heavy.', 20000, 300, 900],
+    ['m4', 3, 'moon', 'Ice mine', 'Eismine', 'Turns ice from the craters into water and rocket fuel.', 'Macht aus dem Eis der Krater Wasser und Raketentreibstoff.', 12000, 220, 640],
+    ['r1', 4, 'mars', 'Mars cargo lander', 'Mars-Frachtlander', 'Supplies and tools wait on Mars before people arrive.', 'Vorräte und Werkzeug warten auf dem Mars, bevor Menschen kommen.', 15000, 350, 1200],
+    ['r2', 4, 'mars', 'Mars habitat', 'Mars-Wohnmodul', 'A pressurized home on Mars. Only Starship can carry it.', 'Ein Zuhause unter Druck auf dem Mars. Nur Starship kann es tragen.', 30000, 500, 2000],
+    ['r3', 4, 'mars', 'Crewed Mars landing', 'Bemannte Marslandung', 'The first crew lands on Mars. They need fuel from Mars to fly home.', 'Die erste Crew landet auf dem Mars. Für den Rückflug braucht sie Treibstoff vom Mars.', 50000, 800, 3200, 'mars-fuel'],
+  ].map(([id, level, dest, name, nameDe, goal, goalDe, mass, cost, fee, requires]) => ({
+    id, level, dest, module: { mass, cost, name, de: { name: nameDe } }, fee, requires,
     client: name, goal, de: { client: nameDe, goal: goalDe },
   })),
 ];
 
 // Level der Kampagne. Mond und Mars sind als Ausblick gesperrt.
+// place = Ort der Basis und des Forschungslabors in diesem Level
 export const LEVELS = [
-  { n: 1, name: 'Satellites', de: { name: 'Satelliten' } },
-  { n: 2, name: 'Space station', de: { name: 'Raumstation' } },
-  { n: 3, name: 'Moon base', de: { name: 'Mondbasis' }, soon: true },
-  { n: 4, name: 'Mars', de: { name: 'Mars' }, soon: true },
+  { n: 1, place: 'earth', name: 'Earth orbit', de: { name: 'Erdorbit' } },
+  { n: 2, place: 'station', name: 'Space station', de: { name: 'Raumstation' } },
+  { n: 3, place: 'moon', name: 'Moon base', de: { name: 'Mondbasis' } },
+  { n: 4, place: 'mars', name: 'Mars', de: { name: 'Mars' } },
 ];

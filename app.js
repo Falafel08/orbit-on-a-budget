@@ -1,8 +1,8 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { facts } from './data/facts.js';
 import { nasaSources, otherSources } from './data/sources.js';
-import { missions, instruments, buses, panels, rockets, starship, contracts, LEVELS, CAMPAIGN_START } from './data/parts.js';
-import { settleContract, isBankrupt, cheapestMission, moduleBus } from './src/campaign.js';
+import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START } from './data/parts.js';
+import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
@@ -12,11 +12,18 @@ import { pointsForMission, ownRocketCost, ownRocketReliability } from './src/res
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
 const OWN_STAGES = [{ dryMass: 6000, propMass: 60000, isp: 295 }, { dryMass: 900, propMass: 9500, isp: 340 }];
+// Forschung je Level und Ort (Linus 14.11.): Erde, Raumstation, Mond, Mars. Jedes Projekt schaltet etwas frei.
 const PROJECTS = [
-  { id: 'own-rocket', rp: 15, seconds: 40, name: 'projOwn', info: 'projOwnInfo' },
-  { id: 'reuse', rp: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket' },
-  { id: 'quality', rp: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
+  { id: 'own-rocket', level: 1, rp: 15, seconds: 40, name: 'projOwn', info: 'projOwnInfo' },
+  { id: 'reuse', level: 1, rp: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket' },
+  { id: 'quality', level: 1, rp: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
+  { id: 'refuel', level: 2, rp: 30, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo' },
+  { id: 'lunar-ice', level: 3, rp: 30, seconds: 60, name: 'projIce', info: 'projIceInfo' },
+  { id: 'mars-fuel', level: 4, rp: 25, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo' },
 ];
+const ALL_DONE = Object.fromEntries(PROJECTS.map((p) => [p.id, true]));
+// Höchstes erreichtes Level der Kampagne
+const reachedLevel = () => (company.index >= contracts.length ? LEVELS.length : contracts[company.index].level);
 const SKIP_RP = 5;
 let research = { rp: 0, done: {}, flights: 0, active: null };
 try { research = { ...research, ...JSON.parse(localStorage.getItem('research') || '{}') }; } catch { /* Neustart */ }
@@ -40,14 +47,21 @@ const bestCompany = () => { try { return Number(localStorage.getItem('best-compa
 function contractMission(c) {
   if (c.module) {
     return { id: `campaign-${c.id}`, level: 'Intermediate', name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash,
-      minScience: 0, requiredDv: 9500, allowed: ['pegasus', 'falcon9', 'own', 'starship'], module: c.module, contract: c, de: null };
+      minScience: 0, requiredDv: 9500, module: c.module, contract: c, dest: c.dest, de: null };
   }
   const base = missions.find((m) => m.id === c.base);
   return { ...base, id: `campaign-${c.id}`, name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash, minScience: c.minScience, contract: c, de: null };
 }
 
 // Starship gibt es nur in der Kampagne, ab dem zweiten Auftrag
-const campaignRockets = (index) => [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : []), ...(index >= 1 ? [starship] : [])];
+// Raketen für einen Auftrag: je nach Ziel (Erdorbit, Mond, Mars) und Forschung. done = ALL_DONE für die Pleite-Prüfung,
+// denn Forschung kostet Punkte und Zeit, kein Geld.
+const campaignRockets = (index, done = research.done) => {
+  const dest = (contracts[index] && contracts[index].dest) || 'leo';
+  const list = [...rockets, ...(research.done['own-rocket'] && dest === 'leo' ? [ownRocket()] : []),
+    ...(index >= 1 ? [starship] : []), falconHeavy, sls];
+  return rocketsFor(dest, list, done);
+};
 const rocketList = () => (state.mission && state.mission.contract ? campaignRockets(company.index)
   : [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : [])]);
 
@@ -248,7 +262,8 @@ const catalogs = [
     rows: (pn) => [[t('power'), `${pn.power} W`], [t('mass'), kg(pn.mass)]], picked: (pn) => state.panel === pn },
   { kind: 'rocket', get items() { return rocketList(); }, hint: 'hintRocket',
     rows: (r) => [...(r.maxPayload !== undefined
-      ? [[t('carriesToOrbit'), kg(r.maxPayload)], [t('yourSatellite'), kg(payload())]]
+      ? [[t({ moon: 'carriesToMoon', mars: 'carriesToMars' }[state.mission && state.mission.dest] || 'carriesToOrbit'), kg(r.maxPayload)],
+        [t(state.mission && state.mission.module ? 'yourPayload' : 'yourSatellite'), kg(payload())]]
       : [[t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]),
     [t('successRate'), `${(r.reliability * 100).toFixed(r.reliability > 0.99 ? 1 : 0)} %`],
     ...(r.claim ? [[t('dataSource'), t('spacexClaim')]] : [])], picked: (r) => !!state.rocket && state.rocket.id === r.id },
@@ -362,6 +377,8 @@ const ROCKET_LOOK = {
   own: { H: 230, w: 20, body: ['#c9b6ec', '#7d68a6'] },
   falcon9: { H: 285, w: 20, body: ['#ffffff', '#c9c2b8'] },
   starship: { H: 305, w: 32, body: ['#d6dbe1', '#8d949c'] },
+  falconHeavy: { H: 285, w: 18, body: ['#ffffff', '#c9c2b8'], boosters: { w: 16, color: ['#ffffff', '#bdb5a9'], h: 0.62 } },
+  sls: { H: 305, w: 24, body: ['#f0a052', '#b8642a'], boosters: { w: 9, color: ['#ffffff', '#c9c2b8'], h: 0.72 } },
 };
 
 // Satellit in der Spitze: Körper, eingeklappte Solarflügel, Instrumente obendrauf (Klick entfernt sie)
@@ -424,6 +441,19 @@ function rocketPicture(r, withPayload = false) {
   const fw = starship ? w : withPayload ? Math.max(w + 22, 46) : Math.max(w + 10, 30); // vorne breiter, damit der Satellit gut zu sehen ist
   const bodyTop = top + fh;
 
+  // Seitliche Booster (Falcon Heavy: zwei Falcon-9-Stufen, SLS: zwei Feststoff-Booster)
+  if (look.boosters) {
+    const b = look.boosters, bh = (ground - 8 - top) * b.h, btop = ground - 8 - bh;
+    const bid = `${id}b`;
+    const bg = svg('linearGradient', { id: bid, x1: '0', x2: '1', y1: '0', y2: '0' });
+    bg.append(svg('stop', { offset: '0', 'stop-color': b.color[0] }), svg('stop', { offset: '0.55', 'stop-color': b.color[0] }), svg('stop', { offset: '1', 'stop-color': b.color[1] }));
+    defs.append(bg);
+    for (const bx of [x - b.w, x + w]) {
+      s.append(svg('rect', { x: bx, y: btop, width: b.w, height: bh, fill: `url(#${bid})` }));
+      s.append(svg('path', { d: `M${bx} ${btop} Q${bx + b.w / 2} ${btop - b.w * 1.6} ${bx + b.w} ${btop} Z`, fill: `url(#${bid})` }));
+      s.append(svg('path', { d: `M${bx + b.w * 0.15} ${ground - 8} L${bx} ${ground} L${bx + b.w} ${ground} L${bx + b.w * 0.85} ${ground - 8} Z`, fill: '#4a4550' }));
+    }
+  }
   // Triebwerk und Körper
   s.append(svg('path', { d: `M${cx - w * 0.35} ${ground - 8} L${cx - w * 0.5} ${ground} L${cx + w * 0.5} ${ground} L${cx + w * 0.35} ${ground - 8} Z`, fill: '#4a4550' }));
   s.append(svg('rect', { x, y: bodyTop, width: w, height: ground - 8 - bodyTop, fill }));
@@ -523,7 +553,7 @@ function renderLeft() {
   const focusIndex = sameStep ? focusables().indexOf(document.activeElement) : -1;
   leftStep = state.build;
   left.replaceChildren(...[
-    state.mission.module ? el('p', { class: 'hint' }, t('stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
+    state.mission.module ? el('p', { class: 'hint' }, t({ moon: 'moonFlight', mars: 'marsFlight' }[state.mission.dest] || 'stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
       : el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').slice(0, 2).map((name, i) => el('button', {
         type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
         onclick: () => { state.build = i; render(); },
@@ -838,7 +868,7 @@ function launch(canvas, rocketEl, mode, from) {
     if (mode === 'heavy' && s > 0) caption(t('capHeavy'));
     if (mode === 'nofuel' && s > 0) caption(t('capNoFuel'));
     if (mode === 'explode' && boomAt !== null) caption(t('capExplode'));
-    if (mode === 'ok' && s > 3.5) caption(t('capOrbit'));
+    if (mode === 'ok' && s > 3.5) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
     if (tc >= count + ignite + flight) { $('next').disabled = false; return; }
     requestAnimationFrame(frame);
   }
@@ -861,15 +891,26 @@ function researchTeam() {
   return g;
 }
 
+// Forschung je Ort (Linus 14.11.): Reiter für Erde, Raumstation, Mond, Mars; oben die Kulisse des Ortes.
+const PLACE_NAME = { earth: 'placeEarth', station: 'placeStation', moon: 'placeMoon', mars: 'placeMars' };
 function renderResearch() {
   const a = research.active;
+  const reached = reachedLevel();
+  const view = Math.min(state.researchView || reached, reached);
+  const place = LEVELS[view - 1].place;
+  const delivered = contracts.filter((x) => x.level === view && contracts.indexOf(x) < company.index).length;
   return el('section', { class: 'research enter' },
-    el('h1', {}, t('research')),
+    el('nav', { class: 'levels', 'aria-label': t('research') }, LEVELS.map((l) => el('button', {
+      type: 'button', class: l.n === view ? 'level on' : 'level', disabled: l.n > reached ? '' : null,
+      title: l.n > reached ? t('reachLevel') : '', onclick: () => { state.researchView = l.n; render(); },
+    }, t(PLACE_NAME[l.place])))),
+    el('div', { class: 'lab-scene', 'aria-hidden': 'true' }, placeSvg(view, null, delivered)),
+    el('h1', {}, t('labOf', { x: t(PLACE_NAME[place]) })),
     el('p', { class: 'lead' }, t('researchLead')),
     el('p', { class: 'big-number rp' }, `${research.rp} ${t('rpShort')}`),
-    el('div', { class: 'projects' }, PROJECTS.map((pr) => {
+    el('div', { class: 'projects' }, PROJECTS.filter((pr) => pr.level === view).map((pr) => {
       const done = !!research.done[pr.id];
-      const locked = pr.needs && !research.done[pr.needs];
+      const locked = (pr.needs && !research.done[pr.needs]) || pr.level > reached;
       const running = a && a.id === pr.id;
       const canStart = !done && !locked && !a && research.rp >= pr.rp;
       return el('div', { class: `project card${done ? ' done-card' : ''}` },
@@ -929,23 +970,7 @@ function building(label, [lx, ly], onSelect, parts) {
 // Leitstand: springt zum Auftrag rechts
 const focusContract = () => { const b = document.querySelector('.project .primary') || document.querySelector('.company-panel h1'); b?.scrollIntoView({ block: 'center', behavior: 'smooth' }); b?.focus?.({ preventScroll: true }); };
 
-// Raumstation über der Basis (Level 2): gelieferte Module ausgefüllt, fehlende gestrichelt
-function stationSvg(delivered) {
-  const g = svg('g', { class: 'station', 'aria-label': t('stationLabel') });
-  const cx = 140, cy = -72;
-  const part = (k, el2) => { if (k >= delivered) { el2.setAttribute('fill', 'none'); el2.setAttribute('stroke', 'rgba(245,239,230,0.45)'); el2.setAttribute('stroke-dasharray', '3 3'); } g.append(el2); };
-  g.append(svg('line', { x1: cx - 70, y1: cy, x2: cx + 70, y2: cy, stroke: delivered ? '#B8AFA6' : 'rgba(245,239,230,0.3)', 'stroke-width': 2 }));
-  part(0, svg('rect', { x: cx - 18, y: cy - 8, width: 36, height: 16, rx: 7, fill: '#d9d2c7' }));               // Kern
-  part(1, svg('rect', { x: cx - 70, y: cy - 16, width: 30, height: 32, fill: '#2b3a6b', stroke: '#9fb3e8' }));     // Energie links
-  part(1, svg('rect', { x: cx + 40, y: cy - 16, width: 30, height: 32, fill: '#2b3a6b', stroke: '#9fb3e8' }));     // Energie rechts
-  part(2, svg('rect', { x: cx + 18, y: cy - 6, width: 22, height: 12, rx: 5, fill: '#cfe6ea' }));                  // Labor
-  part(3, svg('rect', { x: cx - 40, y: cy - 6, width: 22, height: 12, rx: 5, fill: '#e0c070' }));                  // Wohnen
-  part(4, svg('circle', { cx, cy: cy - 14, r: 6, fill: '#A88FD6' }));                                              // Andocken
-  g.append(svg('text', { x: cx, y: cy + 32, 'text-anchor': 'middle', class: 'bldg-label' }, `${t('stationLabel')} · ${t('modulesOf', { n: delivered, m: 5 })}`));
-  return g;
-}
-
-function baseSvg(c, delivered = null) {
+function baseSvg(c) {
   const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('baseLabel') });
   // Boden: 8 x 8 Felder, Straße zur Startrampe
   for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) {
@@ -964,22 +989,20 @@ function baseSvg(c, delivered = null) {
 
   // Forschungslabor mit Kuppel
   const dome = iso(6, 2);
-  s.append(building(t('bldgLab'), [dome[0], dome[1] - 66], () => { state.returnTo = 'company'; go('research'); }, [
+  s.append(building(t('bldgLab'), [dome[0], dome[1] - 66], labAction(1), [
     isoBox(5, 1, 2, 2, 28, ['#5f9aa0', '#2f5e63', '#3f747a']),
     svg('ellipse', { cx: dome[0], cy: dome[1] - 30, rx: 22, ry: 16, fill: '#cfe6ea', stroke: '#9fc7cd' }),
   ]));
 
   // Startrampe mit Rakete: startet den aktuellen Auftrag
   const padC = iso(4, 6);
-  const canStart = c && !company.over;
-  s.append(building(t('bldgPad'), [padC[0], padC[1] - 100], () => { if (canStart) startMission(contractMission(c)); else focusContract(); }, [
+  s.append(building(t('bldgPad'), [padC[0], padC[1] - 100], padAction(c), [
     isoBox(3, 5, 2, 2, 6, ['#8a857c', '#5a564f', '#6e6a62']),
     svg('rect', { x: padC[0] + 16, y: padC[1] - 70, width: 5, height: 64, fill: '#B8AFA6' }),
     svg('path', { d: `M${padC[0] - 6} ${padC[1] - 10} L${padC[0] - 6} ${padC[1] - 60} Q${padC[0]} ${padC[1] - 80} ${padC[0] + 6} ${padC[1] - 60} L${padC[0] + 6} ${padC[1] - 10} Z`, fill: '#F5EFE6' }),
     svg('rect', { x: padC[0] - 6, y: padC[1] - 40, width: 12, height: 4, fill: '#A88FD6' }),
   ]));
 
-  if (delivered !== null) s.append(stationSvg(delivered));
   // Tanks und Antenne als Deko
   for (const [gx, gy] of [[6.6, 5.2], [7.2, 5.8]]) {
     const [x, y] = iso(gx, gy);
@@ -990,36 +1013,181 @@ function baseSvg(c, delivered = null) {
   return s;
 }
 
+// ---------- Orte der Level: Raumstation, Mond, Mars (Linus 14.11.) ----------
+// Jeder Ort hat dieselben drei Funktionen: Leitstand (Auftrag), Labor (Forschung dieses Ortes), Start- bzw. Andockplatz.
+let sceneSeq = 0;
+const labAction = (level) => () => { state.returnTo = 'company'; state.researchView = level; go('research'); };
+const padAction = (c) => () => {
+  if (c && !company.over && !contractLocked(c, research.done)) startMission(contractMission(c));
+  else focusContract();
+};
+
+// Verlauf als <defs>-Eintrag, gibt die url() zurück
+function grad(s, kind, stops, attrs = {}) {
+  let defs = s.querySelector('defs');
+  if (!defs) { defs = svg('defs'); s.prepend(defs); }
+  const id = `sg${++sceneSeq}`;
+  const g = svg(kind, { id, ...attrs });
+  for (const [o, c] of stops) g.append(svg('stop', { offset: o, 'stop-color': c }));
+  defs.append(g);
+  return `url(#${id})`;
+}
+function starsInto(s, n, area = [-270, -110, 540, 200]) {
+  for (let i = 0; i < n; i++) {
+    const x = area[0] + ((i * 97) % area[2]), y = area[1] + ((i * 53) % area[3]);
+    s.append(svg('circle', { cx: x, cy: y, r: (i % 3) * 0.4 + 0.5, fill: 'rgba(245,239,230,0.7)' }));
+  }
+}
+// Kuppel mit Licht von links oben, wirkt räumlich
+function dome(s, cx, cy, r, light, dark, extra = []) {
+  const fill = grad(s, 'radialGradient', [['0', light], ['1', dark]], { cx: '0.35', cy: '0.3', r: '0.8' });
+  const g = svg('g');
+  g.append(svg('ellipse', { cx, cy, rx: r, ry: r * 0.32, fill: 'rgba(0,0,0,0.35)' }));
+  g.append(svg('path', { d: `M${cx - r} ${cy} A${r} ${r} 0 0 1 ${cx + r} ${cy} Z`, fill }));
+  for (const e of extra) g.append(e);
+  return g;
+}
+// liegender Zylinder (Stationsmodul) mit Licht von oben
+function cylinder(s, x, y, len, r, light, dark, solid) {
+  const g = svg('g');
+  if (!solid) {
+    g.append(svg('rect', { x, y: y - r, width: len, height: 2 * r, rx: r * 0.5, fill: 'none', stroke: 'rgba(245,239,230,0.45)', 'stroke-dasharray': '4 3' }));
+    return g;
+  }
+  const fill = grad(s, 'linearGradient', [['0', light], ['0.45', light], ['1', dark]], { x1: '0', x2: '0', y1: '0', y2: '1' });
+  g.append(svg('rect', { x, y: y - r, width: len, height: 2 * r, fill }));
+  g.append(svg('ellipse', { cx: x + len, cy: y, rx: r * 0.35, ry: r, fill: dark }));
+  g.append(svg('ellipse', { cx: x, cy: y, rx: r * 0.35, ry: r, fill: light }));
+  return g;
+}
+function isoGround(s, a, b, stroke) {
+  for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) {
+    s.append(svg('polygon', { points: pts([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)]), fill: (x + y) % 2 ? a : b, stroke, 'stroke-width': 0.5 }));
+  }
+}
+function crater(s, gx, gy, r, dark, rim) {
+  const [x, y] = iso(gx, gy);
+  s.append(svg('ellipse', { cx: x, cy: y, rx: r, ry: r * 0.5, fill: dark }));
+  s.append(svg('path', { d: `M${x - r} ${y} A${r} ${r * 0.5} 0 0 0 ${x + r} ${y}`, stroke: rim, 'stroke-width': 1.5, fill: 'none' }));
+}
+// Landeplatz mit Markierung und Lander bzw. Rakete
+function landingPad(s, cx, cy, color, withShip) {
+  const parts = [svg('ellipse', { cx, cy, rx: 46, ry: 23, fill: color, stroke: 'rgba(245,239,230,0.5)' }),
+    svg('text', { x: cx, y: cy + 5, 'text-anchor': 'middle', class: 'pad-mark' }, 'H')];
+  if (withShip) {
+    const body = grad(s, 'linearGradient', [['0', '#e4e8ec'], ['0.55', '#d6dbe1'], ['1', '#8d949c']], { x1: '0', x2: '1' });
+    parts.push(svg('rect', { x: cx - 7, y: cy - 62, width: 14, height: 56, fill: body }));
+    parts.push(svg('path', { d: `M${cx - 7} ${cy - 62} Q${cx} ${cy - 80} ${cx + 7} ${cy - 62} Z`, fill: body }));
+    parts.push(svg('path', { d: `M${cx - 7} ${cy - 12} L${cx - 13} ${cy - 2} M${cx + 7} ${cy - 12} L${cx + 13} ${cy - 2}`, stroke: '#8d949c', 'stroke-width': 2 }));
+  }
+  return parts;
+}
+
+function stationScene(c, delivered) {
+  const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('placeStation') });
+  starsInto(s, 60);
+  // Erde unten, mit Atmosphärenrand und Wolken
+  const earth = grad(s, 'radialGradient', [['0', '#4f8fd0'], ['0.7', '#24507f'], ['1', '#14304f']], { cx: '0.45', cy: '0.15', r: '0.9' });
+  s.append(svg('circle', { cx: 0, cy: 620, r: 430, fill: earth }));
+  s.append(svg('circle', { cx: 0, cy: 620, r: 434, fill: 'none', stroke: 'rgba(140,200,255,0.55)', 'stroke-width': 6 }));
+  for (const [x, y, rx] of [[-150, 215, 60], [40, 200, 80], [170, 230, 50]]) s.append(svg('ellipse', { cx: x, cy: y, rx, ry: 8, fill: 'rgba(255,255,255,0.25)' }));
+  // Gitterträger und Solarflügel (Energiemodul)
+  const y = 40;
+  s.append(svg('rect', { x: -230, y: y - 3, width: 460, height: 6, fill: delivered ? '#8a8f96' : 'rgba(245,239,230,0.3)' }));
+  for (const x of [-230, -180, 150, 200]) {
+    const solid = delivered >= 2;
+    s.append(svg('rect', { x, y: y - 70, width: 40, height: 140, fill: solid ? grad(s, 'linearGradient', [['0', '#3d5196'], ['1', '#1f2b52']]) : 'none', stroke: solid ? '#9fb3e8' : 'rgba(245,239,230,0.4)', 'stroke-dasharray': solid ? null : '4 3' }));
+  }
+  s.append(cylinder(s, -110, y, 70, 16, '#f1e3b8', '#a68f52', delivered >= 4));           // Wohnmodul
+  s.append(building(t('bldgControl'), [-10, y + 44], focusContract, [cylinder(s, -40, y, 80, 20, '#f5efe6', '#a9a49b', delivered >= 1)]));
+  s.append(building(t('bldgLab'), [105, y - 30], labAction(2), [cylinder(s, 40, y, 70, 17, '#e3f1f4', '#7fa9b0', delivered >= 3)]));
+  const dock = grad(s, 'radialGradient', [['0', '#d8c9f2'], ['1', '#6d5a92']], { cx: '0.35', cy: '0.35' });
+  s.append(building(t('bldgDock'), [0, y - 50], padAction(c), [svg('circle', { cx: 0, cy: y - 28, r: 12, fill: delivered >= 5 ? dock : 'none', stroke: delivered >= 5 ? 'none' : 'rgba(245,239,230,0.45)', 'stroke-dasharray': '3 3' })]));
+  s.append(svg('text', { x: 0, y: y + 84, 'text-anchor': 'middle', class: 'bldg-label' }, t('modulesOf', { n: delivered, m: 5 })));
+  return s;
+}
+
+function moonScene(c, delivered) {
+  const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('placeMoon') });
+  starsInto(s, 70, [-270, -110, 540, 130]);
+  const earth = grad(s, 'radialGradient', [['0', '#6aa7e0'], ['1', '#1d3b5c']], { cx: '0.35', cy: '0.3' });
+  s.append(svg('circle', { cx: -200, cy: -70, r: 20, fill: earth }));
+  s.append(svg('path', { d: 'M-212 -76 q8 -6 18 0 q6 4 12 0', stroke: 'rgba(255,255,255,0.6)', 'stroke-width': 2, fill: 'none' }));
+  isoGround(s, '#8a8780', '#93908a', '#77746e');
+  crater(s, 6.6, 5.6, 22, '#6f6c66', '#a9a6a0'); crater(s, 1.2, 6.4, 14, '#6f6c66', '#a9a6a0'); crater(s, 7.2, 1.2, 10, '#6f6c66', '#a9a6a0');
+  // gelieferte Teile der Mondbasis
+  if (delivered >= 1) for (let i = 0; i < 3; i++) { const [x, y] = iso(0.6 + i * 0.5, 3.8); s.append(svg('rect', { x: x - 10, y: y - 26, width: 20, height: 14, fill: '#2b3a6b', stroke: '#9fb3e8', transform: `skewY(-20)` })); }
+  if (delivered >= 2) { const [x, y] = iso(5.6, 4.4); s.append(svg('rect', { x: x - 12, y: y - 12, width: 24, height: 9, rx: 2, fill: '#d9d2c7' }), svg('circle', { cx: x - 8, cy: y - 2, r: 4, fill: '#4a4550' }), svg('circle', { cx: x + 8, cy: y - 2, r: 4, fill: '#4a4550' })); }
+  if (delivered >= 3) { const [x, y] = iso(3.2, 1.2); s.append(dome(s, x, y, 34, '#f5efe6', '#8f8a80')); }
+  if (delivered >= 4) { const [x, y] = iso(7, 3.2); s.append(isoBox(6.6, 2.8, 0.8, 0.8, 22, ['#c9c2b8', '#8a857c', '#a9a29a']), svg('rect', { x: x + 6, y: y - 44, width: 6, height: 22, fill: '#B8AFA6' })); }
+  const [cx, cy] = iso(2, 2), [lx, ly] = iso(6, 2), [px, py] = iso(4, 6);
+  s.append(building(t('bldgControl'), [cx, cy - 56], focusContract, [dome(s, cx, cy, 30, '#ede8df', '#8f8a80', [svg('rect', { x: cx - 6, y: cy - 10, width: 12, height: 10, fill: '#1c1918' })])]));
+  s.append(building(t('bldgLab'), [lx, ly - 52], labAction(3), [dome(s, lx, ly, 26, '#e3f1f4', '#6f979d', [svg('rect', { x: lx - 18, y: ly - 14, width: 36, height: 4, fill: '#2b3a6b' })])]));
+  s.append(building(t('bldgLanding'), [px, py - 92], padAction(c), landingPad(s, px, py, '#6b675f', true)));
+  return s;
+}
+
+function marsScene(c, delivered) {
+  const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('placeMars') });
+  s.append(svg('rect', { x: -270, y: -110, width: 540, height: 380, fill: grad(s, 'linearGradient', [['0', '#3a1d14'], ['0.5', '#a65a36'], ['1', '#d98b5a']], { x1: '0', x2: '0', y1: '0', y2: '1' }) }));
+  s.append(svg('circle', { cx: 210, cy: -70, r: 9, fill: '#fff3d6', opacity: 0.8 }));
+  isoGround(s, '#a5552f', '#b0603a', '#8a4526');
+  crater(s, 6.8, 5.4, 18, '#8a4526', '#c9784e'); crater(s, 0.8, 6.6, 12, '#8a4526', '#c9784e');
+  for (const [gx, gy, r] of [[1, 1, 5], [7.2, 2, 4], [2.5, 7.4, 6], [5.5, 0.6, 3]]) { const [x, y] = iso(gx, gy); s.append(svg('ellipse', { cx: x, cy: y - r / 2, rx: r * 1.3, ry: r, fill: '#6e3420' })); }
+  if (delivered >= 1) s.append(isoBox(0.6, 3.4, 1, 1, 18, ['#d9d2c7', '#8a857c', '#b8b0a4']));
+  if (delivered >= 2) { const [x, y] = iso(3.2, 1.0); s.append(dome(s, x, y, 36, '#f5e6da', '#9a6a52')); }
+  if (delivered >= 3) { const [x, y] = iso(5.6, 4.6); s.append(svg('line', { x1: x, y1: y, x2: x, y2: y - 34, stroke: '#F5EFE6', 'stroke-width': 2 }), svg('rect', { x, y: y - 34, width: 18, height: 11, fill: '#A88FD6' })); }
+  const [cx, cy] = iso(2, 2), [lx, ly] = iso(6, 2), [px, py] = iso(4, 6);
+  s.append(building(t('bldgControl'), [cx, cy - 56], focusContract, [dome(s, cx, cy, 30, '#f2e1d3', '#9a6a52', [svg('rect', { x: cx - 6, y: cy - 10, width: 12, height: 10, fill: '#1c1918' })])]));
+  s.append(building(t('bldgLab'), [lx, ly - 52], labAction(4), [dome(s, lx, ly, 26, '#e3f1f4', '#6f979d', [svg('rect', { x: lx - 18, y: ly - 14, width: 36, height: 4, fill: '#2b3a6b' })])]));
+  s.append(building(t('bldgLanding'), [px, py - 92], padAction(c), landingPad(s, px, py, '#7a4a35', true)));
+  return s;
+}
+
+// Ort eines Levels zeichnen. delivered = gelieferte Module in diesem Level.
+function placeSvg(level, c, delivered) {
+  const place = LEVELS[level - 1].place;
+  if (place === 'station') return stationScene(c, delivered);
+  if (place === 'moon') return moonScene(c, delivered);
+  if (place === 'mars') return marsScene(c, delivered);
+  return baseSvg(c);
+}
+
 // ---------- Kampagne: Firmen-Bildschirm ----------
 // Links die Basis von oben, rechts Geld und Auftrag. Gebäude wählen Aufträge und Forschung.
 function renderCompany() {
   const done = company.index >= contracts.length;
   const c = contracts[company.index];
   const best = bestCompany();
-  const current = done ? LEVELS.filter((l) => !l.soon).length : c.level;
+  const current = reachedLevel();
   const view = Math.min(state.levelView || current, current);
   const inLevel = contracts.filter((x) => x.level === view);
-  const delivered = contracts.filter((x, i) => x.level === 2 && i < company.index).length;
+  const delivered = inLevel.filter((x) => contracts.indexOf(x) < company.index).length;
+  const locked = c && contractLocked(c, research.done);
+  const need = locked ? PROJECTS.find((p) => p.id === c.requires) : null;
   return el('section', { class: 'company enter' },
     el('div', { class: 'base-wrap' },
       el('nav', { class: 'levels', 'aria-label': t('level') }, LEVELS.map((l) => el('button', {
-        type: 'button', class: l.n === view ? 'level on' : 'level', disabled: l.soon || l.n > current ? '' : null,
-        title: l.soon ? t('soon') : (l.n > current ? t('locked') : ''),
+        type: 'button', class: l.n === view ? 'level on' : 'level', disabled: l.n > current ? '' : null,
+        title: l.n > current ? t('locked') : '',
         onclick: () => { state.levelView = l.n; render(); },
-      }, `${l.n < current ? '✓ ' : ''}${t('level')} ${l.n} · ${tr(l, 'name')}${l.soon ? ` · ${t('soon')}` : ''}`))),
-      baseSvg(done ? null : c, current >= 2 ? delivered : null),
+      }, `${l.n < current ? '✓ ' : ''}${t('level')} ${l.n} · ${tr(l, 'name')}`))),
+      // jedes Level hat seinen Ort: Erde, Raumstation, Mond, Mars
+      placeSvg(view, !done && view === current ? c : null, delivered),
       el('p', { class: 'hint' }, t('baseHint'))),
     el('div', { class: 'company-panel' },
       el('h1', {}, t('company')),
       el('p', { class: 'big-number rp' }, `${t('cash')}: ${money(company.cash)}`),
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
       done ? el('p', { class: 'result-msg ok' }, t('wonAll', { c: money(company.cash) })) : '',
-      !done && !company.over ? el('div', { class: 'project card' },
+      view < current ? el('p', { class: 'result-msg ok' }, t('levelDone')) : '',
+      !done && !company.over && view === current ? el('div', { class: 'project card' },
         el('h2', {}, el('span', {}, t('contractOf', { n: contracts.filter((x) => x.level === c.level).indexOf(c) + 1, m: contracts.filter((x) => x.level === c.level).length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
         el('p', {}, el('strong', {}, tr(c, 'client'))),
         el('p', { class: 'hint' }, tr(c, 'goal')),
         c.module ? el('p', { class: 'hint' }, `${kg(c.module.mass)} · ${money(c.module.cost)}`) : el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
-        el('button', { class: 'primary', type: 'button', onclick: () => startMission(contractMission(c)) }, t('startContract'))) : '',
+        need ? el('p', { class: 'hint warn' }, t('needsResearch', { x: t(need.name) })) : '',
+        el('button', { class: 'primary', type: 'button', disabled: locked ? '' : null, onclick: () => { if (!locked) startMission(contractMission(c)); } }, t('startContract'))) : '',
       el('ol', { class: 'contracts' }, inLevel.map((x) => {
         const i = contracts.indexOf(x);
         return el('li', { class: i < company.index ? 'is-done' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
@@ -1151,7 +1319,7 @@ function render() {
     return;
   }
   const m = state.mission;
-  $('mission-label').textContent = `${t(`lvl${m.level}`)}: ${tr(m, 'name')}`;
+  $('mission-label').textContent = m.contract ? `${t('level')} ${m.contract.level}: ${tr(m, 'name')}` : `${t(`lvl${m.level}`)}: ${tr(m, 'name')}`;
   const left = budgetLeft(m.budget, chosen());
   $('budget').textContent = m.free ? t('noLimit') : `${t('budget')} ${money(left)} / ${money(m.budget)}`;
   $('budget').classList.toggle('low', !m.free && left < 0);
@@ -1181,12 +1349,13 @@ $('next').addEventListener('click', () => {
     const contract = state.mission.contract;
     const previousBest = contract ? 0 : loadBest(state.mission);
     if (r.success && !contract) saveBest(state.mission, r.sciencePerMillion);
-    r.rp = pointsForMission(r, state.mission, previousBest);
+    // Stationsflüge und Basen bringen keine Wissenschaft, aber Erfahrung: feste Forschungspunkte
+    r.rp = contract && contract.module ? (r.success ? 10 : 0) : pointsForMission(r, state.mission, previousBest);
     if (contract) {
       company.cash = settleContract(company.cash, r, contract.fee);
       if (r.success) { company.index += 1; state.levelView = null; }
       const next = contracts[company.index];
-      if (next && isBankrupt(company.cash, cheapestMission(contractMission(next), { instruments, buses, panels }, campaignRockets(company.index)))) company.over = true;
+      if (next && isBankrupt(company.cash, cheapestMission(contractMission(next), { instruments, buses, panels }, campaignRockets(company.index, ALL_DONE)))) company.over = true;
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
       saveCompany();
       r.fee = r.success ? contract.fee : 0;

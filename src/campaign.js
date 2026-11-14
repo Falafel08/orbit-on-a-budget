@@ -38,3 +38,15 @@ export function cheapestMission(mission, { instruments, buses, panels }, rockets
   }
   return Math.round(best * 100) / 100;
 }
+
+// Raketen für ein Ziel (leo = Erdorbit, moon, mars): nur die, die dorthin tragen, mit der Nutzlast für dieses Ziel.
+// Starship braucht für Mond und Mars die Forschung „Betankung im Orbit“. Eis vom Mond macht Marsflüge 25 % billiger.
+export function rocketsFor(dest, rockets, done) {
+  if (dest === 'leo') return rockets.filter((r) => r.maxPayload !== undefined || r.stages);
+  return rockets
+    .filter((r) => r.capacity && r.capacity[dest] && (!r.needsRefuel || done.refuel))
+    .map((r) => ({ ...r, maxPayload: r.capacity[dest], cost: dest === 'mars' && done['lunar-ice'] ? Math.round(r.cost * 0.75 * 10) / 10 : r.cost }));
+}
+
+// Auftrag gesperrt, solange die nötige Forschung fehlt
+export const contractLocked = (contract, done) => !!contract.requires && !done[contract.requires];

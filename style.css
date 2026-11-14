@@ -421,3 +421,11 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .sources { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.9rem; }
 .sources a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .sources a:hover, .sources a:focus-visible { color: var(--akzent-text); }
+
+.pad-mark { fill: rgba(245, 239, 230, 0.7); font: 700 16px sans-serif; }
+.hint.warn { color: #e8c547; }
+
+/* Forschung je Ort: Kulisse oben, nicht anklickbar */
+.research .levels { justify-content: center; margin-bottom: 8px; }
+.lab-scene { max-width: 520px; margin: 0 auto; pointer-events: none; border-radius: var(--ecke); overflow: hidden; }
+.lab-scene .base { display: block; }
