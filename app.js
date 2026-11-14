@@ -3,12 +3,12 @@ import { facts } from './data/facts.js';
 import { SPRITES } from './assets/kenney/sprites.js';
 import { nasaSources, otherSources } from './data/sources.js';
 import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START, OWN_STAGES, OWN_STAGES_2 } from './data/parts.js';
-import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked } from './src/campaign.js';
+import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked, minCostToFinish } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
 import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound } from './src/audio.js';
-import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost, researchCostFor } from './src/research.js';
+import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } from './src/research.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -28,7 +28,6 @@ const PROJECTS = [
   { id: 'ss-reuse-3', level: 3, rp: 30, cost: 100, seconds: 50, name: 'projSs3', info: 'projSsInfo', needs: 'ss-reuse-2', helps: ['leo', 'moon', 'mars'] },
   { id: 'mars-fuel', level: 4, rp: 25, cost: 300, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo', helps: ['mars'] },
 ];
-const ALL_DONE = Object.fromEntries(PROJECTS.map((p) => [p.id, true]));
 // Höchstes erreichtes Level der Kampagne
 const reachedLevel = () => (company.index >= contracts.length ? LEVELS.length : contracts[company.index].level);
 const SKIP_RP = 5;
@@ -56,15 +55,27 @@ const bestCompany = () => { try { return Number(localStorage.getItem('best-compa
 function contractMission(c) {
   if (c.module) {
     return { id: `campaign-${c.id}`, level: 'Intermediate', name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash,
-      minScience: 0, requiredDv: 9500, module: c.module, contract: c, dest: c.dest, de: null };
+      minScience: 0, requiredDv: 9500, module: c.module, contract: c, dest: c.dest, requires: c.requires, de: null };
   }
   const base = missions.find((m) => m.id === c.base);
-  return { ...base, id: `campaign-${c.id}`, name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash, minScience: c.minScience, contract: c, de: null };
+  return { ...base, id: `campaign-${c.id}`, name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash, minScience: c.minScience, contract: c, dest: c.dest, de: null };
+}
+
+// Mindestgeld für den Auftrag an Stelle index: billigste Kombination aus Forschung und Flug (minCostToFinish).
+// Laufende Forschung ist schon bezahlt und zählt als erledigt. Ergebnis gemerkt, die Rechnung probiert viele Wege.
+const minCostCache = new Map();
+function minCostFor(index, done = research.done) {
+  const c = contracts[index];
+  if (!c) return 0;
+  const d = research.active ? { ...done, [research.active.id]: true } : done;
+  const key = `${index}|${research.flights}|${Object.keys(d).filter((k) => d[k]).sort().join(',')}`;
+  if (!minCostCache.has(key)) minCostCache.set(key, minCostToFinish(contractMission(c), { instruments, buses, panels }, (x) => campaignRockets(index, x), PROJECTS, d));
+  return minCostCache.get(key);
 }
 
 // Starship gibt es nur in der Kampagne, ab dem zweiten Auftrag
-// Raketen für einen Auftrag: je nach Ziel (Erdorbit, Mond, Mars) und Forschung. done = ALL_DONE für die Pleite-Prüfung,
-// denn Forschung kostet Punkte und Zeit, kein Geld.
+// Raketen für einen Auftrag: je nach Ziel (Erdorbit, Mond, Mars) und Forschungsstand done,
+// damit die Pleite-Prüfung alle Wege kennt (das Geld für Forschung rechnet minCostToFinish dazu).
 const campaignRockets = (index, done = research.done) => {
   const dest = (contracts[index] && contracts[index].dest) || 'leo';
   // Modulflüge: kein CubeSat-Mitflug (der trägt nur CubeSats bis 3U)
@@ -121,7 +132,7 @@ function el(tag, props = {}, ...children) {
 }
 function svg(tag, attrs = {}, text) {
   const node = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) node.setAttribute(k, v);
   if (text) node.textContent = text;
   return node;
 }
@@ -249,6 +260,7 @@ function renderLevelSelect() {
 
 function go(phase) {
   state.phase = phase;
+  state.confirmRestart = false; state.confirmReset = false;
   if (phase === 'home') state.mission = null;
   render();
 }
@@ -271,6 +283,7 @@ function seg(options, current, onPick) {
 
 function openSettings() {
   const panel = $('panel');
+  state.confirmReset = false;
   const draw = (note = '') => panel.replaceChildren(
     el('h2', { id: 'panel-title' }, t('settings')),
     el('div', { class: 'row' }, el('span', {}, t('music')),
@@ -990,7 +1003,7 @@ function launch(canvas, rocketEl, mode, from) {
     const tc = passed - intro;                                        // Zeit seit Countdown-Beginn
     const s = Math.max(0, (tc - count - ignite) / 1000);              // Sekunden seit dem Abheben
     const ta = tc - count - ignite - flight;                          // Zeit seit Ende des Aufstiegs
-    const arriving = arrive > 0 && ta >= 0 && ta < arrive;            // Ankunft am Ziel
+    const arriving = arrive > 0 && ta >= 0 && (ta < arrive || !reusable); // Ankunft am Ziel, ohne Rückflug bleibt sie stehen
     const tr = ta - arrive;                                           // Rückflug des Boosters danach
     const returning = reusable && tr >= 0;
     const igniting = tc >= count;
@@ -1058,7 +1071,7 @@ function launch(canvas, rocketEl, mode, from) {
       booster(cx, gy - bAlt, unit, clamp((p - 0.75) / 0.25));
     }
     ctx.restore();
-    if (arriving) arrival(ta / arrive);
+    if (arriving) arrival(Math.min(1, ta / arrive));
 
     // Rakete (SVG): Größe und Lage aus Maßstab und Boden, dazu Flug, Neigung und Wackeln. Beim Rückflug ist sie im All.
     rocketEl.style.height = `${320 * unit}px`;
@@ -1127,7 +1140,9 @@ function projectCard(pr, reached) {
       const done = !!research.done[pr.id];
       const locked = (pr.needs && !research.done[pr.needs]) || pr.level > reached;
       const running = a && a.id === pr.id;
-      const canStart = !done && !locked && !a && research.rp >= pr.rp && company.cash >= pr.cost;
+      // nicht in die Pleite forschen: nach dem Kauf muss der billigste Weg zum nächsten Auftrag bezahlbar bleiben
+      const ruins = !done && company.index < contracts.length && company.cash - pr.cost < minCostFor(company.index, { ...research.done, [pr.id]: true });
+      const canStart = !done && !locked && !a && research.rp >= pr.rp && company.cash >= pr.cost && !ruins;
       return el('div', { class: `project card${done ? ' done-card' : ''}` },
         el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')} · ${money(pr.cost)}`)),
         el('p', { class: 'hint' }, t(pr.info)),
@@ -1155,7 +1170,7 @@ function projectCard(pr, reached) {
             research.rp -= pr.rp; company.cash = Math.round((company.cash - pr.cost) * 1000) / 1000; // Forschung kostet Firmengeld
             research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); saveCompany(); render();
           } },
-        research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : t('startResearch', { n: pr.rp, c: money(pr.cost) })) : '');
+        research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : ruins ? t('wouldBankrupt') : t('startResearch', { n: pr.rp, c: money(pr.cost) })) : '');
 }
 
 // ---------- Kampagne: Basis von oben (Idee Josias 14.11.) ----------
@@ -1638,9 +1653,7 @@ function render() {
     renderLeft(); renderRight(); center.replaceChildren(renderBuild());
     if (key) center.querySelector(key)?.focus({ preventScroll: true });
   }
-  if (state.phase === 'launch') {
-    $('center').replaceChildren(renderLaunch());
-  }
+  if (state.phase === 'launch' && !$('center').querySelector('.launch-wrap')) $('center').replaceChildren(renderLaunch()); // nur einmal pro Start
   if (state.phase === 'result') $('center').replaceChildren(renderResult());
   if (state.phase === 'research') $('center').replaceChildren(renderResearch());
   footer();
@@ -1670,14 +1683,9 @@ $('next').addEventListener('click', () => {
       if (paid.includes(contract.id)) r.rp = 0;
       else if (r.success) research.paid = [...paid, contract.id];
       company.cash = settleContract(company.cash, r, contract.fee);
-      if (r.success) { company.index += 1; state.levelView = null; }
+      if (r.success) { company.index += 1; state.levelView = null; state.levelPick = null; } // Levelauswahl springt aufs aktuelle Level
       const next = contracts[company.index];
-      if (next) {
-        const parts = { instruments, buses, panels };
-        const now = cheapestMission(contractMission(next), parts, campaignRockets(company.index));
-        const withResearch = cheapestMission(contractMission(next), parts, campaignRockets(company.index, ALL_DONE)) + researchCostFor(next.dest, PROJECTS, research.done);
-        if (isBankrupt(company.cash, Math.min(now, withResearch))) company.over = true;
-      }
+      if (next && isBankrupt(company.cash, minCostFor(company.index))) company.over = true; // billigster Weg inklusive Forschung
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
       saveCompany();
       r.fee = r.success ? contract.fee : 0;
@@ -1709,6 +1717,7 @@ $('back').addEventListener('click', () => {
 // Raketen-Schritt: Pfeiltasten blättern durchs Karussell, ohne es erst anzuklicken
 addEventListener('keydown', (e) => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if ((e.target.closest && e.target.closest('input, textarea, select, dialog')) || $('panel').open) return;
   if (state.phase === 'start') { e.preventDefault(); moveLevel(e.key === 'ArrowLeft' ? -1 : 1); return; }
   if (state.phase !== 'build') return;
   if (e.target.closest && e.target.closest('input, textarea, select, .carousel')) return; // Karussell hat eigenen Handler

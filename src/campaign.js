@@ -50,3 +50,23 @@ export function rocketsFor(dest, rockets, done) {
 
 // Auftrag gesperrt, solange die nötige Forschung fehlt
 export const contractLocked = (contract, done) => !!contract.requires && !done[contract.requires];
+
+// Wie viel Geld braucht die Firma mindestens, um den Auftrag zu schaffen? Probiert alle sinnvollen Kombinationen
+// offener Forschung (hilft diesem Ziel oder ist Pflicht) und nimmt die billigste: Forschungsgeld plus billigster Flug.
+// rocketsFn(done) liefert die Raketen bei diesem Forschungsstand (Preise ändern sich mit der Forschung).
+export function minCostToFinish(mission, parts, rocketsFn, projects, done) {
+  const open = projects.filter((p) => !done[p.id] && ((p.helps && p.helps.includes(mission.dest)) || p.id === mission.requires));
+  let best = Infinity;
+  for (let mask = 0; mask < 1 << open.length; mask++) {
+    const pick = open.filter((_, i) => mask & (1 << i));
+    const d = { ...done };
+    for (const p of pick) d[p.id] = true;
+    if (pick.some((p) => p.needs && !d[p.needs])) continue;          // Voraussetzung fehlt
+    if (mission.requires && !d[mission.requires]) continue;           // Pflicht-Forschung fehlt
+    const research = pick.reduce((sum, p) => sum + p.cost, 0);
+    if (research >= best) continue;
+    const flight = cheapestMission(mission, parts, rocketsFn(d));
+    best = Math.min(best, research + flight);
+  }
+  return Math.round(best * 100) / 100;
+}
