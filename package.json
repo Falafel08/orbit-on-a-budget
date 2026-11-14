@@ -1,0 +1,6 @@
+{
+  "name": "orbit-on-a-budget",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/*.test.js" }
+}

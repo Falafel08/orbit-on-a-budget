@@ -1,0 +1,112 @@
+/* Tokens aus der Designsprache, Akzent Farbton 300°, Spielansicht dunkel (Weltraum) */
+:root {
+  --grund: #171514;
+  --karte: #262220;
+  --text: #F5EFE6;
+  --nebentext: #B8AFA6;
+  --akzent: #745F9A;
+  --akzent-text: #A88FD6;
+  --gut: #4CAF6A;
+  --schlecht: #E0605A;
+  --ecke: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--grund);
+  color: var(--text);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--karte);
+}
+.title { font-weight: 700; }
+.step { color: var(--nebentext); flex: 1; }
+.budget { font-weight: 700; font-variant-numeric: tabular-nums; }
+.budget.low { color: var(--schlecht); }
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+h1 { font-size: 1.6rem; margin: 0 0 8px; }
+.lead { color: var(--nebentext); margin: 0 0 20px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--karte);
+  border: 2px solid transparent;
+  border-radius: var(--ecke);
+  padding: 16px;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-height: 44px;
+}
+.card:hover { border-color: #3a3430; }
+.card[aria-pressed="true"] { border-color: var(--akzent-text); }
+.card h2 { font-size: 1.05rem; margin: 0 0 8px; }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; color: var(--nebentext); }
+.card dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+
+.meters { display: grid; gap: 10px; margin: 20px 0; }
+.meter { background: var(--karte); border-radius: var(--ecke); padding: 12px 16px; }
+.meter-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.bar { height: 10px; border-radius: 5px; background: #3a3430; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--gut); }
+.bar.over span { background: var(--schlecht); }
+
+.mission {
+  background: var(--karte);
+  border-radius: var(--ecke);
+  padding: 24px;
+  font-size: 1.1rem;
+}
+
+canvas { width: 100%; height: auto; aspect-ratio: 860 / 420; display: block; border-radius: var(--ecke); background: #0b0a12; }
+
+.result { font-size: 1.1rem; }
+.result .big { font-size: 2rem; font-weight: 700; margin: 0 0 12px; }
+.result .big.ok { color: var(--gut); }
+.result .big.fail { color: var(--schlecht); }
+.result ul { color: var(--nebentext); }
+
+.bottom {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--karte);
+}
+button.primary, button.secondary {
+  font: inherit;
+  font-weight: 600;
+  min-height: 56px;
+  border-radius: var(--ecke);
+  border: none;
+  cursor: pointer;
+}
+button.primary { flex: 1; background: var(--akzent); color: #fff; }
+button.secondary { padding: 0 24px; background: var(--karte); color: var(--text); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:focus-visible, .card:focus-visible { outline: 3px solid var(--akzent-text); outline-offset: 2px; }
+.hidden { visibility: hidden; }
