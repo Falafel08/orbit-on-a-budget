@@ -31,3 +31,4 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | What | Source | License | Status |
 |---|---|---|---|
 | "Cosmic Cliffs" in Carina, NIRCam, screen size, darkened with a CSS overlay | ESA/Webb, https://esawebb.org/images/weic2205a/, credit: NASA, ESA, CSA, and STScI | CC BY 4.0, credit shown on the home screen with a link | Used (`assets/webb-cosmic-cliffs.jpg`) |
+| Station modules (Level 2): masses 3,000 to 9,000 kg, build costs $25M to $55M, fees | Game assumption, not NASA data. Rocket capacity uses the NASA value for 800 km; a station flies lower, where real rockets carry more | — | Used |

@@ -372,3 +372,9 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .bldg:focus-visible .bldg-tag { stroke-width: 3; }
 .bldg-label { fill: #F5EFE6; font: 600 11px sans-serif; }
 @media (max-width: 800px) { .company { grid-template-columns: 1fr; } }
+
+/* Level-Leiste über der Basis */
+.levels { display: flex; flex-wrap: wrap; gap: 6px; }
+.level { font: inherit; font-size: 0.85rem; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--linie); background: var(--karte); color: var(--text); }
+.level.on { background: var(--akzent); border-color: var(--akzent); color: #fff; }
+.level:disabled { opacity: 0.45; }

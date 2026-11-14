@@ -149,16 +149,37 @@ for (const list of [missions, instruments, buses, panels, rockets, [starship]]) 
 // 110: Ein Fehlstart mit Falcon 9 bei Auftrag 2 (82 Mio. $) ist verkraftbar, danach bleibt nur noch Starship (23 Mio. $). Scheitert auch der, ist die Firma pleite.
 export const CAMPAIGN_START = 110;
 export const contracts = [
-  { id: 'c1', base: 'cubesat', minScience: 8, fee: 2,
+  { id: 'c1', level: 1, base: 'cubesat', minScience: 8, fee: 2,
     client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
     de: { client: 'Raumfahrt-AG einer Uni', goal: 'Starte einen kleinen CubeSat mit Kamera für Studierende.' } },
-  { id: 'c2', base: 'weather', minScience: 55, fee: 130,
+  { id: 'c2', level: 1, base: 'weather', minScience: 55, fee: 130,
     client: 'National weather service', goal: 'Put a weather satellite into an 800 km orbit.',
     de: { client: 'Nationaler Wetterdienst', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' } },
-  { id: 'c3', base: 'ocean', minScience: 125, fee: 190,
+  { id: 'c3', level: 1, base: 'ocean', minScience: 125, fee: 190,
     client: 'Ocean research institute', goal: 'Measure sea level with a radar satellite.',
     de: { client: 'Institut für Meeresforschung', goal: 'Miss die Meereshöhe mit einem Radar-Satelliten.' } },
-  { id: 'c4', base: 'weather', minScience: 100, fee: 160,
+  { id: 'c4', level: 1, base: 'weather', minScience: 100, fee: 160,
     client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
     de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
+  // Level 2: eine kleine Raumstation aus fünf Modulen (Idee Mentor und Josias, 14.11.).
+  // Massen und Preise sind Spiel-Annahmen, kein NASA-Wert. Die Raketen-Nutzlast gilt laut NASA für 800 km,
+  // eine Station fliegt tiefer. Echte Raketen tragen dorthin mehr, das Spiel rechnet vorsichtig.
+  ...[
+    ['s1', 'Core module', 'Kernmodul', 'The heart of the station: computers, control and the first room.', 'Das Herz der Station: Computer, Steuerung und der erste Raum.', 6000, 40, 125],
+    ['s2', 'Power module', 'Energiemodul', 'Big solar wings that give the whole station power.', 'Große Solarflügel, die der ganzen Station Strom geben.', 4000, 30, 115],
+    ['s3', 'Lab module', 'Labormodul', 'A lab for experiments in weightlessness.', 'Ein Labor für Versuche in der Schwerelosigkeit.', 8000, 50, 140],
+    ['s4', 'Habitat module', 'Wohnmodul', 'Beds, kitchen and air for a crew of three.', 'Betten, Küche und Luft für drei Leute.', 9000, 55, 150],
+    ['s5', 'Docking node', 'Andockknoten', 'Lets spacecraft dock. After this the station is complete.', 'Hier docken Raumschiffe an. Danach ist die Station fertig.', 3000, 25, 110],
+  ].map(([id, name, nameDe, goal, goalDe, mass, cost, fee]) => ({
+    id, level: 2, module: { mass, cost, name, de: { name: nameDe } }, fee,
+    client: name, goal, de: { client: nameDe, goal: goalDe },
+  })),
+];
+
+// Level der Kampagne. Mond und Mars sind als Ausblick gesperrt.
+export const LEVELS = [
+  { n: 1, name: 'Satellites', de: { name: 'Satelliten' } },
+  { n: 2, name: 'Space station', de: { name: 'Raumstation' } },
+  { n: 3, name: 'Moon base', de: { name: 'Mondbasis' }, soon: true },
+  { n: 4, name: 'Mars', de: { name: 'Mars' }, soon: true },
 ];

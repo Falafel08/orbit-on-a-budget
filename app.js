@@ -1,7 +1,7 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { facts } from './data/facts.js';
-import { missions, instruments, buses, panels, rockets, starship, contracts, CAMPAIGN_START } from './data/parts.js';
-import { settleContract, isBankrupt, cheapestMission } from './src/campaign.js';
+import { missions, instruments, buses, panels, rockets, starship, contracts, LEVELS, CAMPAIGN_START } from './data/parts.js';
+import { settleContract, isBankrupt, cheapestMission, moduleBus } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
@@ -37,6 +37,10 @@ const bestCompany = () => { try { return Number(localStorage.getItem('best-compa
 
 // Auftrag als Mission: Teile der Basis-Mission, Budget = Firmengeld
 function contractMission(c) {
+  if (c.module) {
+    return { id: `campaign-${c.id}`, level: 'Intermediate', name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash,
+      minScience: 0, requiredDv: 9500, allowed: ['pegasus', 'falcon9', 'own', 'starship'], module: c.module, contract: c, de: null };
+  }
   const base = missions.find((m) => m.id === c.base);
   return { ...base, id: `campaign-${c.id}`, name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash, minScience: c.minScience, contract: c, de: null };
 }
@@ -164,6 +168,7 @@ function startMission(m) {
   leftStep = null; // neue Mission: links oben anfangen
   state.rocketView = null;
   Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null });
+  if (m.module) Object.assign(state, { build: 2, bus: { ...moduleBus(m.module), name: m.module.name, de: m.module.de } });
   render();
 }
 
@@ -331,10 +336,11 @@ function renderLeft() {
   const focusIndex = sameStep ? focusables().indexOf(document.activeElement) : -1;
   leftStep = state.build;
   left.replaceChildren(...[
-    el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
-      type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
-      onclick: () => { state.build = i; render(); },
-    }, name))),
+    state.mission.module ? el('p', { class: 'hint' }, t('stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
+      : el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
+        type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
+        onclick: () => { state.build = i; render(); },
+      }, name))),
     el('p', { class: 'hint' }, t(cats[0].hint)),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
@@ -366,8 +372,8 @@ function renderRight() {
   const m = state.mission;
   const left = budgetLeft(m.budget, chosen());
   const meters = [];
-  if (!m.free) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`, true));
-  if (state.bus) {
+  if (!m.free && !m.module) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`, true));
+  if (state.bus && !m.module) {
     meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
     meters.push(meter(t('powerDraw'), instPower(), powerAvailable(), `${instPower()} / ${powerAvailable()} W`));
   }
@@ -720,7 +726,23 @@ function building(label, [lx, ly], onSelect, parts) {
 // Leitstand: springt zum Auftrag rechts
 const focusContract = () => { const b = document.querySelector('.project .primary') || document.querySelector('.company-panel h1'); b?.scrollIntoView({ block: 'center', behavior: 'smooth' }); b?.focus?.({ preventScroll: true }); };
 
-function baseSvg(c) {
+// Raumstation über der Basis (Level 2): gelieferte Module ausgefüllt, fehlende gestrichelt
+function stationSvg(delivered) {
+  const g = svg('g', { class: 'station', 'aria-label': t('stationLabel') });
+  const cx = 140, cy = -72;
+  const part = (k, el2) => { if (k >= delivered) { el2.setAttribute('fill', 'none'); el2.setAttribute('stroke', 'rgba(245,239,230,0.45)'); el2.setAttribute('stroke-dasharray', '3 3'); } g.append(el2); };
+  g.append(svg('line', { x1: cx - 70, y1: cy, x2: cx + 70, y2: cy, stroke: delivered ? '#B8AFA6' : 'rgba(245,239,230,0.3)', 'stroke-width': 2 }));
+  part(0, svg('rect', { x: cx - 18, y: cy - 8, width: 36, height: 16, rx: 7, fill: '#d9d2c7' }));               // Kern
+  part(1, svg('rect', { x: cx - 70, y: cy - 16, width: 30, height: 32, fill: '#2b3a6b', stroke: '#9fb3e8' }));     // Energie links
+  part(1, svg('rect', { x: cx + 40, y: cy - 16, width: 30, height: 32, fill: '#2b3a6b', stroke: '#9fb3e8' }));     // Energie rechts
+  part(2, svg('rect', { x: cx + 18, y: cy - 6, width: 22, height: 12, rx: 5, fill: '#cfe6ea' }));                  // Labor
+  part(3, svg('rect', { x: cx - 40, y: cy - 6, width: 22, height: 12, rx: 5, fill: '#e0c070' }));                  // Wohnen
+  part(4, svg('circle', { cx, cy: cy - 14, r: 6, fill: '#A88FD6' }));                                              // Andocken
+  g.append(svg('text', { x: cx, y: cy + 32, 'text-anchor': 'middle', class: 'bldg-label' }, `${t('stationLabel')} · ${t('modulesOf', { n: delivered, m: 5 })}`));
+  return g;
+}
+
+function baseSvg(c, delivered = null) {
   const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('baseLabel') });
   // Boden: 8 x 8 Felder, Straße zur Startrampe
   for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) {
@@ -754,6 +776,7 @@ function baseSvg(c) {
     svg('rect', { x: padC[0] - 6, y: padC[1] - 40, width: 12, height: 4, fill: '#A88FD6' }),
   ]));
 
+  if (delivered !== null) s.append(stationSvg(delivered));
   // Tanks und Antenne als Deko
   for (const [gx, gy] of [[6.6, 5.2], [7.2, 5.8]]) {
     const [x, y] = iso(gx, gy);
@@ -770,23 +793,36 @@ function renderCompany() {
   const done = company.index >= contracts.length;
   const c = contracts[company.index];
   const best = bestCompany();
+  const current = done ? LEVELS.filter((l) => !l.soon).length : c.level;
+  const view = Math.min(state.levelView || current, current);
+  const inLevel = contracts.filter((x) => x.level === view);
+  const delivered = contracts.filter((x, i) => x.level === 2 && i < company.index).length;
   return el('section', { class: 'company enter' },
-    el('div', { class: 'base-wrap' }, baseSvg(done ? null : c), el('p', { class: 'hint' }, t('baseHint'))),
+    el('div', { class: 'base-wrap' },
+      el('nav', { class: 'levels', 'aria-label': t('level') }, LEVELS.map((l) => el('button', {
+        type: 'button', class: l.n === view ? 'level on' : 'level', disabled: l.soon || l.n > current ? '' : null,
+        title: l.soon ? t('soon') : (l.n > current ? t('locked') : ''),
+        onclick: () => { state.levelView = l.n; render(); },
+      }, `${l.n < current ? '✓ ' : ''}${t('level')} ${l.n} · ${tr(l, 'name')}${l.soon ? ` · ${t('soon')}` : ''}`))),
+      baseSvg(done ? null : c, current >= 2 ? delivered : null),
+      el('p', { class: 'hint' }, t('baseHint'))),
     el('div', { class: 'company-panel' },
       el('h1', {}, t('company')),
       el('p', { class: 'big-number rp' }, `${t('cash')}: ${money(company.cash)}`),
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
-      done ? el('p', { class: 'result-msg ok' }, t('won', { c: money(company.cash) })) : '',
+      done ? el('p', { class: 'result-msg ok' }, t('wonAll', { c: money(company.cash) })) : '',
       !done && !company.over ? el('div', { class: 'project card' },
-        el('h2', {}, el('span', {}, t('contractOf', { n: company.index + 1, m: contracts.length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
+        el('h2', {}, el('span', {}, t('contractOf', { n: contracts.filter((x) => x.level === c.level).indexOf(c) + 1, m: contracts.filter((x) => x.level === c.level).length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
         el('p', {}, el('strong', {}, tr(c, 'client'))),
         el('p', { class: 'hint' }, tr(c, 'goal')),
-        el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
+        c.module ? el('p', { class: 'hint' }, `${kg(c.module.mass)} · ${money(c.module.cost)}`) : el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
         el('button', { class: 'primary', type: 'button', onclick: () => startMission(contractMission(c)) }, t('startContract'))) : '',
-      el('ol', { class: 'contracts' }, contracts.map((x, i) => el('li', { class: i < company.index ? 'is-done' : '' },
-        `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`))),
+      el('ol', { class: 'contracts' }, inLevel.map((x) => {
+        const i = contracts.indexOf(x);
+        return el('li', { class: i < company.index ? 'is-done' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
+      })),
       el('div', { class: 'research-actions' },
-        el('button', { class: 'secondary', type: 'button', onclick: () => { company = freshCompany(); saveCompany(); render(); } }, t('restartCompany'))),
+        el('button', { class: 'secondary', type: 'button', onclick: () => { company = freshCompany(); state.levelView = null; saveCompany(); render(); } }, t('restartCompany'))),
       best ? el('p', { class: 'hint' }, `${t('bestCompany')}: ${money(best)}`) : ''));
 }
 
@@ -812,8 +848,9 @@ function renderResult() {
     el('dl', {},
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
       free ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))],
-      el('dt', {}, t('science')), el('dd', {}, String(r.science)),
-      el('dt', {}, t('sciencePerM')), el('dd', {}, r.sciencePerMillion.toFixed(1)),
+      ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
+        el('dt', {}, t('science')), el('dd', {}, String(r.science)),
+        el('dt', {}, t('sciencePerM')), el('dd', {}, r.sciencePerMillion.toFixed(1))]),
       free || state.mission.contract ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
 }
 
@@ -836,7 +873,7 @@ function footer() {
   back.classList.toggle('hidden', state.phase === 'launch');
   next.classList.remove('hidden');
   if (state.phase === 'build') {
-    back.textContent = state.build === 0 ? (state.mission.contract ? t('backCompany') : t('changeDifficulty')) : t('back');
+    back.textContent = state.build === 0 || state.mission.module ? (state.mission.contract ? t('backCompany') : t('changeDifficulty')) : t('back');
     const ready = [state.instruments.length > 0, !!state.bus && !!state.panel, !!state.rocket][state.build];
     next.textContent = state.build === 2 ? t('launch') : t('next');
     next.disabled = !ready;
@@ -913,7 +950,7 @@ $('next').addEventListener('click', () => {
     r.rp = pointsForMission(r, state.mission, previousBest);
     if (contract) {
       company.cash = settleContract(company.cash, r, contract.fee);
-      if (r.success) company.index += 1;
+      if (r.success) { company.index += 1; state.levelView = null; }
       const next = contracts[company.index];
       if (next && isBankrupt(company.cash, cheapestMission(contractMission(next), { instruments, buses, panels }, campaignRockets(company.index)))) company.over = true;
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
@@ -935,7 +972,7 @@ $('next').addEventListener('click', () => {
 });
 
 $('back').addEventListener('click', () => {
-  if (state.phase === 'build' && state.build > 0) state.build -= 1;
+  if (state.phase === 'build' && state.build > 0 && !(state.mission && state.mission.module)) state.build -= 1;
   else if (state.phase === 'company') state.phase = 'home';
   else if (state.phase === 'research') state.phase = state.returnTo || 'start';
   else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company';

@@ -16,7 +16,11 @@ Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission De
 7. A new best score earns research points. Repeating the same mission without doing better earns none. Use them to research your own rocket, Orbiter-1. Its first flight is expensive, every flight after that is cheaper, and a reusable booster cuts the price again.
 
 ## Campaign
-Run your own space company. You start with $110M and four contracts. Your company pays for the parts, the client pays when the mission works, and what is left funds the next contract. Fail twice in a row and you go bankrupt.
+Run your own space company from a base you see from above: Mission control for contracts, the research lab, the launch pad. You start with $110M. Your company pays for the parts, the client pays when the mission works, and what is left funds the next contract. Fail twice in a row and you go bankrupt.
+
+- Level 1, Satellites: four contracts for satellites.
+- Level 2, Space station: five flights, each brings one module. The station grows above your base.
+- Level 3, Moon base, and Level 4, Mars: coming soon.
 
 ## Run it on your own computer
 Serve the folder and open `http://localhost:8000`:

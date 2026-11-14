@@ -15,8 +15,17 @@ export function isBankrupt(cash, cheapestMission) {
 
 // Billigster erfolgreicher Weg durch eine Mission, über alle angebotenen Teile und die gegebenen Raketen.
 // Dient als Pleite-Grenze. Wenige Teile pro Mission, darum reicht Durchprobieren.
+// Stationsflug: Das Modul ersetzt den Satelliten. Masse = Modul, Preis = Bau des Moduls.
+export const moduleBus = (module) => ({ id: 'module', mass: module.mass, capacity: 0, power: 0, cost: module.cost });
+
 export function cheapestMission(mission, { instruments, buses, panels }, rockets) {
   const ok = (x) => !mission.allowed || mission.allowed.includes(x.id);
+  if (mission.module) {
+    const m = { ...mission, budget: 1e9 };
+    const costs = rockets.filter(ok).map((rocket) => missionResult({ mission: m, instruments: [], bus: moduleBus(mission.module), panel: null, rocket }))
+      .filter((r) => r.success).map((r) => r.spent);
+    return costs.length ? Math.round(Math.min(...costs) * 100) / 100 : Infinity;
+  }
   const ins = instruments.filter(ok), bs = buses.filter(ok), ps = [null, ...panels.filter(ok)], rs = rockets.filter(ok);
   const m = { ...mission, budget: 1e9 }; // kein Limit (Infinity ergäbe NaN bei spent)
   let best = Infinity;

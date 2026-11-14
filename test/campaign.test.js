@@ -26,3 +26,12 @@ test('the cheapest way to finish a contract depends on the rockets you can book'
   assert.equal(cheapestMission(weather, P, P.rockets), 69.3);
   assert.equal(cheapestMission(weather, P, [...P.rockets, P.starship]), 23);
 });
+
+// Level 2 Raumstation: Jeder Flug bringt ein festes Modul. Billigster Weg = Modul + billigste Rakete, die es trägt.
+test('a station flight costs the module plus the cheapest rocket that can carry it', async () => {
+  const { cheapestMission } = await import('../src/campaign.js');
+  const P = await import('../data/parts.js');
+  const flight = { allowed: ['pegasus', 'falcon9', 'starship'], minScience: 0, requiredDv: 9500, module: { mass: 6000, cost: 40 } };
+  assert.equal(cheapestMission(flight, P, P.rockets), 109);
+  assert.equal(cheapestMission(flight, P, [...P.rockets, P.starship]), 50);
+});
