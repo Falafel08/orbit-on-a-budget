@@ -20,8 +20,7 @@ export function startSpace(canvas) {
   resize();
 
   function frame(now) {
-    ctx.fillStyle = '#0b0a12';
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H); // durchsichtig, damit das Webb-Bild dahinter sichtbar bleibt
     for (const s of stars) {
       const a = reduce ? 0.7 : 0.45 + 0.35 * Math.sin(now / 900 + s.p);
       ctx.fillStyle = `rgba(245,239,230,${a})`;

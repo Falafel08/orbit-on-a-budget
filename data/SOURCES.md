@@ -25,3 +25,9 @@ NASA prices are total costs to NASA and include more than the rocket itself. NAS
 
 All from NASA pages, fetched 14 Nov 2026, US public domain. Listed with each fact in `data/facts.js`:
 ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts, Voyager 1 mission page, NASA library page on space debris (science.nasa.gov / nasa.gov).
+
+## Background image
+
+| What | Source | License | Status |
+|---|---|---|---|
+| "Cosmic Cliffs" in Carina, NIRCam, screen size, darkened with a CSS overlay | ESA/Webb, https://esawebb.org/images/weic2205a/, credit: NASA, ESA, CSA, and STScI | CC BY 4.0, credit shown on the home screen with a link | Used (`assets/webb-cosmic-cliffs.jpg`) |

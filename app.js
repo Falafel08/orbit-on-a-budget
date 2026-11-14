@@ -312,27 +312,66 @@ function renderRight() {
 }
 
 // Mitte: Rakete als Umriss, zeigt die gewählten Teile und nimmt gezogene Teile an
+// Bild eines Instruments, Ursprung unten in der Mitte, Größe 1 (wird skaliert)
+function instrumentShape(id) {
+  const line = { 'vector-effect': 'non-scaling-stroke', 'stroke-width': 1.2 };
+  const kind = id.replace('cube-', '');
+  if (kind === 'camera') return [
+    svg('rect', { x: -0.5, y: -0.7, width: 1, height: 0.7, rx: 0.08, fill: '#3a3245', stroke: '#A88FD6', ...line }),
+    svg('circle', { cx: 0, cy: -0.35, r: 0.24, fill: '#0b0a12', stroke: '#9fb3e8', ...line })];
+  if (kind === 'lightning') return [
+    svg('rect', { x: -0.45, y: -0.8, width: 0.9, height: 0.8, rx: 0.08, fill: '#3a3245', stroke: '#A88FD6', ...line }),
+    svg('path', { d: 'M0.05 -0.72 L-0.2 -0.36 L0 -0.36 L-0.08 -0.08 L0.2 -0.46 L0 -0.46 Z', fill: '#ffd166' })];
+  if (kind === 'radiometer' || kind === 'altimeter') {
+    const w = kind === 'altimeter' ? 0.75 : 0.5;
+    return [
+      svg('rect', { x: -0.06, y: -0.5, width: 0.12, height: 0.5, fill: '#B8AFA6' }),
+      svg('path', { d: `M${-w} -0.9 Q0 -0.2 ${w} -0.9 Z`, fill: '#d9d2c7', stroke: '#F5EFE6', ...line })];
+  }
+  if (kind === 'sounder') return [
+    svg('rect', { x: -0.35, y: -0.85, width: 0.7, height: 0.85, fill: '#5a5070', stroke: '#A88FD6', ...line }),
+    svg('ellipse', { cx: 0, cy: -0.85, rx: 0.35, ry: 0.12, fill: '#0b0a12', stroke: '#9fb3e8', ...line })];
+  return [svg('rect', { x: -0.4, y: -0.6, width: 0.8, height: 0.6, fill: '#745F9A', stroke: '#F5EFE6', ...line })];
+}
+
 function rocketSvg() {
   const s = svg('svg', { viewBox: '0 0 260 620', role: 'img', 'aria-label': t('rocket') });
   const stroke = 'rgba(245,239,230,0.55)';
   s.append(svg('path', { d: 'M130 20 C 175 70 190 140 190 230 L 70 230 C 70 140 85 70 130 20 Z', fill: '#221f2b', stroke, 'stroke-width': 2 }));
+  // Satellit wächst mit den Teilen (Idee: Josias, Skizze NASA.pdf): Körper je nach Größe,
+  // Solarflügel je nach Leistung, jedes Instrument mit eigenem Bild. Klick auf ein Instrument entfernt es.
+  const busW = state.bus ? Math.min(92, 26 + Math.sqrt(state.bus.capacity) * 2.2) : 70;
+  const busH = Math.max(22, busW * 0.7);
+  const busTop = 222 - busH, busX = 130 - busW / 2;
   if (state.bus) {
-    s.append(svg('rect', { x: 88, y: 150, width: 84, height: 70, rx: 6, fill: '#3a3245', stroke: '#A88FD6' }));
-    s.append(svg('text', { x: 130, y: 212, 'text-anchor': 'middle', class: 'svg-muted' }, tr(state.bus, 'name')));
     if (state.panel) {
       const w = Math.min(46, 14 + Math.sqrt(state.panel.power) * 0.9); // größeres Panel, breitere Flügel
-      s.append(svg('rect', { x: 88 - w, y: 170, width: w, height: 26, fill: '#2b3a6b', stroke: '#9fb3e8' }));
-      s.append(svg('rect', { x: 172, y: 170, width: w, height: 26, fill: '#2b3a6b', stroke: '#9fb3e8' }));
+      const wy = busTop + busH / 2 - 13;
+      for (const x of [busX - w - 4, busX + busW + 4]) {
+        s.append(svg('rect', { x, y: wy, width: w, height: 26, fill: '#2b3a6b', stroke: '#9fb3e8' }));
+        for (let i = 1; i < 3; i++) s.append(svg('line', { x1: x + (w * i) / 3, y1: wy, x2: x + (w * i) / 3, y2: wy + 26, stroke: '#9fb3e8', 'stroke-width': 0.8 }));
+      }
+      s.append(svg('rect', { x: busX - 4, y: wy + 11, width: busW + 8, height: 4, fill: '#B8AFA6' }));
     }
+    const body = svg('rect', { x: busX, y: busTop, width: busW, height: busH, rx: 3, fill: '#b08d3c', stroke: '#e0c070', 'stroke-width': 1.5 });
+    body.append(svg('title', {}, tr(state.bus, 'name')));
+    s.append(body);
+    s.append(svg('path', { d: `M${busX + 4} ${busTop + busH * 0.35} L${busX + busW - 4} ${busTop + busH * 0.3} M${busX + 4} ${busTop + busH * 0.7} L${busX + busW - 4} ${busTop + busH * 0.75}`, stroke: '#8a6a28', 'stroke-width': 1, fill: 'none' }));
   } else {
-    s.append(svg('text', { x: 130, y: 200, 'text-anchor': 'middle', class: 'svg-muted' }, t('satelliteBus')));
+    s.append(svg('rect', { x: busX, y: busTop, width: busW, height: busH, rx: 3, fill: 'none', stroke, 'stroke-dasharray': '5 5' }));
+    s.append(svg('text', { x: 130, y: busTop + busH / 2 + 4, 'text-anchor': 'middle', class: 'svg-muted' }, t('satelliteBus')));
   }
-  state.instruments.forEach((inst, n) => {
-    const y = 86 + n * 15;
+  // Instrumente sitzen oben auf dem Körper, höchstens drei pro Reihe
+  const n = state.instruments.length;
+  state.instruments.forEach((inst, i) => {
+    const size = inst.id.startsWith('cube-') ? 16 : 24;
+    const row = Math.floor(i / 3), inRow = Math.min(3, n - row * 3), col = i % 3;
+    const cx = 130 + (col - (inRow - 1) / 2) * (size + 8);
+    const base = busTop - 1 - row * (size + 6);
     const name = tr(inst, 'name');
-    const g = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `${t('remove')} ${name}` });
-    g.append(svg('rect', { x: 80, y: y - 10, width: 100, height: 13, rx: 4, fill: '#745F9A' }));
-    g.append(svg('text', { x: 130, y, 'text-anchor': 'middle', class: 'svg-label', 'font-size': 9 }, name.replace(/CubeSat[- ]/, '')));
+    const g = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `${t('remove')} ${name}`, transform: `translate(${cx} ${base}) scale(${size})` });
+    g.append(svg('title', {}, name));
+    for (const part of instrumentShape(inst.id)) g.append(part);
     g.addEventListener('click', () => choose('instrument', inst));
     g.addEventListener('keydown', press(() => choose('instrument', inst)));
     s.append(g);
@@ -365,7 +404,27 @@ function renderBuild() {
 
 // ---------- Start-Animation ----------
 
-function launch(canvas, success) {
+// Wie der Start endet (Idee: Josias, Skizze NASA1.pdf): Orbit, Explosion,
+// zu schwer (hebt nicht ab) oder zu wenig Geld (stottert, kein Treibstoff)
+function launchMode(r) {
+  if (r.reachedOrbit) return 'ok';
+  if (r.problems.includes('budget')) return 'nofuel';
+  if (r.problems.includes('rocket-mass') || r.problems.includes('delta-v')) return 'heavy';
+  return 'explode';
+}
+
+// Rakete auf der Rampe, Knopf „Countdown starten“, dann 3, 2, 1 und Start
+function renderLaunch() {
+  const canvas = el('canvas', { 'aria-label': t('launch') });
+  const btn = el('button', { class: 'primary countdown-btn', type: 'button' }, t('startCountdown'));
+  $('next').disabled = true;
+  let scene = null;
+  setTimeout(() => { scene = launch(canvas, launchMode(state.result)); btn.focus(); }, 480);
+  btn.addEventListener('click', () => { if (!scene) return; btn.remove(); scene.go(); });
+  return el('div', { class: 'launch-wrap enter' }, canvas, btn);
+}
+
+function launch(canvas, mode) {
   const ctx = canvas.getContext('2d');
   const rect = canvas.getBoundingClientRect();
   canvas.width = rect.width * devicePixelRatio;
@@ -374,10 +433,9 @@ function launch(canvas, success) {
   const W = rect.width, H = rect.height;
   const stars = Array.from({ length: 140 }, () => [Math.random() * W, Math.random() * H, Math.random()]);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const ignite = reduce ? 1 : 900, fly = reduce ? 1 : 4200;
+  const count = reduce ? 0 : 3000, ignite = reduce ? 1 : 900, fly = reduce ? 1 : 4200;
   const failAt = 0.5;
-  const start = performance.now();
-  if (!reduce) { $('center').classList.add('shake'); setTimeout(() => $('center').classList.remove('shake'), 500); }
+  let start = 0;
 
   const pos = (p) => [W * 0.25 + Math.pow(p, 1.7) * W * 0.6, H - 90 - Math.sin(Math.min(p, 1) * Math.PI / 2) * (H - 190)];
 
@@ -401,38 +459,81 @@ function launch(canvas, success) {
     ctx.restore();
   }
 
-  function frame(now) {
-    const passed = now - start;
+  function background() {
     ctx.fillStyle = '#0b0a12'; ctx.fillRect(0, 0, W, H);
     for (const [x, y, b] of stars) { ctx.fillStyle = `rgba(245,239,230,${0.25 + b * 0.6})`; ctx.fillRect(x, y, 1.6, 1.6); }
     ctx.fillStyle = '#1d3b5c'; ctx.beginPath(); ctx.ellipse(W / 2, H + 380, W * 1.1, 440, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(168,143,214,0.5)'; ctx.setLineDash([6, 8]);
     ctx.beginPath(); ctx.moveTo(0, 100); ctx.lineTo(W, 100); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(184,175,166,0.8)'; ctx.font = '13px sans-serif'; ctx.fillText(t('orbit'), 12, 92);
+    ctx.fillStyle = 'rgba(184,175,166,0.8)'; ctx.font = '13px sans-serif'; ctx.textAlign = 'start'; ctx.fillText(t('orbit'), 12, 92);
+  }
 
+  function caption(text) {
+    ctx.font = '600 18px sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(11,10,18,0.9)'; ctx.lineWidth = 5; ctx.strokeText(text, W / 2, H - 28); // dunkler Rand, lesbar auf dem Planeten
+    ctx.fillStyle = '#F5EFE6'; ctx.fillText(text, W / 2, H - 28); ctx.textAlign = 'start';
+  }
+
+  function frame(now) {
+    const passed = now - start;
+    background();
     const [x0, y0] = pos(0);
-    if (passed < ignite) {
-      fireball(x0, y0 + 30, 30 + (passed / ignite) * 60, 0.9);
+    // Countdown: 3, 2, 1
+    if (passed < count) {
+      rocketAt(x0, y0, 0, 2.2, false);
+      ctx.font = '700 72px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#F5EFE6';
+      ctx.fillText(String(Math.ceil((count - passed) / 1000)), W / 2, H / 2); ctx.textAlign = 'start';
+      requestAnimationFrame(frame);
+      return;
+    }
+    const tt = passed - count;
+    if (tt < ignite) {
+      fireball(x0, y0 + 30, 30 + (tt / ignite) * 60, 0.9);
       rocketAt(x0, y0 - Math.random() * 2, 0, 2.2, true);
     } else {
-      const p = Math.min(1, (passed - ignite) / fly);
-      const pp = success ? p : Math.min(p, failAt);
-      if (p < 0.15) fireball(x0, y0 + 30, 90 * (1 - p / 0.15), 0.8);
-      ctx.strokeStyle = 'rgba(245,239,230,0.35)'; ctx.lineWidth = 2; ctx.beginPath();
-      for (let s = 0; s <= pp; s += 0.01) { const [x, y] = pos(s); s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
-      ctx.stroke();
-      const [x, y] = pos(pp);
-      const [nx, ny] = pos(Math.min(1, pp + 0.01));
-      const angle = Math.atan2(ny - y, nx - x) + Math.PI / 2;
-      const scale = 2.2 - Math.min(1, pp * 2) * 1.2;
-      if (!success && p > failAt) fireball(x, y, 20 + (p - failAt) * 160, Math.max(0, 1 - (p - failAt) * 2));
-      else rocketAt(x, y, angle, scale, true);
+      const p = Math.min(1, (tt - ignite) / fly);
+      if (mode === 'heavy') {
+        // Zu schwer: bleibt auf der Rampe und zittert, bis die Triebwerke ausgehen
+        const burning = p < 0.6;
+        if (burning) fireball(x0, y0 + 30, 70, 0.7);
+        rocketAt(x0 + (burning ? (Math.random() - 0.5) * 4 : 0), y0, 0, 2.2, burning);
+        caption(t('capHeavy'));
+      } else if (mode === 'nofuel') {
+        // Kein Geld für Treibstoff: Flamme stottert, Rakete steigt kurz und fällt zurück
+        const h = p < 0.4 ? p / 0.4 : Math.max(0, 1 - (p - 0.4) / 0.3);
+        const flame = p < 0.4 && Math.sin(now / 45) + Math.sin(now / 23) > 0.2;
+        rocketAt(x0, y0 - h * 60, 0, 2.2, flame);
+        if (p > 0.7) fireball(x0, y0 + 20, 20 + (p - 0.7) * 120, Math.max(0, 1 - (p - 0.7) * 3));
+        caption(t('capNoFuel'));
+      } else {
+        const success = mode === 'ok';
+        const pp = success ? p : Math.min(p, failAt);
+        if (p < 0.15) fireball(x0, y0 + 30, 90 * (1 - p / 0.15), 0.8);
+        ctx.strokeStyle = 'rgba(245,239,230,0.35)'; ctx.lineWidth = 2; ctx.beginPath();
+        for (let s = 0; s <= pp; s += 0.01) { const [x, y] = pos(s); s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+        ctx.stroke();
+        const [x, y] = pos(pp);
+        const [nx, ny] = pos(Math.min(1, pp + 0.01));
+        const angle = Math.atan2(ny - y, nx - x) + Math.PI / 2;
+        const scale = 2.2 - Math.min(1, pp * 2) * 1.2;
+        if (!success && p > failAt) fireball(x, y, 20 + (p - failAt) * 160, Math.max(0, 1 - (p - failAt) * 2));
+        else rocketAt(x, y, angle, scale, true);
+      }
       if (p >= 1) { $('next').disabled = false; return; }
     }
     requestAnimationFrame(frame);
   }
-  $('next').disabled = true;
-  requestAnimationFrame(frame);
+
+  // Ruhebild auf der Rampe, bis jemand den Countdown startet
+  background();
+  rocketAt(...pos(0), 0, 2.2, false);
+  return {
+    go() {
+      start = performance.now();
+      if (!reduce) setTimeout(() => { $('center').classList.add('shake'); setTimeout(() => $('center').classList.remove('shake'), 500); }, count);
+      requestAnimationFrame(frame);
+    },
+  };
 }
 
 // ---------- Forschung ----------
@@ -612,9 +713,7 @@ function render() {
 
   if (state.phase === 'build') { renderLeft(); renderRight(); $('center').replaceChildren(renderBuild()); }
   if (state.phase === 'launch') {
-    const canvas = el('canvas', { 'aria-label': t('launch') });
-    $('center').replaceChildren(el('div', { class: 'launch-wrap enter' }, canvas));
-    setTimeout(() => launch(canvas, state.result.reachedOrbit), 480);
+    $('center').replaceChildren(renderLaunch());
   }
   if (state.phase === 'result') $('center').replaceChildren(renderResult());
   if (state.phase === 'research') $('center').replaceChildren(renderResearch());
