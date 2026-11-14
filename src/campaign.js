@@ -5,7 +5,7 @@ import { missionResult } from './logic.js';
 // Neuer Kontostand nach einem Auftrag: Teile bezahlt die Firma, bei Erfolg zahlt der Kunde.
 export function settleContract(cash, result, fee) {
   const after = cash - result.spent + (result.success ? fee : 0);
-  return Math.round(after * 10) / 10;
+  return Math.round(after * 1000) / 1000; // auf 1.000 $ genau, sonst sammelt sich Rundungsfehler
 }
 
 // Pleite, wenn das Geld nicht mehr für den billigsten möglichen Auftrag reicht

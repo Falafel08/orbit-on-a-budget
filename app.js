@@ -66,14 +66,23 @@ const rocketList = () => (state.mission && state.mission.contract ? campaignRock
   : [...rockets, ...(research.done['own-rocket'] ? [ownRocket()] : [])]);
 
 // Forschung läuft im Hintergrund weiter, solange das Spiel offen ist
+// Fortschritt nach vergangener Zeit (gedrosselte Hintergrund-Tabs zählen mit). Die Seite wird nur am Ende neu gebaut,
+// sonst nur Balken und Prozent, damit Eingaben und Fokus erhalten bleiben (Fund Code-Review 14.11.).
+let lastTick = Date.now();
 setInterval(() => {
+  const now = Date.now(), dt = (now - lastTick) / 1000; lastTick = now;
   const a = research.active;
   if (!a) return;
   const project = PROJECTS.find((x) => x.id === a.id);
-  a.progress = Math.min(1, a.progress + (0.25 / project.seconds) * (a.fast ? 2 : 1));
+  if (!project) { research.active = null; saveResearch(); return; } // alter Stand im Speicher
+  a.progress = Math.min(1, a.progress + (dt / project.seconds) * (a.fast ? 2 : 1));
   if (a.progress >= 1) { research.done[a.id] = true; research.active = null; }
   saveResearch();
-  if (state.phase === 'research') render();
+  if (state.phase !== 'research') return;
+  if (!research.active) { render(); return; }
+  const pct = document.querySelector('.research-pct'), bar = document.querySelector('.research-meter .bar span');
+  if (pct) pct.textContent = `${t('team')} · ${Math.round(a.progress * 100)} %`;
+  if (bar) bar.style.width = `${a.progress * 100}%`;
 }, 250);
 
 // Phasen: home, start (Waben), build, launch, result
@@ -82,8 +91,8 @@ const state = { phase: 'home', build: 0, mission: null, instruments: [], bus: nu
 const $ = (id) => document.getElementById(id);
 // Geld: unter 1 Mio. in Tausend, Minus vor dem Dollarzeichen
 const money = (m) => {
-  const a = Math.abs(m), sign = m < 0 ? '-' : '';
-  return a < 1 ? `${sign}$${Math.round(a * 1000)}k` : `${sign}$${a.toFixed(1)}M`;
+  const a = Math.abs(m), k = Math.round(a * 1000), sign = m < 0 && k > 0 ? '-' : '';
+  return k < 1000 ? `${sign}$${k}k` : `${sign}$${a.toFixed(1)}M`;
 };
 const kg = (m) => (m < 10 ? `${m.toFixed(1)} kg` : `${Math.round(m).toLocaleString('en-US')} kg`);
 const budgetText = (m, v) => (m.free ? t('noLimit') : money(v));
@@ -198,7 +207,7 @@ function seg(options, current, onPick) {
 function openSettings() {
   const panel = $('panel');
   const draw = (note = '') => panel.replaceChildren(
-    el('h2', {}, t('settings')),
+    el('h2', { id: 'panel-title' }, t('settings')),
     el('div', { class: 'row' }, el('span', {}, t('music')),
       seg([[true, t('on')], [false, t('off')]], isPlaying(), (v) => { setMusic(v); updateSound(); draw(); })),
     el('div', { class: 'row' }, el('span', {}, t('language')),
@@ -213,7 +222,7 @@ function openSettings() {
 function openCredits() {
   const panel = $('panel');
   panel.replaceChildren(
-    el('h2', {}, t('credits')),
+    el('h2', { id: 'panel-title' }, t('credits')),
     ...['creditsIdea', 'creditsTeam', 'creditsCode', 'creditsEvent'].map((k) => el('p', {}, t(k))),
     el('div', { class: 'actions' },
       el('button', { type: 'button', onclick: openSources }, t('sources')),
@@ -225,7 +234,7 @@ function openCredits() {
 function openSources() {
   const panel = $('panel');
   panel.replaceChildren(
-    el('h2', {}, t('sources')),
+    el('h2', { id: 'panel-title' }, t('sources')),
     ...[['srcNasa', nasaSources], ['srcOther', otherSources]].flatMap(([head, list]) => [
       el('h3', {}, t(head)),
       el('ul', { class: 'sources' }, list.map((x) => el('li', {}, el('a', { href: x.url, target: '_blank', rel: 'noopener' }, x[getLang()]))))]),
@@ -430,7 +439,8 @@ function rocketPicture(r, withPayload = false) {
   const { H, w } = look;
   const cx = 50, ground = 312, top = ground - H, x = cx - w / 2;
   const id = `rg${++gradSeq}`;
-  const s = svg('svg', { viewBox: '8 0 84 320', class: 'rocket-pic', role: 'img', 'aria-label': tr(r, 'name') });
+  // mit Nutzlast enthält das Bild klickbare Instrumente, dann ist es eine Gruppe und kein reines Bild
+  const s = svg('svg', { viewBox: '8 0 84 320', class: 'rocket-pic', role: withPayload ? 'group' : 'img', 'aria-label': tr(r, 'name') });
   const defs = svg('defs');
   const grad = svg('linearGradient', { id, x1: '0', x2: '1', y1: '0', y2: '0' });
   grad.append(svg('stop', { offset: '0', 'stop-color': look.body[0] }), svg('stop', { offset: '0.55', 'stop-color': look.body[0] }), svg('stop', { offset: '1', 'stop-color': look.body[1] }));
@@ -505,7 +515,7 @@ function rocketCarouselCenter() {
   const n = items.length;
   if (!n) return el('div');
   const i = rocketView(items);
-  if (!state.rocket || state.rocket.id !== items[i].id) state.rocket = items[i];
+  state.rocket = items[i]; // immer das aktuelle Objekt, sonst bleiben alte Preise hängen (eigene Rakete)
   const slide = state.slide; state.slide = null;
   const slot = (k, role) => {
     const r = items[(i + k + n) % n];
@@ -522,10 +532,10 @@ function rocketCarouselCenter() {
     },
   },
   el('div', { class: 'carousel-stage' },
-    n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
+    n > 1 ? el('button', { class: 'arrow', type: 'button', 'data-dir': 'prev', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
     // endlos: ab zwei Raketen stehen immer links und rechts Nachbarn (bei zwei ist es dieselbe)
     el('div', { class: `slots${slide ? (slide > 0 ? ' slide-next' : ' slide-prev') : ''}` }, n > 1 ? slot(-1, 'side') : '', slot(0, 'mid'), n > 1 ? slot(1, 'side') : ''),
-    n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextRocket'), onclick: () => moveRocket(items, 1) }, '›') : el('span')),
+    n > 1 ? el('button', { class: 'arrow', type: 'button', 'data-dir': 'next', 'aria-label': t('nextRocket'), onclick: () => moveRocket(items, 1) }, '›') : el('span')),
   el('dl', { class: 'rocket-facts' }, el('dt', {}, t('price')), el('dd', {}, money(mid.cost)), cat.rows(mid).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
   n > 1 ? el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))) : '',
   insuranceBox());
@@ -554,7 +564,7 @@ function renderLeft() {
   leftStep = state.build;
   left.replaceChildren(...[
     state.mission.module ? el('p', { class: 'hint' }, t({ moon: 'moonFlight', mars: 'marsFlight' }[state.mission.dest] || 'stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
-      : el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').slice(0, 2).map((name, i) => el('button', {
+      : el('nav', { class: 'steps', 'aria-label': t('buildSteps') }, t('steps').slice(0, 2).map((name, i) => el('button', {
         type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
         onclick: () => { state.build = i; render(); },
       }, name))),
@@ -625,59 +635,6 @@ function instrumentShape(id) {
     svg('rect', { x: -0.35, y: -0.85, width: 0.7, height: 0.85, fill: '#5a5070', stroke: '#A88FD6', ...line }),
     svg('ellipse', { cx: 0, cy: -0.85, rx: 0.35, ry: 0.12, fill: '#0b0a12', stroke: '#9fb3e8', ...line })];
   return [svg('rect', { x: -0.4, y: -0.6, width: 0.8, height: 0.6, fill: '#745F9A', stroke: '#F5EFE6', ...line })];
-}
-
-function rocketSvg() {
-  const s = svg('svg', { viewBox: '0 0 260 620', role: 'img', 'aria-label': t('rocket') });
-  const stroke = 'rgba(245,239,230,0.55)';
-  s.append(svg('path', { d: 'M130 20 C 175 70 190 140 190 230 L 70 230 C 70 140 85 70 130 20 Z', fill: '#221f2b', stroke, 'stroke-width': 2 }));
-  // Satellit wächst mit den Teilen (Idee: Josias, Skizze NASA.pdf): Körper je nach Größe,
-  // Solarflügel je nach Leistung, jedes Instrument mit eigenem Bild. Klick auf ein Instrument entfernt es.
-  const busW = state.bus ? Math.min(92, 26 + Math.sqrt(state.bus.capacity) * 2.2) : 70;
-  const busH = Math.max(22, busW * 0.7);
-  const busTop = 222 - busH, busX = 130 - busW / 2;
-  if (state.bus) {
-    if (state.panel) {
-      const w = Math.min(46, 14 + Math.sqrt(state.panel.power) * 0.9); // größeres Panel, breitere Flügel
-      const wy = busTop + busH / 2 - 13;
-      for (const x of [busX - w - 4, busX + busW + 4]) {
-        s.append(svg('rect', { x, y: wy, width: w, height: 26, fill: '#2b3a6b', stroke: '#9fb3e8' }));
-        for (let i = 1; i < 3; i++) s.append(svg('line', { x1: x + (w * i) / 3, y1: wy, x2: x + (w * i) / 3, y2: wy + 26, stroke: '#9fb3e8', 'stroke-width': 0.8 }));
-      }
-      s.append(svg('rect', { x: busX - 4, y: wy + 11, width: busW + 8, height: 4, fill: '#B8AFA6' }));
-    }
-    const body = svg('rect', { x: busX, y: busTop, width: busW, height: busH, rx: 3, fill: '#b08d3c', stroke: '#e0c070', 'stroke-width': 1.5 });
-    body.append(svg('title', {}, tr(state.bus, 'name')));
-    s.append(body);
-    s.append(svg('path', { d: `M${busX + 4} ${busTop + busH * 0.35} L${busX + busW - 4} ${busTop + busH * 0.3} M${busX + 4} ${busTop + busH * 0.7} L${busX + busW - 4} ${busTop + busH * 0.75}`, stroke: '#8a6a28', 'stroke-width': 1, fill: 'none' }));
-  } else {
-    s.append(svg('rect', { x: busX, y: busTop, width: busW, height: busH, rx: 3, fill: 'none', stroke, 'stroke-dasharray': '5 5' }));
-    s.append(svg('text', { x: 130, y: busTop + busH / 2 + 4, 'text-anchor': 'middle', class: 'svg-muted' }, t('satelliteBus')));
-  }
-  // Instrumente sitzen oben auf dem Körper, höchstens drei pro Reihe
-  const n = state.instruments.length;
-  state.instruments.forEach((inst, i) => {
-    const size = inst.id.startsWith('cube-') ? 16 : 24;
-    const row = Math.floor(i / 3), inRow = Math.min(3, n - row * 3), col = i % 3;
-    const cx = 130 + (col - (inRow - 1) / 2) * (size + 8);
-    const base = busTop - 1 - row * (size + 6);
-    const name = tr(inst, 'name');
-    const g = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `${t('remove')} ${name}`, transform: `translate(${cx} ${base}) scale(${size})` });
-    g.append(svg('title', {}, name));
-    for (const part of instrumentShape(inst.id)) g.append(part);
-    g.addEventListener('click', () => choose('instrument', inst));
-    g.addEventListener('keydown', press(() => choose('instrument', inst)));
-    s.append(g);
-  });
-  const r = state.rocket;
-  const dash = r ? {} : { 'stroke-dasharray': '6 6' };
-  s.append(svg('rect', { x: 70, y: 230, width: 120, height: 150, fill: r ? '#2b2733' : 'none', stroke, 'stroke-width': 2, ...dash }));
-  s.append(svg('rect', { x: 70, y: 380, width: 120, height: 180, fill: r ? '#2b2733' : 'none', stroke, 'stroke-width': 2, ...dash }));
-  s.append(svg('path', { d: 'M70 500 L 40 570 L 70 560 Z M190 500 L 220 570 L 190 560 Z', fill: r ? '#3a3245' : 'none', stroke, ...dash }));
-  s.append(svg('path', { d: 'M100 560 L 92 590 L 168 590 L 160 560 Z', fill: r ? '#3a3245' : 'none', stroke, ...dash }));
-  s.append(svg('text', { x: 130, y: 310, 'text-anchor': 'middle', class: r ? 'svg-label' : 'svg-muted' }, r ? tr(r, 'name') : t('rocket')));
-  if (r && r.rideshare) s.append(svg('text', { x: 130, y: 330, 'text-anchor': 'middle', class: 'svg-muted' }, t('shared')));
-  return s;
 }
 
 function renderBuild() {
@@ -809,6 +766,7 @@ function launch(canvas, rocketEl, mode, from) {
   const begin = performance.now();
   let last = begin, boomAt = null;
   function frame(now) {
+    if (state.phase !== 'launch') return; // Szene verlassen (Ergebnis übersprungen)
     fit();
     const wr = canvas.getBoundingClientRect();
     const dt = Math.min(50, now - last); last = now;
@@ -869,7 +827,8 @@ function launch(canvas, rocketEl, mode, from) {
     if (mode === 'nofuel' && s > 0) caption(t('capNoFuel'));
     if (mode === 'explode' && boomAt !== null) caption(t('capExplode'));
     if (mode === 'ok' && s > 3.5) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
-    if (tc >= count + ignite + flight) { $('next').disabled = false; return; }
+    if (tc >= count + ignite && $('next').disabled) $('next').disabled = false; // ab dem Abheben überspringbar
+    if (tc >= count + ignite + flight) return;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -927,8 +886,8 @@ function renderResearch() {
         el('button', { class: 'secondary', type: 'submit' }, t('saveName'))) : '',
         running ? [
           researchTeam(),
-          el('p', { class: 'hint' }, `${t('team')} · ${Math.round(a.progress * 100)} %`),
-          meter('', a.progress, 1, ''),
+          el('p', { class: 'hint research-pct' }, `${t('team')} · ${Math.round(a.progress * 100)} %`),
+          el('div', { class: 'research-meter' }, meter('', a.progress, 1, '')),
           el('div', { class: 'research-actions' },
             el('button', { class: 'secondary', type: 'button', 'aria-pressed': String(!!a.fast), onclick: () => { a.fast = !a.fast; saveResearch(); render(); } }, t('speed2')),
             el('button', { class: 'secondary', type: 'button', disabled: research.rp < SKIP_RP ? '' : null,
@@ -1193,7 +1152,10 @@ function renderCompany() {
         return el('li', { class: i < company.index ? 'is-done' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
       })),
       el('div', { class: 'research-actions' },
-        el('button', { class: 'secondary', type: 'button', onclick: () => { company = freshCompany(); state.levelView = null; saveCompany(); render(); } }, t('restartCompany'))),
+        el('button', { class: state.confirmRestart ? 'secondary danger-text' : 'secondary', type: 'button', onclick: () => {
+          if (!state.confirmRestart) { state.confirmRestart = true; render(); return; } // zweiter Klick bestätigt
+          state.confirmRestart = false; company = freshCompany(); state.levelView = null; saveCompany(); render();
+        } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany'))),
       best ? el('p', { class: 'hint' }, `${t('bestCompany')}: ${money(best)}`) : ''));
 }
 
@@ -1276,7 +1238,8 @@ function footer() {
   next.classList.remove('hidden');
   if (state.phase === 'build') {
     back.textContent = state.build === 0 || state.mission.module ? (state.mission.contract ? t('backCompany') : t('changeDifficulty')) : t('back');
-    const ready = state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build];
+    const affordable = !state.mission.contract || budgetLeft(state.mission.budget, chosen()) >= 0; // Firma kann nicht mehr ausgeben, als sie hat
+    const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build]);
     next.textContent = state.build === 1 ? t('launch') : t('next');
     next.disabled = !ready;
   } else if (state.phase === 'launch') {
@@ -1324,7 +1287,13 @@ function render() {
   $('budget').textContent = m.free ? t('noLimit') : `${t('budget')} ${money(left)} / ${money(m.budget)}`;
   $('budget').classList.toggle('low', !m.free && left < 0);
 
-  if (state.phase === 'build') { renderLeft(); renderRight(); $('center').replaceChildren(renderBuild()); }
+  if (state.phase === 'build') {
+    // Fokus in der Mitte merken und nach dem Neuzeichnen zurückgeben (Tastatur-Nutzer)
+    const f = document.activeElement, center = $('center');
+    const key = f && center.contains(f) ? (f.matches('.insure input') ? '.insure input' : f.dataset.dir ? `.arrow[data-dir="${f.dataset.dir}"]` : f.classList.contains('carousel') ? '.carousel' : null) : null;
+    renderLeft(); renderRight(); center.replaceChildren(renderBuild());
+    if (key) center.querySelector(key)?.focus({ preventScroll: true });
+  }
   if (state.phase === 'launch') {
     $('center').replaceChildren(renderLaunch());
   }
@@ -1352,6 +1321,10 @@ $('next').addEventListener('click', () => {
     // Stationsflüge und Basen bringen keine Wissenschaft, aber Erfahrung: feste Forschungspunkte
     r.rp = contract && contract.module ? (r.success ? 10 : 0) : pointsForMission(r, state.mission, previousBest);
     if (contract) {
+      // Forschungspunkte gibt es pro Auftrag nur beim ersten Erfolg, sonst ließen sie sich durch Neustarts sammeln
+      const paid = research.paid || [];
+      if (paid.includes(contract.id)) r.rp = 0;
+      else if (r.success) research.paid = [...paid, contract.id];
       company.cash = settleContract(company.cash, r, contract.fee);
       if (r.success) { company.index += 1; state.levelView = null; }
       const next = contracts[company.index];
@@ -1398,13 +1371,13 @@ $('lang').addEventListener('click', () => { setLang(getLang() === 'en' ? 'de' : 
 $('credits-btn').addEventListener('click', openCredits);
 $('sound').addEventListener('click', () => { setMusic(!isPlaying()); updateSound(); });
 // Musik ist Standard: beim ersten Klick oder Tastendruck starten (Browser erlauben Ton erst danach).
-// Der Ton-Knopf selbst zählt nicht, sonst schaltet derselbe Klick die Musik gleich wieder aus.
+// Der Ton-Knopf selbst zählt nicht, sonst schaltet derselbe Klick die Musik gleich wieder aus. pointerup statt pointerdown: auf Handys gibt erst das Loslassen den Ton frei.
 function firstInput(e) {
   if (e.target.closest && e.target.closest('#sound')) return;
-  removeEventListener('pointerdown', firstInput); removeEventListener('keydown', firstInput);
+  removeEventListener('pointerup', firstInput); removeEventListener('keydown', firstInput);
   if (wantsMusic() && !isPlaying()) { setMusic(true); updateSound(); }
 }
-addEventListener('pointerdown', firstInput); addEventListener('keydown', firstInput);
+addEventListener('pointerup', firstInput); addEventListener('keydown', firstInput);
 
 setLang(getLang(), false);
 startSpace($('space'));

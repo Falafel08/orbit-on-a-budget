@@ -3,7 +3,9 @@
 let ctx = null, master = null, playing = false;
 
 function build() {
-  ctx = new AudioContext();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return; // Browser ohne Web Audio: kein Ton, kein Absturz
+  ctx = new AC();
   master = ctx.createGain();
   master.gain.value = 0;
   master.connect(ctx.destination);

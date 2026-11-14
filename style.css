@@ -429,3 +429,5 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .research .levels { justify-content: center; margin-bottom: 8px; }
 .lab-scene { max-width: 520px; margin: 0 auto; pointer-events: none; border-radius: var(--ecke); overflow: hidden; }
 .lab-scene .base { display: block; }
+
+.danger-text { color: #e8a09c; }

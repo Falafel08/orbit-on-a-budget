@@ -15,11 +15,13 @@ export function startSpace(canvas) {
       return { x, y, hx: x, hy: y, vx: 0, vy: 0 };
     });
   }
-  addEventListener('resize', resize);
+  addEventListener('resize', () => { resize(); if (reduce) requestAnimationFrame(frame); }); // ruhiges Bild nach Größenänderung neu zeichnen
   addEventListener('pointermove', (e) => { mouse.x = e.clientX * devicePixelRatio; mouse.y = e.clientY * devicePixelRatio; });
   resize();
 
   function frame(now) {
+    // während des Spiels (Bau, Start) oder im Hintergrund-Tab pausieren: spart Akku
+    if (!reduce && (document.body.classList.contains('playing') || document.hidden)) { setTimeout(() => requestAnimationFrame(frame), 400); return; }
     ctx.clearRect(0, 0, W, H); // durchsichtig, damit das Webb-Bild dahinter sichtbar bleibt
     for (const s of stars) {
       const a = reduce ? 0.7 : 0.45 + 0.35 * Math.sin(now / 900 + s.p);
