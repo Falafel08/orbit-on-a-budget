@@ -290,3 +290,22 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .panel .danger { background: transparent; border: 1px solid var(--schlecht); color: var(--schlecht); }
 
 .group { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--akzent-text); margin: 16px 0 8px; }
+
+/* Forschung */
+.research { max-width: 760px; width: 100%; }
+.research .rp { text-align: center; color: var(--akzent-text); }
+.projects { display: grid; gap: 16px; }
+.project { cursor: default; }
+.project .primary { width: 100%; margin-top: 12px; }
+.done-card { border-color: var(--gut); }
+.research-actions { display: flex; gap: 10px; margin-top: 12px; }
+.research-actions button[aria-pressed="true"] { background: var(--akzent); color: #fff; }
+.team { width: 100%; max-width: 360px; display: block; margin: 8px auto; }
+.worker { animation: bob 0.9s ease-in-out infinite; }
+.worker.w1 { animation-delay: 0.3s; } .worker.w2 { animation-delay: 0.6s; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.blink { animation: blink 1.2s steps(2) infinite; }
+.blink.b1 { animation-delay: 0.4s; } .blink.b2 { animation-delay: 0.8s; }
+@keyframes blink { 50% { opacity: 0.2; } }
+.rp-earned { text-align: center; color: var(--akzent-text); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .worker, .blink { animation: none; } }

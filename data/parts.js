@@ -15,13 +15,13 @@ export const missions = [
     id: 'weather', level: 'Intermediate', name: 'Weather satellite',
     goal: 'Put a weather satellite into an 800 km orbit to watch clouds and storms.',
     budget: 120, minScience: 55, requiredDv: 9500, verified: false,
-    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'pegasus', 'falcon9'],
+    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'pegasus', 'falcon9', 'own'],
   },
   {
     id: 'ocean', level: 'Hard', name: 'Ocean satellite',
     goal: 'Measure sea level from an 800 km orbit. The radar needs a lot of power.',
     budget: 120, minScience: 125, requiredDv: 9500, verified: false,
-    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'pegasus', 'falcon9'],
+    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'pegasus', 'falcon9', 'own'],
   },
   {
     id: 'free', level: 'Unrestricted', name: 'Free play', free: true,

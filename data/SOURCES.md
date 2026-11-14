@@ -8,6 +8,7 @@
 | CubeSat unit: 10 cm cube, about 1 to 1.33 kg per 1U; sizes 1U to 12U | NASA, CubeSat 101: Basic Concepts and Processes for First-Time CubeSat Developers, https://www3.nasa.gov/sites/default/files/atoms/files/nasa_csli_cubesat_101_508.pdf | NASA content, US public domain | Used for CubeSat bus mass |
 | Rideshare price: NASA covers launch costs up to $300,000, typically enough for a 3U CubeSat to low Earth orbit | NASA, CubeSat 101 | NASA content, US public domain | Used |
 | Split of CubeSat mass into bus and instruments (half each), CubeSat power, bus and instrument prices, masses and power | Game assumption | n/a | To be checked |
-| Rocket equation, standard gravity 9.80665 m/s² | Physics (Tsiolkovsky) | n/a | Kept for building your own rocket |
+| Rocket equation, standard gravity 9.80665 m/s² | Physics (Tsiolkovsky) | n/a | Used for Orbiter-1 |
+| Orbiter-1 (your own rocket): stage masses, specific impulse, price and how it gets cheaper | Game design, fictional rocket | n/a | Game assumption |
 
 NASA prices are total costs to NASA and include more than the rocket itself. NASA logos are not used anywhere in this project.

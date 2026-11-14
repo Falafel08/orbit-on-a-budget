@@ -13,6 +13,7 @@ Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission De
 4. Book a rocket or a CubeSat rideshare.
 5. Launch.
 6. See if you reached orbit, how much money is left and your science per million dollars. Then try again for less money.
+7. Successful missions earn research points. Use them to research your own rocket, Orbiter-1. Its first flight is expensive, every flight after that is cheaper, and a reusable booster cuts the price again.
 
 ## Run it on your own computer
 Serve the folder and open `http://localhost:8000`:
