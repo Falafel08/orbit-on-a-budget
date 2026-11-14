@@ -8,21 +8,43 @@
   <script type="module" src="app.js"></script>
 </head>
 <body>
-  <header class="top">
-    <span class="title">Orbit on a Budget</span>
-    <span class="mission-label" id="mission-label"></span>
-    <span class="budget" id="budget" aria-live="polite"></span>
-  </header>
+  <canvas id="space" aria-hidden="true"></canvas>
 
-  <div class="stage full" id="stage">
-    <aside class="side left" id="left" aria-label="Parts"></aside>
-    <main class="center" id="center"></main>
-    <aside class="side right" id="right" aria-label="Mission status"></aside>
+  <!-- Home und Schwierigkeitswahl nach der Skizze des Teams -->
+  <section class="home" id="home">
+    <button class="corner lang" id="lang" type="button"></button>
+    <h1 class="game-title" id="title">Orbit<small>on a</small>Budget</h1>
+    <div class="planet" aria-hidden="true"></div>
+    <div class="sat-wrap" id="sat" aria-hidden="true"></div>
+    <nav class="side-buttons" id="side-buttons"></nav>
+    <div class="hexes" id="hexes"></div>
+    <div class="corner credits-corner">
+      <button class="pill" id="credits-btn" type="button"></button>
+      <span class="version" id="version"></span>
+    </div>
+  </section>
+
+  <button class="corner sound" id="sound" type="button"></button>
+
+  <div class="app" id="app">
+    <header class="top">
+      <span class="title">Orbit on a Budget</span>
+      <span class="mission-label" id="mission-label"></span>
+      <span class="budget" id="budget" aria-live="polite"></span>
+    </header>
+
+    <div class="stage" id="stage">
+      <aside class="side left" id="left"></aside>
+      <main class="center" id="center"></main>
+      <aside class="side right" id="right"></aside>
+    </div>
+
+    <footer class="bottom">
+      <button class="secondary" id="back" type="button">Back</button>
+      <button class="primary" id="next" type="button">Next</button>
+    </footer>
   </div>
 
-  <footer class="bottom">
-    <button class="secondary" id="back" type="button">Back</button>
-    <button class="primary" id="next" type="button">Next</button>
-  </footer>
+  <dialog class="panel" id="panel"></dialog>
 </body>
 </html>

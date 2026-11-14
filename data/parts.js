@@ -11,7 +11,7 @@ export const missions = [
     verified: false,
   },
   {
-    id: 'weather', level: 'Medium', name: 'Weather satellite',
+    id: 'weather', level: 'Intermediate', name: 'Weather satellite',
     goal: 'Put a weather satellite into an 800 km orbit.',
     budget: 120, minScience: 55,
     requiredDv: 9500, // zu belegen
@@ -22,6 +22,13 @@ export const missions = [
     goal: 'The same weather satellite with a third less money.',
     budget: 80, minScience: 55,
     requiredDv: 9500, // zu belegen
+    verified: false,
+  },
+  {
+    id: 'free', level: 'Unrestricted', name: 'Free play', free: true,
+    goal: 'No budget and no science target. Try out any combination.',
+    budget: 100000, minScience: 0,
+    requiredDv: 9500,
     verified: false,
   },
 ];
@@ -83,3 +90,30 @@ export const rockets = [
     info: 'A large rocket whose first stage lands again and flies once more. NASA lists 10,670 kg to an 800 km orbit.',
   },
 ];
+
+// Deutsche Namen und Texte, an jeden Datensatz gehängt (tr() in src/i18n.js liest sie)
+const BUS_DE = 'Der Körper des Satelliten. Er trägt die Instrumente und gibt ihnen Strom, Funk und einen Computer.';
+const DE = {
+  cubesat: { name: 'Studenten-CubeSat', goal: 'Bring einen kleinen CubeSat mit Kamera in eine niedrige Erdumlaufbahn.' },
+  weather: { name: 'Wettersatellit', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' },
+  'weather-tight': { name: 'Wettersatellit, knappes Budget', goal: 'Derselbe Wettersatellit mit einem Drittel weniger Geld.' },
+  free: { name: 'Freies Spiel', goal: 'Kein Budget und kein Wissenschaftsziel. Probier jede Kombination aus.' },
+  'cube-camera': { name: 'CubeSat-Kamera', info: 'Eine kleine Kamera, die in einen CubeSat passt. Sie fotografiert die Erde.' },
+  'cube-radiometer': { name: 'CubeSat-Radiometer', info: 'Ein kleiner Sensor, der misst, wie warm die Luft ist.' },
+  camera: { name: 'Bildkamera', info: 'Fotografiert Wolken, Land und Meer.' },
+  lightning: { name: 'Blitzkartierer', info: 'Zählt Blitze. Wetterdienste verfolgen damit Gewitter.' },
+  radiometer: { name: 'Mikrowellen-Radiometer', info: 'Misst die Wärme von Luft und Wasser, auch durch Wolken.' },
+  sounder: { name: 'Infrarot-Sounder', info: 'Misst Temperatur und Feuchte in verschiedenen Höhen der Luft.' },
+  altimeter: { name: 'Radar-Höhenmesser', info: 'Schickt Funkpulse aufs Meer und misst die Zeit bis zum Echo. Daraus ergeben sich Meereshöhe und Wellenhöhe.' },
+  'cube-1u': { name: '1U-CubeSat', info: 'Ein Würfel mit 10 cm Kante. ' + BUS_DE },
+  'cube-3u': { name: '3U-CubeSat', info: 'Drei 10-cm-Würfel in einer Reihe. ' + BUS_DE },
+  'cube-6u': { name: '6U-CubeSat', info: 'Sechs 10-cm-Würfel. ' + BUS_DE },
+  'cube-12u': { name: '12U-CubeSat', info: 'Zwölf 10-cm-Würfel. ' + BUS_DE },
+  'bus-s': { name: 'Kleiner Bus', info: BUS_DE },
+  'bus-m': { name: 'Mittlerer Bus', info: BUS_DE },
+  'bus-l': { name: 'Großer Bus', info: BUS_DE },
+  rideshare: { name: 'CubeSat-Mitflug', info: 'Dein CubeSat fliegt auf der Rakete von jemand anderem mit. Das ist billig, aber nur für CubeSats bis 3U.' },
+  pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
+  falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
+};
+for (const list of [missions, instruments, buses, rockets]) for (const x of list) x.de = DE[x.id];

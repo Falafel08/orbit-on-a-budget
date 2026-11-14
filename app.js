@@ -1,10 +1,12 @@
-// Oberfläche: Start mit Schwierigkeit, dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
+// Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { missions, instruments, buses, rockets } from './data/parts.js';
 import { budgetLeft, deltaV, missionResult } from './src/logic.js';
+import { t, tr, getLang, setLang } from './src/i18n.js';
+import { startSpace } from './src/space.js';
+import { setMusic, isPlaying, wantsMusic } from './src/audio.js';
 
-const BUILD = ['Instruments', 'Satellite', 'Rocket'];
-// Phasen: start, build, launch, result
-const state = { phase: 'start', build: 0, mission: null, instruments: [], bus: null, rocket: null, result: null, info: null };
+// Phasen: home, start (Waben), build, launch, result
+const state = { phase: 'home', build: 0, mission: null, instruments: [], bus: null, rocket: null, result: null, info: null };
 
 const $ = (id) => document.getElementById(id);
 // Geld: unter 1 Mio. in Tausend, Minus vor dem Dollarzeichen
@@ -12,7 +14,8 @@ const money = (m) => {
   const a = Math.abs(m), sign = m < 0 ? '-' : '';
   return a < 1 ? `${sign}$${Math.round(a * 1000)}k` : `${sign}$${a.toFixed(1)}M`;
 };
-const kg = (m) => (m < 10 ? `${m.toFixed(1)} kg` : `${Math.round(m)} kg`);
+const kg = (m) => (m < 10 ? `${m.toFixed(1)} kg` : `${Math.round(m).toLocaleString('en-US')} kg`);
+const budgetText = (m, v) => (m.free ? t('noLimit') : money(v));
 const SVG = 'http://www.w3.org/2000/svg';
 
 // Kleiner Helfer für DOM-Elemente
@@ -23,7 +26,7 @@ function el(tag, props = {}, ...children) {
     else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v);
   }
-  for (const c of children.flat(Infinity)) if (c !== null && c !== '') node.append(c);
+  for (const c of children.flat(Infinity)) if (c !== null && c !== '' && c !== undefined) node.append(c);
   return node;
 }
 function svg(tag, attrs = {}, text) {
@@ -32,6 +35,7 @@ function svg(tag, attrs = {}, text) {
   if (text) node.textContent = text;
   return node;
 }
+const press = (fn) => (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
 
 const instMass = () => state.instruments.reduce((m, i) => m + i.mass, 0);
 const instPower = () => state.instruments.reduce((p, i) => p + i.power, 0);
@@ -39,7 +43,106 @@ const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
 const payload = () => (state.bus ? state.bus.mass : 0) + instMass();
 const chosen = () => [...state.instruments, state.bus, state.rocket].filter(Boolean);
 
-// Teil wählen: Instrumente an/aus, Bus und Rakete ersetzen
+// ---------- Home und Waben ----------
+
+// Satellit nach der Skizze: Körper, zwei Solarflügel, eigenes Abzeichen statt NASA-Schriftzug
+function satelliteSvg() {
+  const s = svg('svg', { viewBox: '0 0 600 260' });
+  const panel = (x) => {
+    const g = svg('g');
+    g.append(svg('rect', { x, y: 70, width: 200, height: 120, rx: 4, fill: '#2b3a6b', stroke: '#F5EFE6', 'stroke-width': 3 }));
+    for (let i = 1; i < 5; i++) g.append(svg('line', { x1: x + i * 40, y1: 70, x2: x + i * 40, y2: 190, stroke: '#9fb3e8', 'stroke-width': 1.5 }));
+    for (let j = 1; j < 3; j++) g.append(svg('line', { x1: x, y1: 70 + j * 40, x2: x + 200, y2: 70 + j * 40, stroke: '#9fb3e8', 'stroke-width': 1.5 }));
+    return g;
+  };
+  s.append(panel(10), panel(390));
+  s.append(svg('rect', { x: 210, y: 122, width: 40, height: 16, fill: '#B8AFA6' }));
+  s.append(svg('rect', { x: 350, y: 122, width: 40, height: 16, fill: '#B8AFA6' }));
+  s.append(svg('rect', { x: 245, y: 60, width: 110, height: 140, rx: 50, fill: '#d9d2c7', stroke: '#F5EFE6', 'stroke-width': 3 }));
+  s.append(svg('circle', { cx: 300, cy: 130, r: 30, fill: '#745F9A' }));
+  s.append(svg('text', { x: 300, y: 137, 'text-anchor': 'middle', fill: '#fff', 'font-size': 20, 'font-weight': 700, 'font-family': 'sans-serif' }, 'OoB'));
+  s.append(svg('line', { x1: 300, y1: 60, x2: 300, y2: 20, stroke: '#F5EFE6', 'stroke-width': 3 }));
+  s.append(svg('circle', { cx: 300, cy: 16, r: 6, fill: '#ff9a3c' }));
+  return s;
+}
+
+const LEVEL_CLASS = { Easy: 'h-easy', Intermediate: 'h-intermediate', Hard: 'h-hard', Unrestricted: 'h-unrestricted' };
+
+function renderHome() {
+  const choosing = state.phase === 'start';
+  $('home').classList.add('show');
+  $('home').classList.toggle('choosing', choosing);
+  $('lang').replaceChildren(el('span', { 'aria-hidden': 'true' }, '🌐'), getLang().toUpperCase());
+  $('lang').setAttribute('aria-label', t('languageToggle'));
+  $('credits-btn').textContent = t('credits');
+  $('version').textContent = t('version');
+  if (!$('sat').firstChild) $('sat').append(satelliteSvg());
+
+  $('side-buttons').replaceChildren(...(choosing
+    ? [el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('menu'))]
+    : [el('button', { class: 'hexbtn', type: 'button', onclick: () => go('start') }, t('play')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]));
+
+  $('hexes').replaceChildren(el('h2', { class: 'hex-title' }, t('chooseDifficulty')), ...missions.map((m) => {
+    const best = loadBest(m);
+    return el('button', { class: `hex ${LEVEL_CLASS[m.level]}`, type: 'button', onclick: () => startMission(m), title: tr(m, 'goal') },
+      el('span', { class: 'lvl' }, t(`lvl${m.level}`)),
+      el('span', { class: 'meta' }, m.free ? t('noLimit') : `${t('budget')} ${money(m.budget)}`),
+      !m.free && best ? el('span', { class: 'meta' }, `${t('best')}: ${best.toFixed(1)}`) : '');
+  }));
+}
+
+function go(phase) {
+  state.phase = phase;
+  if (phase === 'home') state.mission = null;
+  render();
+}
+
+function startMission(m) {
+  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, rocket: null, info: null });
+  render();
+}
+
+// ---------- Einstellungen und Credits ----------
+
+function seg(options, current, onPick) {
+  return el('div', { class: 'seg' }, options.map(([value, label]) =>
+    el('button', { type: 'button', 'aria-pressed': String(value === current), onclick: () => onPick(value) }, label)));
+}
+
+function openSettings() {
+  const panel = $('panel');
+  const draw = (note = '') => panel.replaceChildren(
+    el('h2', {}, t('settings')),
+    el('div', { class: 'row' }, el('span', {}, t('music')),
+      seg([[true, t('on')], [false, t('off')]], isPlaying(), (v) => { setMusic(v); updateSound(); draw(); })),
+    el('div', { class: 'row' }, el('span', {}, t('language')),
+      seg([['en', 'English'], ['de', 'Deutsch']], getLang(), (v) => { setLang(v); render(); draw(); })),
+    el('div', { class: 'row' }, el('button', { class: 'danger', type: 'button', onclick: () => { resetBest(); render(); draw(t('bestReset')); } }, t('resetBest'))),
+    note ? el('p', {}, note) : '',
+    el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
+  draw();
+  panel.showModal();
+}
+
+function openCredits() {
+  const panel = $('panel');
+  panel.replaceChildren(
+    el('h2', {}, t('credits')),
+    ...['creditsIdea', 'creditsTeam', 'creditsCode', 'creditsData', 'creditsEvent'].map((k) => el('p', {}, t(k))),
+    el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
+  panel.showModal();
+}
+
+function updateSound() {
+  $('sound').textContent = isPlaying() ? '🔊' : '🔈';
+  $('sound').setAttribute('aria-label', t('musicToggle'));
+  $('sound').setAttribute('aria-pressed', String(isPlaying()));
+}
+
+// ---------- Bauen: Teile, Rakete, Status ----------
+
 function choose(kind, item) {
   if (kind === 'instrument') {
     state.instruments = state.instruments.includes(item)
@@ -50,27 +153,26 @@ function choose(kind, item) {
 }
 
 const catalogs = [
-  { kind: 'instrument', items: instruments, hint: 'Drag instruments onto the rocket, or press Enter. Each one adds science, mass, power draw and cost.',
-    rows: (i) => [['Science', i.science], ['Mass', kg(i.mass)], ['Power', `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
-  { kind: 'bus', items: buses, hint: 'The bus carries your instruments and gives them power. Drag one onto the rocket.',
-    rows: (b) => [['Carries', kg(b.capacity)], ['Power', `${b.power} W`], ['Own mass', kg(b.mass)]], picked: (b) => state.bus === b },
-  { kind: 'rocket', items: rockets, hint: 'Book a launch. Your satellite must not be heavier than what the rocket carries to orbit. Figures are from NASA.',
+  { kind: 'instrument', items: instruments, hint: 'hintInstrument',
+    rows: (i) => [[t('science'), i.science], [t('mass'), kg(i.mass)], [t('power'), `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
+  { kind: 'bus', items: buses, hint: 'hintBus',
+    rows: (b) => [[t('carries'), kg(b.capacity)], [t('power'), `${b.power} W`], [t('ownMass'), kg(b.mass)]], picked: (b) => state.bus === b },
+  { kind: 'rocket', items: rockets, hint: 'hintRocket',
     rows: (r) => (r.maxPayload !== undefined
-      ? [['Carries to orbit', kg(r.maxPayload)], ['Your satellite', kg(payload())]]
-      : [['Delta-v with your satellite', `${Math.round(deltaV(r.stages, payload()))} m/s`]]), picked: (r) => state.rocket === r },
+      ? [[t('carriesToOrbit'), kg(r.maxPayload)], [t('yourSatellite'), kg(payload())]]
+      : [[t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]), picked: (r) => state.rocket === r },
 ];
 
-// Karte im Katalog: ziehbar, per Klick oder Enter wählbar
 function card(cat, item) {
   const node = el('div', {
     class: 'card', role: 'button', tabindex: '0', draggable: 'true', 'aria-pressed': String(cat.picked(item)),
     onclick: () => choose(cat.kind, item),
-    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(cat.kind, item); } },
+    onkeydown: press(() => choose(cat.kind, item)),
     onmouseenter: () => showInfo(item), onfocus: () => showInfo(item),
     ondragstart: (e) => { e.dataTransfer.setData('text/plain', `${cat.kind}:${item.id}`); node.classList.add('dragging'); },
     ondragend: () => node.classList.remove('dragging'),
   },
-  el('h2', {}, el('span', {}, item.name), el('span', { class: 'price' }, money(item.cost))),
+  el('h2', {}, el('span', {}, tr(item, 'name')), el('span', { class: 'price' }, money(item.cost))),
   el('dl', {}, cat.rows(item).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])));
   return node;
 }
@@ -78,15 +180,14 @@ function card(cat, item) {
 function renderLeft() {
   const cat = catalogs[state.build];
   $('left').replaceChildren(
-    el('nav', { class: 'steps', 'aria-label': 'Build steps' }, BUILD.map((name, i) => el('button', {
+    el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
       type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
       onclick: () => { state.build = i; render(); },
     }, name))),
-    el('p', { class: 'hint' }, cat.hint),
+    el('p', { class: 'hint' }, t(cat.hint)),
     el('div', { class: 'catalog enter' }, cat.items.map((item) => card(cat, item))));
 }
 
-// Rechte Spalte: Zahlen der Mission und Erklärung zum Teil
 function meter(label, value, max, text) {
   const fill = el('span');
   fill.style.width = `${Math.min(100, max ? (value / max) * 100 : 0)}%`; // CSSOM, erlaubt unter style-src 'self'
@@ -98,63 +199,61 @@ function meter(label, value, max, text) {
 function showInfo(item) {
   state.info = item;
   const box = document.querySelector('.info');
-  if (box) box.replaceChildren(el('strong', {}, item.name), item.info || '');
+  if (box) box.replaceChildren(el('strong', {}, tr(item, 'name')), tr(item, 'info') || '');
 }
 
 function renderRight() {
   const m = state.mission;
   const left = budgetLeft(m.budget, chosen());
-  const meters = [meter('Science', science(), m.minScience, `${science()} / ${m.minScience} needed`)];
+  const meters = [];
+  if (!m.free) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`));
   if (state.bus) {
-    meters.push(meter('Instrument mass', instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
-    meters.push(meter('Power draw', instPower(), state.bus.power, `${instPower()} / ${state.bus.power} W`));
+    meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
+    meters.push(meter(t('powerDraw'), instPower(), state.bus.power, `${instPower()} / ${state.bus.power} W`));
   }
   if (state.rocket && state.bus) {
-    if (state.rocket.maxPayload !== undefined) meters.push(meter('Satellite mass', payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`));
+    if (state.rocket.maxPayload !== undefined) meters.push(meter(t('satMass'), payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`));
     else {
       const dv = deltaV(state.rocket.stages, payload());
-      // Balken zeigt Bedarf gegen Vorhandenes: voll und grün, wenn genug da ist
-      meters.push(meter('Delta-v', m.requiredDv, dv, `${Math.round(dv)} / ${m.requiredDv} m/s needed`));
+      meters.push(meter('Delta-v', m.requiredDv, dv, `${Math.round(dv)} / ${m.requiredDv} m/s ${t('needed')}`));
     }
   }
   $('right').replaceChildren(
-    el('h2', {}, 'Budget left'),
-    el('p', { class: 'big-number' }, money(left)),
+    el('h2', {}, t('budgetLeft')),
+    el('p', { class: 'big-number' }, m.free ? t('noLimit') : money(left)),
     el('div', { class: 'meters' }, meters),
-    el('div', { class: 'info' }, state.info ? [el('strong', {}, state.info.name), state.info.info || ''] : 'Point at a part to learn what it does.'));
+    el('div', { class: 'info' }, state.info ? [el('strong', {}, tr(state.info, 'name')), tr(state.info, 'info') || ''] : t('pointAt')));
 }
 
 // Mitte: Rakete als Umriss, zeigt die gewählten Teile und nimmt gezogene Teile an
 function rocketSvg() {
-  const s = svg('svg', { viewBox: '0 0 260 620', role: 'img', 'aria-label': 'Your rocket' });
+  const s = svg('svg', { viewBox: '0 0 260 620', role: 'img', 'aria-label': t('rocket') });
   const stroke = 'rgba(245,239,230,0.55)';
-  // Spitze mit Nutzlastraum
   s.append(svg('path', { d: 'M130 20 C 175 70 190 140 190 230 L 70 230 C 70 140 85 70 130 20 Z', fill: '#221f2b', stroke, 'stroke-width': 2 }));
   if (state.bus) {
     s.append(svg('rect', { x: 88, y: 150, width: 84, height: 70, rx: 6, fill: '#3a3245', stroke: '#A88FD6' }));
-    s.append(svg('text', { x: 130, y: 212, 'text-anchor': 'middle', class: 'svg-muted' }, state.bus.name));
+    s.append(svg('text', { x: 130, y: 212, 'text-anchor': 'middle', class: 'svg-muted' }, tr(state.bus, 'name')));
   } else {
-    s.append(svg('text', { x: 130, y: 200, 'text-anchor': 'middle', class: 'svg-muted' }, 'Satellite bus'));
+    s.append(svg('text', { x: 130, y: 200, 'text-anchor': 'middle', class: 'svg-muted' }, t('satelliteBus')));
   }
-  // Instrumente als Chips im Nutzlastraum, Klick entfernt
   state.instruments.forEach((inst, n) => {
     const y = 86 + n * 15;
-    const g = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `Remove ${inst.name}` });
+    const name = tr(inst, 'name');
+    const g = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `${t('remove')} ${name}` });
     g.append(svg('rect', { x: 80, y: y - 10, width: 100, height: 13, rx: 4, fill: '#745F9A' }));
-    g.append(svg('text', { x: 130, y: y, 'text-anchor': 'middle', class: 'svg-label', 'font-size': 9 }, inst.name.replace('CubeSat ', '')));
+    g.append(svg('text', { x: 130, y, 'text-anchor': 'middle', class: 'svg-label', 'font-size': 9 }, name.replace(/CubeSat[- ]/, '')));
     g.addEventListener('click', () => choose('instrument', inst));
-    g.addEventListener('keydown', (e) => { if (e.key === 'Enter') choose('instrument', inst); });
+    g.addEventListener('keydown', press(() => choose('instrument', inst)));
     s.append(g);
   });
-  // Körper der Rakete mit Stufen
   const r = state.rocket;
   const dash = r ? {} : { 'stroke-dasharray': '6 6' };
   s.append(svg('rect', { x: 70, y: 230, width: 120, height: 150, fill: r ? '#2b2733' : 'none', stroke, 'stroke-width': 2, ...dash }));
   s.append(svg('rect', { x: 70, y: 380, width: 120, height: 180, fill: r ? '#2b2733' : 'none', stroke, 'stroke-width': 2, ...dash }));
   s.append(svg('path', { d: 'M70 500 L 40 570 L 70 560 Z M190 500 L 220 570 L 190 560 Z', fill: r ? '#3a3245' : 'none', stroke, ...dash }));
   s.append(svg('path', { d: 'M100 560 L 92 590 L 168 590 L 160 560 Z', fill: r ? '#3a3245' : 'none', stroke, ...dash }));
-  s.append(svg('text', { x: 130, y: 310, 'text-anchor': 'middle', class: r ? 'svg-label' : 'svg-muted' }, r ? r.name : 'Rocket'));
-  if (r && r.rideshare) s.append(svg('text', { x: 130, y: 330, 'text-anchor': 'middle', class: 'svg-muted' }, 'shared with others'));
+  s.append(svg('text', { x: 130, y: 310, 'text-anchor': 'middle', class: r ? 'svg-label' : 'svg-muted' }, r ? tr(r, 'name') : t('rocket')));
+  if (r && r.rideshare) s.append(svg('text', { x: 130, y: 330, 'text-anchor': 'middle', class: 'svg-muted' }, t('shared')));
   return s;
 }
 
@@ -173,32 +272,8 @@ function renderBuild() {
   return zone;
 }
 
-// Startbildschirm: Schwierigkeit wählen
-function renderStart() {
-  const best = (m) => loadBest(m);
-  return el('section', { class: 'enter' },
-    el('h1', {}, 'Choose your difficulty'),
-    el('p', { class: 'lead' }, 'Reach orbit, bring enough science and spend as little as you can.'),
-    el('div', { class: 'levels' }, missions.map((m) => el('div', {
-      class: 'card level', role: 'button', tabindex: '0',
-      onclick: () => startMission(m),
-      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startMission(m); } },
-    },
-    el('span', { class: 'tag' }, m.level),
-    el('h2', {}, m.name),
-    el('p', {}, m.goal),
-    el('dl', {},
-      el('dt', {}, 'Budget'), el('dd', {}, money(m.budget)),
-      el('dt', {}, 'Science needed'), el('dd', {}, String(m.minScience)),
-      el('dt', {}, 'Your best'), el('dd', {}, best(m) ? `${best(m).toFixed(1)} per $1M` : 'none yet'))))));
-}
+// ---------- Start-Animation ----------
 
-function startMission(m) {
-  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, rocket: null, info: null });
-  render();
-}
-
-// Start-Animation: Zünden mit Feuerball und Wackeln, dann Flug bis in den Orbit oder Absturz
 function launch(canvas, success) {
   const ctx = canvas.getContext('2d');
   const rect = canvas.getBoundingClientRect();
@@ -213,7 +288,7 @@ function launch(canvas, success) {
   const start = performance.now();
   if (!reduce) { $('center').classList.add('shake'); setTimeout(() => $('center').classList.remove('shake'), 500); }
 
-  const pos = (t) => [W * 0.25 + Math.pow(t, 1.7) * W * 0.6, H - 90 - Math.sin(Math.min(t, 1) * Math.PI / 2) * (H - 190)];
+  const pos = (p) => [W * 0.25 + Math.pow(p, 1.7) * W * 0.6, H - 90 - Math.sin(Math.min(p, 1) * Math.PI / 2) * (H - 190)];
 
   function fireball(x, y, r, a) {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
@@ -236,35 +311,32 @@ function launch(canvas, success) {
   }
 
   function frame(now) {
-    const el = now - start;
+    const passed = now - start;
     ctx.fillStyle = '#0b0a12'; ctx.fillRect(0, 0, W, H);
     for (const [x, y, b] of stars) { ctx.fillStyle = `rgba(245,239,230,${0.25 + b * 0.6})`; ctx.fillRect(x, y, 1.6, 1.6); }
     ctx.fillStyle = '#1d3b5c'; ctx.beginPath(); ctx.ellipse(W / 2, H + 380, W * 1.1, 440, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(168,143,214,0.5)'; ctx.setLineDash([6, 8]);
     ctx.beginPath(); ctx.moveTo(0, 100); ctx.lineTo(W, 100); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(184,175,166,0.8)'; ctx.font = '13px sans-serif'; ctx.fillText('Orbit', 12, 92);
+    ctx.fillStyle = 'rgba(184,175,166,0.8)'; ctx.font = '13px sans-serif'; ctx.fillText(t('orbit'), 12, 92);
 
     const [x0, y0] = pos(0);
-    if (el < ignite) {
-      // Zünden: Rakete steht, Feuerball unten wächst, Nahaufnahme
-      const k = el / ignite;
-      fireball(x0, y0 + 30, 30 + k * 60, 0.9);
+    if (passed < ignite) {
+      fireball(x0, y0 + 30, 30 + (passed / ignite) * 60, 0.9);
       rocketAt(x0, y0 - Math.random() * 2, 0, 2.2, true);
     } else {
-      const t = Math.min(1, (el - ignite) / fly);
-      const tt = success ? t : Math.min(t, failAt);
-      if (t < 0.15) fireball(x0, y0 + 30, 90 * (1 - t / 0.15), 0.8);
+      const p = Math.min(1, (passed - ignite) / fly);
+      const pp = success ? p : Math.min(p, failAt);
+      if (p < 0.15) fireball(x0, y0 + 30, 90 * (1 - p / 0.15), 0.8);
       ctx.strokeStyle = 'rgba(245,239,230,0.35)'; ctx.lineWidth = 2; ctx.beginPath();
-      for (let s = 0; s <= tt; s += 0.01) { const [x, y] = pos(s); s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      for (let s = 0; s <= pp; s += 0.01) { const [x, y] = pos(s); s === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
       ctx.stroke();
-      const [x, y] = pos(tt);
-      const [nx, ny] = pos(Math.min(1, tt + 0.01));
+      const [x, y] = pos(pp);
+      const [nx, ny] = pos(Math.min(1, pp + 0.01));
       const angle = Math.atan2(ny - y, nx - x) + Math.PI / 2;
-      const scale = 2.2 - Math.min(1, tt * 2) * 1.2; // Kamera zoomt heraus
-      if (!success && t > failAt) {
-        fireball(x, y, 20 + (t - failAt) * 160, Math.max(0, 1 - (t - failAt) * 2));
-      } else rocketAt(x, y, angle, scale, true);
-      if (t >= 1) { $('next').disabled = false; return; }
+      const scale = 2.2 - Math.min(1, pp * 2) * 1.2;
+      if (!success && p > failAt) fireball(x, y, 20 + (p - failAt) * 160, Math.max(0, 1 - (p - failAt) * 2));
+      else rocketAt(x, y, angle, scale, true);
+      if (p >= 1) { $('next').disabled = false; return; }
     }
     requestAnimationFrame(frame);
   }
@@ -272,73 +344,79 @@ function launch(canvas, success) {
   requestAnimationFrame(frame);
 }
 
+// ---------- Ergebnis ----------
+
 function renderResult() {
   const r = state.result;
   const reasons = {
-    budget: 'You spent more than your budget.',
-    power: 'Your instruments need more power than the bus gives.',
-    capacity: 'Your instruments are too heavy for the bus.',
-    'delta-v': 'The rocket does not have enough delta-v for this satellite.',
-    'rocket-mass': 'Your satellite is heavier than the rocket can carry to this orbit.',
-    science: `You reached orbit, but the mission needs ${state.mission.minScience} science.`,
+    budget: t('rBudget'), power: t('rPower'), capacity: t('rCapacity'), 'delta-v': t('rDv'),
+    'rocket-mass': t('rRocketMass'), science: t('rScience', { n: state.mission.minScience }),
   };
   const best = loadBest(state.mission);
+  const free = state.mission.free;
   return el('section', { class: 'result enter' },
-    el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? 'Mission complete' : (r.reachedOrbit ? 'Not enough science' : 'Mission failed')),
+    el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     el('dl', {},
-      el('dt', {}, 'Spent'), el('dd', {}, money(r.spent)),
-      el('dt', {}, 'Budget left'), el('dd', {}, money(r.budgetLeft)),
-      el('dt', {}, 'Science'), el('dd', {}, String(r.science)),
-      el('dt', {}, 'Science per $1M'), el('dd', {}, r.sciencePerMillion.toFixed(1)),
-      el('dt', {}, 'Your best'), el('dd', {}, best ? best.toFixed(1) : 'none yet')));
+      el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
+      free ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))],
+      el('dt', {}, t('science')), el('dd', {}, String(r.science)),
+      el('dt', {}, t('sciencePerM')), el('dd', {}, r.sciencePerMillion.toFixed(1)),
+      free ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
 }
 
-// Bestwert im Browser speichern, ohne Login
+// Bestwert im Browser speichern, ohne Login. Freies Spiel zählt nicht.
 function loadBest(m) {
   try { return Number(localStorage.getItem(`best-${m.id}`)) || 0; } catch { return 0; }
 }
 function saveBest(m, v) {
+  if (m.free) return;
   try { if (v > loadBest(m)) localStorage.setItem(`best-${m.id}`, String(v)); } catch { /* ohne Speicher spielbar */ }
 }
+function resetBest() {
+  try { for (const m of missions) localStorage.removeItem(`best-${m.id}`); } catch { /* ohne Speicher */ }
+}
 
-// Knöpfe unten je Phase
+// ---------- Knöpfe unten und Gesamtaufbau ----------
+
 function footer() {
   const back = $('back'), next = $('next');
-  back.classList.toggle('hidden', state.phase === 'start' || state.phase === 'launch');
-  next.classList.toggle('hidden', state.phase === 'start');
+  back.classList.toggle('hidden', state.phase === 'launch');
   if (state.phase === 'build') {
-    back.textContent = state.build === 0 ? 'Change difficulty' : 'Back';
+    back.textContent = state.build === 0 ? t('changeDifficulty') : t('back');
     const ready = [state.instruments.length > 0, !!state.bus, !!state.rocket][state.build];
-    next.textContent = state.build === 2 ? 'Launch' : 'Next';
+    next.textContent = state.build === 2 ? t('launch') : t('next');
     next.disabled = !ready;
   } else if (state.phase === 'launch') {
-    next.textContent = 'See result';
+    next.textContent = t('seeResult');
   } else if (state.phase === 'result') {
-    back.textContent = 'Change difficulty';
-    next.textContent = 'Try again cheaper';
+    back.textContent = t('changeDifficulty');
+    next.textContent = t('tryAgain');
     next.disabled = false;
   }
 }
 
 function render() {
+  const inMenu = state.phase === 'home' || state.phase === 'start';
+  $('app').classList.toggle('hidden-app', inMenu);
+  document.body.classList.toggle('playing', !inMenu);
+  updateSound();
+  if (inMenu) { renderHome(); return; }
+  $('home').classList.remove('show');
+
   const stage = $('stage');
-  stage.classList.toggle('full', state.phase === 'start' || state.phase === 'result');
+  stage.classList.toggle('full', state.phase === 'result');
   stage.classList.toggle('launching', state.phase === 'launch');
   const m = state.mission;
-  $('mission-label').textContent = m ? `${m.level}: ${m.name}` : '';
-  if (m) {
-    const left = budgetLeft(m.budget, chosen());
-    $('budget').textContent = `Budget ${money(left)} of ${money(m.budget)}`;
-    $('budget').classList.toggle('low', left < 0);
-  } else $('budget').textContent = '';
+  $('mission-label').textContent = `${t(`lvl${m.level}`)}: ${tr(m, 'name')}`;
+  const left = budgetLeft(m.budget, chosen());
+  $('budget').textContent = m.free ? t('noLimit') : `${t('budget')} ${money(left)} / ${money(m.budget)}`;
+  $('budget').classList.toggle('low', !m.free && left < 0);
 
-  if (state.phase === 'start') $('center').replaceChildren(renderStart());
   if (state.phase === 'build') { renderLeft(); renderRight(); $('center').replaceChildren(renderBuild()); }
   if (state.phase === 'launch') {
-    const canvas = el('canvas', { 'aria-label': 'Launch animation' });
+    const canvas = el('canvas', { 'aria-label': t('launch') });
     $('center').replaceChildren(el('div', { class: 'launch-wrap enter' }, canvas));
-    // erst nach dem Aufziehen des Vorhangs starten, damit die Größe stimmt
     setTimeout(() => launch(canvas, state.result.reachedOrbit), 480);
   }
   if (state.phase === 'result') $('center').replaceChildren(renderResult());
@@ -358,8 +436,16 @@ $('next').addEventListener('click', () => {
 
 $('back').addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0) state.build -= 1;
-  else { state.phase = 'start'; state.mission = null; }
+  else state.phase = 'start';
   render();
 });
 
+$('lang').addEventListener('click', () => { setLang(getLang() === 'en' ? 'de' : 'en'); render(); });
+$('credits-btn').addEventListener('click', openCredits);
+$('sound').addEventListener('click', () => { setMusic(!isPlaying()); updateSound(); });
+// Musik war beim letzten Mal an: beim ersten Klick wieder starten (Browser erlauben Ton erst nach Klick)
+if (wantsMusic()) addEventListener('pointerdown', () => { if (!isPlaying()) { setMusic(true); updateSound(); } }, { once: true });
+
+setLang(getLang());
+startSpace($('space'));
 render();
