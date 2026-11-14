@@ -341,9 +341,13 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 
 /* Countdown-Knopf über der Startrampe */
 .launch-wrap { position: relative; overflow: hidden; border-radius: var(--ecke); }
-.launch-wrap canvas { position: absolute; inset: 0; }
+.launch-wrap canvas { position: absolute; inset: 0; background: transparent; border-radius: 0; }
 /* Rakete im Vollbild über der Szene; Höhe und Position setzt app.js */
 .launch-rocket { position: absolute; left: 50%; width: auto; transform: translateX(-50%); pointer-events: none; }
+/* Bau-Ansicht blendet beim Start aus, die vordere Rakete übernimmt die Szene */
+.launch-wrap > .dropzone { position: absolute; inset: 0; margin: 0 auto; transition: opacity 450ms ease; }
+.launch-wrap > .dropzone.fading { opacity: 0; pointer-events: none; }
+.rocket-pic.gone { visibility: hidden; }
 
 /* Bildnachweis für den Hintergrund, sichtbar laut CC BY 4.0 */
 .image-credit { bottom: 18px; left: 50%; transform: translateX(-50%); color: var(--nebentext); font-size: 0.75rem; text-decoration: none; white-space: nowrap; }
@@ -357,11 +361,14 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .carousel .arrow { min-height: 48px; min-width: 48px; border-radius: 50%; font-size: 1.8rem; line-height: 1; padding: 0; }
 .slots { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: end; gap: 6px; }
 /* Wechsel gleitet in Pfeilrichtung (Linus 14.11.) */
-.slots.slide-next { animation: slide-next 260ms ease; }
-.slots.slide-prev { animation: slide-prev 260ms ease; }
-@keyframes slide-next { from { transform: translateX(18%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@keyframes slide-prev { from { transform: translateX(-18%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .slots.slide-next, .slots.slide-prev { animation: none; } }
+/* nur Raketen und Namen gleiten, der Ständer bleibt stehen */
+.slots.slide-next .slot > .rocket-pic, .slots.slide-next .banner { animation: slide-next 260ms ease; }
+.slots.slide-prev .slot > .rocket-pic, .slots.slide-prev .banner { animation: slide-prev 260ms ease; }
+@keyframes slide-next { from { transform: translateX(60%); opacity: 0.3; } to { transform: none; opacity: 1; } }
+@keyframes slide-prev { from { transform: translateX(-60%); opacity: 0.3; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .slots .rocket-pic, .slots .banner { animation: none !important; } }
+.slot .rocket-pic { position: relative; }
+.slot.mid .tower-pic { position: absolute; top: 0; left: 0; width: 100%; height: 54vh; pointer-events: none; }
 .slot.mid { grid-column: 2; }
 .slot.side.prev { grid-column: 1; }
 .slot.side.next { grid-column: 3; }
