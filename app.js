@@ -6,7 +6,7 @@ import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, con
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
-import { setMusic, isPlaying, wantsMusic } from './src/audio.js';
+import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound } from './src/audio.js';
 import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost, researchCostFor } from './src/research.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
@@ -572,6 +572,9 @@ function rocketPicture(r, withPayload = false) {
   if (withPayload) {
     s.append(svg('path', { d: nose, fill: 'rgba(245,239,230,0.08)', stroke: 'rgba(245,239,230,0.7)', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
     payloadIn(s, cx, bodyTop, fw, fh * 0.75);
+    // Hitzeschild: zwei Hälften, die sich beim Countdown schließen (CSS-Klasse .closed)
+    const half = (side) => `M${cx + side * fw / 2} ${bodyTop} L${cx + side * fw / 2} ${top + fh * 0.45} Q${cx + side * fw / 2} ${top} ${cx} ${top - 4} L${cx} ${bodyTop} Z`;
+    s.append(svg('path', { d: half(-1), fill, class: 'shield shield-l' }), svg('path', { d: half(1), fill, class: 'shield shield-r' }));
   } else {
     s.append(svg('path', { d: nose, fill }));
   }
@@ -778,6 +781,8 @@ function launch(canvas, rocketEl, mode, from) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const intro = reduce ? 0 : 700, count = reduce ? 600 : 3000, ignite = reduce ? 200 : 1400;
   const look = ROCKET_LOOK[state.rocket.id] || ROCKET_LOOK.own;
+  // Wiederverwendbare Rakete (Linus 14.11.): Booster landet nach dem Start wieder im Ständer
+  const reusable = mode === 'ok' && !reduce && (['falcon9', 'falconHeavy', 'starship'].includes(state.rocket.id) || (state.rocket.id === 'own' && research.done.reuse));
   let W = 0, H = 0, stars = [];
   function fit() {
     const r = canvas.getBoundingClientRect();
@@ -795,6 +800,7 @@ function launch(canvas, rocketEl, mode, from) {
   })() : null;
   const smoke = [];
   const flight = mode === 'heavy' ? 3200 : mode === 'nofuel' ? 3600 : 5200;
+  const back = reusable ? 3800 : 0;                                   // Rückflug des Boosters
   function altitude(s) {
     if (mode === 'heavy') return 0;
     if (mode === 'nofuel') {
@@ -806,9 +812,12 @@ function launch(canvas, rocketEl, mode, from) {
   }
   const burning = (s) => (mode === 'heavy' ? s < 2.2 : mode === 'nofuel' ? s < 1.6 && Math.sin(s * 40) + Math.sin(s * 23) > 0.2 : mode === 'explode' ? s < 2.3 : true);
   const ease = (x) => x * x * (3 - 2 * x);
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  // Neigung nach dem Abheben (Gravity Turn): bis etwa 35°, nur wenn die Rakete wirklich fliegt
+  const tilt = (s) => (mode === 'ok' || mode === 'explode' ? Math.min(0.6, Math.max(0, s - 1) * 0.22) : 0);
 
   function tower(cx, gy, unit, fall) {
-    // Ständer aus Stahl, kippt beim Countdown nach links weg und verschwindet
+    // Ständer aus Stahl: kippt beim Countdown nach links weg, richtet sich zur Landung wieder auf
     const left = cx - 36 * unit, right = cx - 27 * unit, top = gy - 250 * unit;
     ctx.save();
     ctx.globalAlpha = 1 - Math.max(0, fall - 0.6) / 0.4;
@@ -822,19 +831,39 @@ function launch(canvas, rocketEl, mode, from) {
     ctx.restore();
   }
 
-  function flame(x, y, s, unit) {
+  // Feuer an der Düse, Ursprung (0, 0), zeigt nach unten (wird mit der Rakete gedreht)
+  function flame(s, unit, scale = 1) {
     const nozzle = look.w * unit;
-    const len = (40 + Math.min(s, 2) * 30) * unit * (0.85 + Math.random() * 0.3);
-    const glow = ctx.createRadialGradient(x, y + len * 0.2, 0, x, y + len * 0.2, len);
+    const len = (40 + Math.min(s, 2) * 30) * unit * scale * (0.85 + Math.random() * 0.3);
+    const glow = ctx.createRadialGradient(0, len * 0.2, 0, 0, len * 0.2, len);
     glow.addColorStop(0, 'rgba(255,200,120,0.55)'); glow.addColorStop(1, 'rgba(255,120,60,0)');
-    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y + len * 0.2, len, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, len * 0.2, len, 0, Math.PI * 2); ctx.fill();
     for (const [k, c1, c2] of [[1, 'rgba(224,96,90,0.85)', 'rgba(224,96,90,0)'], [0.72, '#ff9a3c', 'rgba(255,154,60,0)'], [0.42, '#fff8d8', 'rgba(255,243,176,0)']]) {
       const wN = nozzle * (0.55 + k * 0.5), L = len * k;
-      const g = ctx.createLinearGradient(0, y, 0, y + L);
+      const g = ctx.createLinearGradient(0, 0, 0, L);
       g.addColorStop(0, c1); g.addColorStop(1, c2);
       ctx.fillStyle = g; ctx.beginPath();
-      ctx.moveTo(x - wN / 2, y); ctx.quadraticCurveTo(x - wN * 0.7, y + L * 0.45, x, y + L);
-      ctx.quadraticCurveTo(x + wN * 0.7, y + L * 0.45, x + wN / 2, y); ctx.closePath(); ctx.fill();
+      ctx.moveTo(-wN / 2, 0); ctx.quadraticCurveTo(-wN * 0.7, L * 0.45, 0, L);
+      ctx.quadraticCurveTo(wN * 0.7, L * 0.45, wN / 2, 0); ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // Booster beim Rückflug: Körper mit Licht, Gitterflossen oben, Landebeine kurz vor dem Aufsetzen
+  function booster(cx, baseY, unit, legs) {
+    const w = look.w * unit, h = 170 * unit, x = cx - w / 2;
+    const g = ctx.createLinearGradient(x, 0, x + w, 0);
+    g.addColorStop(0, look.body[0]); g.addColorStop(0.55, look.body[0]); g.addColorStop(1, look.body[1]);
+    ctx.fillStyle = g; ctx.fillRect(x, baseY - h, w, h);
+    if (state.rocket.id === 'falcon9' || state.rocket.id === 'falconHeavy') { ctx.fillStyle = '#1c1918'; ctx.fillRect(x, baseY - h * 0.3, w, 4 * unit); }
+    ctx.fillStyle = '#6f747b';
+    ctx.fillRect(x - 4 * unit, baseY - h + 4 * unit, 4 * unit, 3 * unit); ctx.fillRect(x + w, baseY - h + 4 * unit, 4 * unit, 3 * unit);
+    ctx.fillStyle = '#4a4550'; ctx.fillRect(cx - w * 0.35, baseY - 6 * unit, w * 0.7, 6 * unit);
+    if (legs > 0) {
+      ctx.strokeStyle = '#3a3540'; ctx.lineWidth = Math.max(1.5, unit * 1.6);
+      ctx.beginPath();
+      ctx.moveTo(x, baseY - 26 * unit); ctx.lineTo(x - 12 * unit * legs, baseY);
+      ctx.moveTo(x + w, baseY - 26 * unit); ctx.lineTo(x + w + 12 * unit * legs, baseY);
+      ctx.stroke();
     }
   }
 
@@ -851,10 +880,15 @@ function launch(canvas, rocketEl, mode, from) {
     ctx.fillStyle = '#F5EFE6'; ctx.fillText(text, x, H * 0.3); ctx.textAlign = 'start';
   }
 
+  // Ton (Linus/Josias 14.11.): Piepen beim Countdown, Grollen ab der Zündung, Knall bei Explosion
+  const sound = { beeps: 0, rumble: null, boom: false, retro: null };
+  const burnTime = (mode === 'heavy' ? ignite + 2200 : mode === 'nofuel' ? ignite + 1600 : mode === 'explode' ? ignite + 2300 : ignite + flight) / 1000;
+
   const begin = performance.now();
   let last = begin, boomAt = null;
+  rocketEl.style.transformOrigin = '50% 97.5%';                       // dreht um die Düse (y = 312 von 320)
   function frame(now) {
-    if (state.phase !== 'launch') return; // Szene verlassen (Ergebnis übersprungen)
+    if (state.phase !== 'launch') { if (sound.rumble) sound.rumble(); if (sound.retro) sound.retro(); return; } // Szene verlassen
     fit();
     const wr = canvas.getBoundingClientRect();
     const dt = Math.min(50, now - last); last = now;
@@ -867,23 +901,37 @@ function launch(canvas, rocketEl, mode, from) {
 
     const tc = passed - intro;                                        // Zeit seit Countdown-Beginn
     const s = Math.max(0, (tc - count - ignite) / 1000);              // Sekunden seit dem Abheben
+    const tr = tc - count - ignite - flight;                          // Zeit seit Ende des Aufstiegs (Rückflug)
+    const returning = reusable && tr >= 0;
     const igniting = tc >= count;
-    const fire = igniting && (tc < count + ignite || burning(s));
-    const alt = tc < count + ignite ? 0 : altitude(s);
-    const cam = Math.max(0, alt - H * 0.08);
+    const fire = igniting && !returning && (tc < count + ignite || burning(s));
+    const alt = tc < count + ignite ? 0 : altitude(Math.min(s, flight / 1000));
+    const camUp = Math.max(0, alt - H * 0.08);
+    const cam = returning ? camUp * (1 - ease(clamp(tr / 1100))) : camUp;  // Kamera fährt zur Landung zurück
+    const angle = tilt(s);
     const shakeAmp = reduce ? 0 : fire ? (alt < H ? 7 : 3) : 0;
     const sx = (Math.random() - 0.5) * shakeAmp, sy = (Math.random() - 0.5) * shakeAmp;
 
+    // Ton steuern
+    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); sound.beeps += 1; }
+    if (igniting && !sound.rumble) sound.rumble = rumble(burnTime, mode === 'nofuel');
+    if (boomAt !== null && !sound.boom) { boomSound(); sound.boom = true; }
+
+    // Hitzeschild schließt sich beim Countdown über dem Satelliten
+    if (tc >= 0) rocketEl.classList.add('closed');
+
     ctx.clearRect(0, 0, W, H);                                        // Hintergrund bleibt der der Bau-Ansicht
-    if (cam > 0) for (const [x, y, b] of stars) {                     // Sterne ziehen vorbei, sobald die Kamera mitfliegt
+    if (cam > 0) for (const [x, y, b] of stars) {                     // Sterne ziehen vorbei, schräg zur Neigung
       ctx.fillStyle = `rgba(245,239,230,${0.25 + b * 0.6})`;
-      ctx.fillRect(x, (y + cam * 0.15 * (0.5 + b)) % H, 1.6, 1.6 + Math.min(8, 4 * b));
+      const yy = (y + cam * 0.15 * (0.5 + b)) % H, xx = ((x - cam * 0.1 * Math.sin(angle) * (0.5 + b)) % W + W) % W;
+      ctx.fillRect(xx, yy, 1.6, 1.6 + Math.min(8, 4 * b));
     }
     ctx.save(); ctx.translate(sx, sy);
     const gy = groundY + cam;
     if (gy < H + 400) {
       ctx.fillStyle = '#5a564f'; ctx.fillRect(cx - 40 * unit, gy, 80 * unit, 4 * unit);   // Rampe wie im Bau
-      tower(cx, gy, unit, tc > 0 ? Math.min(1.2, tc / 1300) : 0);
+      const fall = returning ? 1.2 * (1 - ease(clamp((tr - 500) / 1000))) : (tc > 0 ? Math.min(1.2, tc / 1300) : 0);
+      tower(cx, gy, unit, fall);
     }
     if (fire && alt < H * 0.8 && !reduce) for (let i = 0; i < 3; i++) smoke.push({ x: (Math.random() - 0.5) * look.w * unit, y: 0, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 0.8, r: 8 + Math.random() * 14, life: 1 });
     for (const p of smoke) {
@@ -891,21 +939,34 @@ function launch(canvas, rocketEl, mode, from) {
       if (p.life > 0) { ctx.fillStyle = `rgba(200,195,188,${p.life * 0.45})`; ctx.beginPath(); ctx.arc(cx + p.x, gy - 4 * unit + p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
     }
     const baseY = groundY - alt + cam;
-    if (fire && boomAt === null) flame(cx, baseY, s, unit);
+    if (fire && boomAt === null) { ctx.save(); ctx.translate(cx, baseY); ctx.rotate(angle); flame(s, unit); ctx.restore(); }
     if (mode === 'explode' && s >= 2.3 && boomAt === null) boomAt = now;
     if (mode === 'nofuel' && s > 1.6 && alt === 0 && boomAt === null) boomAt = now;
     if (boomAt !== null) {
       const b = (now - boomAt) / 1000;
       fireball(cx, baseY - (mode === 'explode' ? 160 * unit : 20 * unit), (mode === 'explode' ? 60 : 30) * unit + b * 220 * unit, Math.max(0, 1 - b * 0.9));
     }
+    // Rückflug: Booster bremst mit Feuer und setzt in den Ständer
+    let landed = false;
+    if (returning) {
+      const p = clamp((tr - 1100) / 2200);
+      const bAlt = H * 1.1 * (1 - p) * (1 - p);
+      landed = p >= 1;
+      if (!landed) {
+        if (!sound.retro) sound.retro = rumble(2.4, false);
+        ctx.save(); ctx.translate(cx, gy - bAlt); flame(1.2, unit, 0.7); ctx.restore();
+        if (bAlt < H * 0.2) for (let i = 0; i < 2; i++) smoke.push({ x: (Math.random() - 0.5) * look.w * unit, y: 0, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 0.5, r: 6 + Math.random() * 10, life: 0.8 });
+      }
+      booster(cx, gy - bAlt, unit, clamp((p - 0.75) / 0.25));
+    }
     ctx.restore();
 
-    // Rakete (SVG): Größe und Lage aus Maßstab und Boden, dazu Flug und Wackeln
+    // Rakete (SVG): Größe und Lage aus Maßstab und Boden, dazu Flug, Neigung und Wackeln. Beim Rückflug ist sie im All.
     rocketEl.style.height = `${320 * unit}px`;
     rocketEl.style.left = `${cx}px`;
     rocketEl.style.top = `${groundY - 312 * unit}px`;
-    rocketEl.style.transform = `translate(calc(-50% + ${sx}px), ${-(alt - cam) + sy}px)`;
-    rocketEl.style.opacity = mode === 'explode' && boomAt !== null ? '0' : '1';
+    rocketEl.style.transform = `translate(calc(-50% + ${sx}px), ${-(alt - camUp) + sy}px) rotate(${angle}rad)`;
+    rocketEl.style.opacity = (mode === 'explode' && boomAt !== null) || returning ? '0' : '1';
 
     if (tc >= 0 && !igniting) {
       ctx.font = '800 96px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#F5EFE6';
@@ -914,8 +975,9 @@ function launch(canvas, rocketEl, mode, from) {
     if (mode === 'heavy' && s > 0) caption(t('capHeavy'));
     if (mode === 'nofuel' && s > 0) caption(t('capNoFuel'));
     if (mode === 'explode' && boomAt !== null) caption(t('capExplode'));
-    if (mode === 'ok' && s > 3.5) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
-    if (tc >= count + ignite + flight) { // nach kurzer Pause von selbst zum Ergebnis
+    if (mode === 'ok' && s > 3.5 && !returning) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
+    if (landed) caption(t('capLanded'));
+    if (tc >= count + ignite + flight + back) { // nach kurzer Pause von selbst zum Ergebnis
       setTimeout(() => { if (state.phase === 'launch') { state.phase = 'result'; render(); } }, 1200);
       return;
     }

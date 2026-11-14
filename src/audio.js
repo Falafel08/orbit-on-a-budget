@@ -41,3 +41,47 @@ export function wantsMusic() {
   // Standard an (Linus 14.11.), aus nur, wenn jemand sie ausgeschaltet hat
   try { return localStorage.getItem('music') !== '0'; } catch { return true; }
 }
+
+// Geräusche für den Start, im Browser erzeugt (Josias 14.11.: Start war nicht hörbar). Folgen der Ton-Einstellung.
+let sfx = null;
+function sfxCtx() {
+  if (!wantsMusic()) return null;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!sfx) sfx = new AC();
+  if (sfx.state === 'suspended') sfx.resume();
+  return sfx;
+}
+// kurzer Piepton (Countdown)
+export function beep(freq = 660, dur = 0.14) {
+  const c = sfxCtx(); if (!c) return;
+  const o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime;
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+// Rauschen, tief gefiltert: klingt wie ein Triebwerk. Gibt eine Funktion zum Abbrechen zurück.
+export function rumble(seconds, stutter = false) {
+  const c = sfxCtx(); if (!c) return () => {};
+  const len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+  let lastV = 0;
+  for (let i = 0; i < len; i++) { lastV = (lastV + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = lastV * 3.5; } // braunes Rauschen
+  const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
+  const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520;
+  const g = c.createGain(), t0 = c.currentTime;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.8, t0 + 0.6);
+  if (stutter) for (let k = 0.7; k < seconds; k += 0.18) g.gain.setValueAtTime(k * 7 % 2 > 1 ? 0.05 : 0.8, t0 + k); // stottert
+  g.gain.setValueAtTime(0.8, t0 + Math.max(0.7, seconds - 0.8)); g.gain.exponentialRampToValueAtTime(0.0001, t0 + seconds);
+  src.connect(f).connect(g).connect(c.destination); src.start(t0); src.stop(t0 + seconds + 0.1);
+  return () => { try { g.gain.cancelScheduledValues(c.currentTime); g.gain.setTargetAtTime(0.0001, c.currentTime, 0.05); src.stop(c.currentTime + 0.3); } catch { /* schon gestoppt */ } };
+}
+// Knall bei einer Explosion
+export function boomSound() {
+  const c = sfxCtx(); if (!c) return;
+  const len = c.sampleRate, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3;
+  const src = c.createBufferSource(); src.buffer = buf;
+  const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+  const g = c.createGain(); g.gain.value = 1;
+  src.connect(f).connect(g).connect(c.destination); src.start();
+}

@@ -556,3 +556,9 @@ button.secondary:active:not(:disabled), .steps button:active, .level:active:not(
 .fact-pic { width: 100%; max-width: 480px; height: auto; display: block; margin: 0 auto 8px; }
 .fact-label { fill: #F5EFE6; font: 600 11px sans-serif; }
 .big-fact p { font-size: 1.1rem; line-height: 1.5; }
+
+/* Hitzeschild: Hälften gleiten beim Start von außen zu */
+.rocket-pic .shield { opacity: 0; transition: transform 900ms ease, opacity 300ms ease; transform-box: fill-box; }
+.rocket-pic .shield-l { transform: translateX(-60%); }
+.rocket-pic .shield-r { transform: translateX(60%); }
+.launch-rocket.closed .shield { opacity: 1; transform: none; }
