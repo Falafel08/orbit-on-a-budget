@@ -19,9 +19,9 @@ export function deltaV(stages, payloadMass) {
 }
 
 // Prüft eine geplante Mission. problems nennt jeden Grund fürs Scheitern.
-export function missionResult({ mission, instruments, bus, panel, rocket }) {
-  // Solarpanel ist freiwillig: ohne Panel zählt nur der Strom des Busses
-  const parts = [...instruments, bus, panel, rocket].filter(Boolean);
+export function missionResult({ mission, instruments, bus, panel, rocket, insurance = 0 }) {
+  // Solarpanel ist freiwillig: ohne Panel zählt nur der Strom des Busses. Versicherung zählt wie ein Teil.
+  const parts = [...instruments, bus, panel, rocket, insurance ? { cost: insurance } : null].filter(Boolean);
   const left = budgetLeft(mission.budget, parts);
   const spent = mission.budget - left;
   const instMass = instruments.reduce((m, i) => m + i.mass, 0);
@@ -56,4 +56,12 @@ export function missionResult({ mission, instruments, bus, panel, rocket }) {
     sciencePerMillion: success && spent > 0 ? science / spent : 0,
     problems,
   };
+}
+
+// Ergebnis des Starts: Erfolg, wenn der Zufallswert unter der Erfolgsquote liegt.
+// Mit Versicherung bezahlt die Versicherung einen zweiten Start.
+export function launchOutcome(reliability, insured, rng = Math.random) {
+  if (rng() < reliability) return { launched: true, attempts: 1 };
+  if (insured && rng() < reliability) return { launched: true, attempts: 2 };
+  return { launched: false, attempts: insured ? 2 : 1 };
 }

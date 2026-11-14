@@ -309,3 +309,11 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 @keyframes blink { 50% { opacity: 0.2; } }
 .rp-earned { text-align: center; color: var(--akzent-text); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .worker, .blink { animation: none; } }
+
+/* Versicherung und Raketenname */
+.insure { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
+.insure input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--akzent); }
+.name-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.name-form label { width: 100%; color: var(--nebentext); font-size: 0.9rem; }
+.name-form input { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--linie); background: var(--grund); color: var(--text); font: inherit; padding: 0 12px; }
+.name-form button { min-height: 44px; }

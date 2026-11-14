@@ -11,9 +11,9 @@ Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission De
 2. Drag instruments onto the rocket. Each one adds science, mass, power draw and cost.
 3. Build the satellite: a bus that carries the instruments and solar panels that power them.
 4. Book a rocket or a CubeSat rideshare.
-5. Launch.
+5. Launch. Every rocket has a real success rate, so a launch can fail. Insurance pays for a second launch.
 6. See if you reached orbit, how much money is left and your science per million dollars. Then try again for less money.
-7. Successful missions earn research points. Use them to research your own rocket, Orbiter-1. Its first flight is expensive, every flight after that is cheaper, and a reusable booster cuts the price again.
+7. A new best score earns research points. Repeating the same mission without doing better earns none. Use them to research your own rocket, Orbiter-1. Its first flight is expensive, every flight after that is cheaper, and a reusable booster cuts the price again.
 
 ## Run it on your own computer
 Serve the folder and open `http://localhost:8000`:

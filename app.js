@@ -1,10 +1,10 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { missions, instruments, buses, panels, rockets } from './data/parts.js';
-import { budgetLeft, deltaV, missionResult } from './src/logic.js';
+import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
 import { setMusic, isPlaying, wantsMusic } from './src/audio.js';
-import { pointsForMission, ownRocketCost } from './src/research.js';
+import { pointsForMission, ownRocketCost, ownRocketReliability } from './src/research.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -20,7 +20,8 @@ const saveResearch = () => { try { localStorage.setItem('research', JSON.stringi
 
 function ownRocket() {
   return {
-    id: 'own', name: t('ownRocketName'), info: t('ownRocketInfo', { n: research.flights }),
+    id: 'own', name: research.name || t('ownRocketName'), info: t('ownRocketInfo', { n: research.flights }),
+    reliability: ownRocketReliability(research.flights),
     cost: ownRocketCost(research.flights, !!research.done.reuse), stages: OWN_STAGES,
   };
 }
@@ -74,7 +75,8 @@ const instPower = () => state.instruments.reduce((p, i) => p + i.power, 0);
 const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
 const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0);
 const powerAvailable = () => (state.bus ? state.bus.power : 0) + (state.panel ? state.panel.power : 0);
-const chosen = () => [...state.instruments, state.bus, state.panel, state.rocket].filter(Boolean);
+const insuranceCost = () => (state.insured && state.rocket ? Math.round(state.rocket.cost * 0.08 * 10) / 10 : 0);
+const chosen = () => [...state.instruments, state.bus, state.panel, state.rocket, insuranceCost() ? { cost: insuranceCost() } : null].filter(Boolean);
 // Teile, die die aktuelle Mission anbietet
 const offered = (items) => (state.mission && state.mission.allowed ? items.filter((x) => state.mission.allowed.includes(x.id)) : items);
 
@@ -137,7 +139,7 @@ function go(phase) {
 }
 
 function startMission(m) {
-  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, info: null });
+  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null });
   render();
 }
 
@@ -197,9 +199,10 @@ const catalogs = [
   { kind: 'panel', items: panels, group: 'groupPanel',
     rows: (pn) => [[t('power'), `${pn.power} W`], [t('mass'), kg(pn.mass)]], picked: (pn) => state.panel === pn },
   { kind: 'rocket', get items() { return rocketList(); }, hint: 'hintRocket',
-    rows: (r) => (r.maxPayload !== undefined
+    rows: (r) => [...(r.maxPayload !== undefined
       ? [[t('carriesToOrbit'), kg(r.maxPayload)], [t('yourSatellite'), kg(payload())]]
-      : [[t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]), picked: (r) => !!state.rocket && state.rocket.id === r.id },
+      : [[t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]),
+    [t('successRate'), `${(r.reliability * 100).toFixed(r.reliability > 0.99 ? 1 : 0)} %`]], picked: (r) => !!state.rocket && state.rocket.id === r.id },
 ];
 
 function card(cat, item) {
@@ -221,7 +224,7 @@ const STEP_CATS = [['instrument'], ['bus', 'panel'], ['rocket']];
 
 function renderLeft() {
   const cats = STEP_CATS[state.build].map((k) => catalogs.find((c) => c.kind === k));
-  $('left').replaceChildren(
+  $('left').replaceChildren(...[
     el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
       type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
       onclick: () => { state.build = i; render(); },
@@ -229,7 +232,10 @@ function renderLeft() {
     el('p', { class: 'hint' }, t(cats[0].hint)),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
-      el('div', { class: 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean));
+      el('div', { class: 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
+    state.build === 2 && state.rocket ? el('label', { class: 'insure card' },
+      el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
+      el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(Math.round(state.rocket.cost * 0.08 * 10) / 10) }))) : null].filter(Boolean));
 }
 
 function meter(label, value, max, text) {
@@ -424,6 +430,14 @@ function renderResearch() {
         el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')}`)),
         el('p', { class: 'hint' }, t(pr.info)),
         locked ? el('p', { class: 'hint' }, t('needs', { x: t(PROJECTS.find((x) => x.id === pr.needs).name) })) : '',
+        done && pr.id === 'own-rocket' ? el('form', { class: 'name-form', onsubmit: (e) => {
+          e.preventDefault();
+          const v = e.target.elements.rname.value.trim().slice(0, 24);
+          research.name = v || null; saveResearch(); render();
+        } },
+        el('label', { for: 'rname' }, t('nameRocket')),
+        el('input', { id: 'rname', name: 'rname', maxlength: '24', value: research.name || '', placeholder: 'Orbiter-1' }),
+        el('button', { class: 'secondary', type: 'submit' }, t('saveName'))) : '',
         running ? [
           researchTeam(),
           el('p', { class: 'hint' }, `${t('team')} · ${Math.round(a.progress * 100)} %`),
@@ -445,14 +459,16 @@ function renderResult() {
   const r = state.result;
   const reasons = {
     budget: t('rBudget'), power: t('rPower'), capacity: t('rCapacity'), 'delta-v': t('rDv'),
-    'rocket-mass': t('rRocketMass'), science: t('rScience', { n: state.mission.minScience }),
+    'rocket-mass': t('rRocketMass'), science: t('rScience', { n: state.mission.minScience }), 'launch-failure': t('rLaunch'),
   };
   const best = loadBest(state.mission);
   const free = state.mission.free;
   return el('section', { class: 'result enter' },
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
+    r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
+    r.repeat ? el('p', { class: 'hint' }, t('noRpRepeat')) : '',
     el('dl', {},
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
       free ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))],
@@ -535,12 +551,23 @@ function render() {
 $('next').addEventListener('click', () => {
   if (state.phase === 'build') {
     if (state.build < 2) { state.build += 1; render(); return; }
-    state.result = missionResult(state);
-    if (state.result.success) saveBest(state.mission, state.result.sciencePerMillion);
-    state.result.rp = pointsForMission(state.result, state.mission);
-    research.rp += state.result.rp;
-    if (state.rocket.id === 'own') research.flights += 1;
+    const r = missionResult({ ...state, insurance: insuranceCost() });
+    if (r.reachedOrbit) {
+      const out = launchOutcome(state.rocket.reliability ?? 1, state.insured);
+      r.attempts = out.attempts;
+      if (!out.launched) {
+        Object.assign(r, { reachedOrbit: false, success: false, sciencePerMillion: 0 });
+        r.problems = [...r.problems.filter((x) => x !== 'science'), 'launch-failure'];
+      }
+      if (state.rocket.id === 'own') research.flights += out.attempts;
+    }
+    const previousBest = loadBest(state.mission);
+    if (r.success) saveBest(state.mission, r.sciencePerMillion);
+    r.rp = pointsForMission(r, state.mission, previousBest);
+    r.repeat = r.success && !r.rp && !state.mission.free;
+    research.rp += r.rp;
     saveResearch();
+    state.result = r;
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
   else if (state.phase === 'result') { state.phase = 'build'; state.build = 0; }

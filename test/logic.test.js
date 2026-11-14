@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { budgetLeft, deltaV, missionResult } from '../src/logic.js';
+import { budgetLeft, deltaV, missionResult, launchOutcome } from '../src/logic.js';
 
 // Budget: Kosten aller gewählten Teile abziehen
 test('budget left subtracts the cost of every chosen part', () => {
@@ -118,4 +118,20 @@ test('without enough panel power the instruments cannot run', () => {
     panel: { cost: 1, mass: 5, power: 100 },
   });
   assert.ok(r.problems.includes('power'));
+});
+
+// Startrisiko: Zufall wird übergeben, damit der Test feste Werte nutzen kann
+test('a launch fails when the random roll is above the success rate', () => {
+  assert.deepEqual(launchOutcome(0.9, false, () => 0.95), { launched: false, attempts: 1 });
+  assert.deepEqual(launchOutcome(0.9, false, () => 0.5), { launched: true, attempts: 1 });
+});
+
+test('with insurance a failed launch gets a second try', () => {
+  const rolls = [0.95, 0.5];
+  assert.deepEqual(launchOutcome(0.9, true, () => rolls.shift()), { launched: true, attempts: 2 });
+});
+
+test('insurance costs money from the budget', () => {
+  const r = missionResult({ ...base, insurance: 1.6 });
+  assert.equal(r.budgetLeft, 23.4);
 });

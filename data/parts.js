@@ -85,18 +85,18 @@ export const panels = [
 // inklusive Leistungen rund um den Start. Mitfluggelegenheit: NASA CubeSat 101.
 export const rockets = [
   {
-    id: 'rideshare', name: 'CubeSat rideshare', cost: 0.3, rideshare: true,
+    id: 'rideshare', name: 'CubeSat rideshare', cost: 0.3, rideshare: true, reliability: 0.95, // Quote: Spiel-Annahme
     maxPayload: 3 * U, // NASA zahlt bis 300.000 $, meist genug für einen 3U-CubeSat (CubeSat 101)
     verified: true,
     info: 'Your CubeSat flies along on someone else\'s rocket. It is cheap, but it only takes CubeSats up to 3U.',
   },
   {
-    id: 'pegasus', name: 'Pegasus XL', cost: 56.3, maxPayload: 190,
+    id: 'pegasus', name: 'Pegasus XL', cost: 56.3, maxPayload: 190, reliability: 0.9, // 27 von 30 Starts erfolgreich
     verified: true, // 190 kg: NASA LSP; 56,3 Mio. $: NASA, Launch-Vertrag ICON
     info: 'A small rocket launched from under a plane. NASA lists 190 kg to an 800 km orbit.',
   },
   {
-    id: 'falcon9', name: 'Falcon 9', cost: 69, maxPayload: 10670,
+    id: 'falcon9', name: 'Falcon 9', cost: 69, maxPayload: 10670, reliability: 0.996, // etwa 2 Fehlstarts in über 600 Flügen
     verified: true, // 10.670 kg (Booster landet auf Drohnenschiff): NASA LSP; 69 Mio. $: NASA, Launch-Vertrag COSI
     info: 'A large rocket whose first stage lands again and flies once more. NASA lists 10,670 kg to an 800 km orbit.',
   },
