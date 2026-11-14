@@ -549,3 +549,10 @@ button.secondary:active:not(:disabled), .steps button:active, .level:active:not(
 
 .result { text-align: center; }
 .result dl { text-align: left; }
+
+/* Fun Fact groß mit Erklärbild */
+.big-fact { flex-direction: column; max-width: 560px; padding: 16px 20px; border: 1px solid var(--akzent-text); text-align: center;
+  background: linear-gradient(180deg, rgba(116, 95, 154, 0.28), rgba(30, 27, 25, 0.9)); }
+.fact-pic { width: 100%; max-width: 480px; height: auto; display: block; margin: 0 auto 8px; }
+.fact-label { fill: #F5EFE6; font: 600 11px sans-serif; }
+.big-fact p { font-size: 1.1rem; line-height: 1.5; }

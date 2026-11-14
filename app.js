@@ -1268,7 +1268,79 @@ function renderCompany() {
 
 // ---------- Ergebnis ----------
 
-// Kleine Grafik zum Weltraum-Fakt (Idee Josias 14.11.)
+// Erklärbild zum Weltraum-Fakt (Linus 14.11.): zeigt genau diesen Fakt, z. B. Größen oder Abstände im Vergleich.
+// Vergleichswerte wie Auto (130 km/h) und Flugzeug (900 km/h) sind Alltagswerte zur Einordnung.
+function factPicture(fact) {
+  const s = svg('svg', { viewBox: '0 0 320 150', class: 'fact-pic', role: 'img', 'aria-label': fact[getLang()] });
+  const add = (tag, a, text) => { const n = svg(tag, a, text); s.append(n); return n; };
+  const label = (x, y, text, extra = {}) => add('text', { x, y, class: 'fact-label', 'text-anchor': 'middle', ...extra }, text);
+  const earth = grad(s, 'radialGradient', [['0', '#6aa7e0'], ['1', '#1d3b5c']], { cx: '0.35', cy: '0.3' });
+  const sun = grad(s, 'radialGradient', [['0', '#fff3b0'], ['0.5', '#ffb347'], ['1', '#e0605a']], { cx: '0.4', cy: '0.4' });
+  // Balkenvergleich für Geschwindigkeiten: das Auto ist fast unsichtbar, genau das ist der Punkt
+  const bars = (rows, unit) => rows.forEach(([name, v, max, color], i) => {
+    const y = 26 + i * 40, w = Math.max(3, (v / max) * 210);
+    label(8, y + 12, name, { 'text-anchor': 'start' });
+    add('rect', { x: 92, y, width: w, height: 18, rx: 4, fill: color });
+    label(98 + w, y + 13, `${v.toLocaleString(getLang())} ${unit}`, { 'text-anchor': w > 150 ? 'end' : 'start', x: w > 150 ? 88 + w : 98 + w });
+  });
+  switch (fact.pic) {
+    case 'iss-orbit': {
+      add('circle', { cx: 160, cy: 75, r: 34, fill: earth });
+      add('ellipse', { cx: 160, cy: 75, rx: 58, ry: 50, fill: 'none', stroke: 'rgba(245,239,230,0.6)', 'stroke-dasharray': '4 3' });
+      for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; add('circle', { cx: 160 + Math.cos(a) * 70, cy: 75 + Math.sin(a) * 62, r: 3.2, fill: '#ffb347' }); }
+      add('rect', { x: 212, y: 71, width: 12, height: 6, fill: '#d9d2c7' }); add('rect', { x: 206, y: 69, width: 6, height: 10, fill: '#2b3a6b' }); add('rect', { x: 224, y: 69, width: 6, height: 10, fill: '#2b3a6b' });
+      label(270, 70, '90 min'); label(270, 88, `16 × ☀`);
+      break;
+    }
+    case 'iss-speed': bars([[t('picCar'), 130, 28800, '#8a857c'], [t('picPlane'), 900, 28800, '#9fb3e8'], [t('picStation'), 28800, 28800, '#e8c547']], 'km/h'); break;
+    case 'debris-speed': bars([[t('picCar'), 130, 29000, '#8a857c'], [t('picPlane'), 900, 29000, '#9fb3e8'], [t('picDebris'), 29000, 29000, '#e0605a']], 'km/h'); break;
+    case 'iss-mass': {
+      add('path', { d: 'M40 120 L280 120 M160 120 L160 60 M70 60 L250 60', stroke: '#B8AFA6', 'stroke-width': 3, fill: 'none' });
+      add('rect', { x: 50, y: 34, width: 40, height: 14, fill: '#2b3a6b' }); add('rect', { x: 92, y: 36, width: 26, height: 10, rx: 4, fill: '#d9d2c7' }); add('rect', { x: 120, y: 34, width: 40, height: 14, fill: '#2b3a6b' });
+      label(105, 30, '420 t');
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) add('rect', { x: 190 + c * 12, y: 50 - r * 8, width: 10, height: 6, rx: 2, fill: '#a9a29a' });
+      label(225, 30, t('picCars'));
+      break;
+    }
+    case 'webb-distance': {
+      add('line', { x1: 20, y1: 80, x2: 300, y2: 80, stroke: 'rgba(245,239,230,0.4)', 'stroke-dasharray': '4 4' });
+      add('circle', { cx: 24, cy: 80, r: 12, fill: earth }); label(24, 110, t('picEarth'));
+      const moonX = 24 + (384400 / 1500000) * 270;
+      add('circle', { cx: moonX, cy: 80, r: 5, fill: '#d9d2c7' }); label(moonX, 110, t('picMoon')); label(moonX, 62, `${(384400).toLocaleString(getLang())} km`);
+      add('polygon', { points: '294,72 302,80 294,88 286,80', fill: '#e8c547' }); label(294, 110, 'Webb'); label(270, 62, `${(1500000).toLocaleString(getLang())} km`);
+      break;
+    }
+    case 'moon-drift': {
+      add('circle', { cx: 60, cy: 75, r: 30, fill: earth });
+      add('circle', { cx: 210, cy: 75, r: 10, fill: '#d9d2c7' });
+      add('path', { d: 'M226 75 L262 75 M254 68 L262 75 L254 82', stroke: '#e8c547', 'stroke-width': 3, fill: 'none' });
+      add('rect', { x: 200, y: 108, width: 70, height: 10, fill: '#e8c547' });
+      for (let k = 0; k <= 7; k++) add('line', { x1: 200 + k * 10, y1: 108, x2: 200 + k * 10, y2: k % 2 ? 112 : 115, stroke: '#171514' });
+      label(235, 134, t('picPerYear'));
+      break;
+    }
+    case 'sun-size': {
+      add('circle', { cx: 300, cy: 75, r: 150, fill: sun });
+      add('circle', { cx: 40, cy: 75, r: 1.6, fill: '#6aa7e0' });
+      add('path', { d: 'M40 70 L40 50', stroke: '#F5EFE6', 'stroke-width': 1 }); label(40, 44, t('picEarth'));
+      label(110, 120, `× ${(1300000).toLocaleString(getLang())}`);
+      break;
+    }
+    case 'voyager': {
+      add('circle', { cx: 30, cy: 75, r: 10, fill: sun });
+      for (const r of [22, 34, 52, 70]) add('circle', { cx: 30, cy: 75, r, fill: 'none', stroke: 'rgba(245,239,230,0.2)' });
+      add('path', { d: 'M150 10 Q215 75 150 140', stroke: '#9fb3e8', 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' });
+      label(170, 26, t('picBubble'));
+      add('path', { d: 'M262 64 Q272 72 282 64 Z', fill: '#F5EFE6' }); add('rect', { x: 268, y: 66, width: 8, height: 8, fill: '#e0c070' });
+      label(272, 98, '1977 → 2012');
+      break;
+    }
+    default: s.append(factIcon(fact.icon));
+  }
+  return s;
+}
+
+// Kleine Grafik zum Weltraum-Fakt (Idee Josias 14.11.), Ersatz wenn kein Erklärbild passt
 function factIcon(kind) {
   const s = svg('svg', { viewBox: '0 0 64 64', class: 'fact-icon', 'aria-hidden': 'true' });
   const add = (tag, a) => s.append(svg(tag, a));
@@ -1311,7 +1383,7 @@ function renderResult() {
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
-    r.fact ? el('div', { class: 'fact' }, factIcon(r.fact.icon), el('p', {}, el('strong', {}, t('funFact')), ' ', r.fact[getLang()])) : '',
+    r.fact ? el('div', { class: 'fact big-fact' }, factPicture(r.fact), el('p', {}, el('strong', {}, t('funFact')), ' ', r.fact[getLang()])) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
     state.mission.contract && r.fee ? el('p', { class: 'rp-earned' }, t('feeReceived', { c: money(r.fee) })) : '',
     state.mission.contract ? el('p', { class: 'hint' }, t('cashNow', { c: money(company.cash) })) : '',
