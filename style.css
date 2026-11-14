@@ -526,3 +526,26 @@ button.secondary:active:not(:disabled), .steps button:active, .level:active:not(
 .lvl-research h3 { text-align: center; color: var(--akzent-text); margin: 10px 0; }
 .lvl-research .projects { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 @media (prefers-reduced-motion: reduce) { .lvl-card.unlocking, .lvl-card.unlocking .lock, .lvl-cards .lvl-card { animation: none !important; } }
+
+/* ---------- Josias-Fixes 14.11. abends ---------- */
+/* Ergebnis über die ganze Seite */
+.result { max-width: 860px; margin: auto; font-size: 1.15rem; display: grid; gap: 14px; }
+.result .big { font-size: 3rem; letter-spacing: 0.02em; }
+.result dl { font-size: 1.2rem; padding: 20px 24px; background: linear-gradient(180deg, #2f2a27, #221e1c); }
+/* Preis und Nutzlast unter jeder Rakete */
+.slot-price { margin-top: 6px; font-size: 0.8rem; color: var(--nebentext); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.slot.mid .slot-price { font-size: 0.95rem; color: var(--text); }
+/* Wertung rechts */
+.score-box { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 10px; margin: 6px 0 4px; padding: 10px 12px; border-radius: 10px;
+  background: linear-gradient(180deg, rgba(116, 95, 154, 0.35), rgba(116, 95, 154, 0.15)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+.score-box strong { font-size: 1.6rem; color: #e8c547; font-variant-numeric: tabular-nums; }
+.score-box .hint { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; }
+/* ?-Knopf auf Karten */
+.qmark { margin-left: 8px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--akzent-text); background: transparent; color: var(--akzent-text);
+  font: 700 0.8rem sans-serif; line-height: 1; padding: 0; cursor: pointer; vertical-align: middle; }
+.qmark:hover, .qmark:focus-visible { background: var(--akzent); color: #fff; }
+/* Name der eigenen Rakete auf dem Rumpf */
+.rocket-name { fill: #2b2440; font: 700 5px sans-serif; letter-spacing: 0.4px; }
+
+.result { text-align: center; }
+.result dl { text-align: left; }

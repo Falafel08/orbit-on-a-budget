@@ -260,10 +260,23 @@ function openSettings() {
       seg([[true, t('on')], [false, t('off')]], isPlaying(), (v) => { setMusic(v); updateSound(); draw(); })),
     el('div', { class: 'row' }, el('span', {}, t('language')),
       seg([['en', 'English'], ['de', 'Deutsch']], getLang(), (v) => { setLang(v); render(); draw(); })),
-    el('div', { class: 'row' }, el('button', { class: 'danger', type: 'button', onclick: () => { resetBest(); render(); draw(t('bestReset')); } }, t('resetBest'))),
+    el('div', { class: 'row' }, el('button', { class: 'danger', type: 'button', onclick: () => {
+      if (!state.confirmReset) { state.confirmReset = true; draw(); return; } // zweiter Klick bestätigt
+      state.confirmReset = false; resetProgress(); render(); draw(t('progressReset'));
+    } }, state.confirmReset ? t('confirmReset') : t('resetProgress'))),
     note ? el('p', {}, note) : '',
     el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
   draw();
+  panel.showModal();
+}
+
+function openInfo(item) {
+  const panel = $('panel');
+  panel.replaceChildren(
+    el('h2', { id: 'panel-title' }, tr(item, 'name')),
+    el('p', {}, tr(item, 'info') || ''),
+    item.verified === false ? el('p', { class: 'hint' }, t('assumedValues')) : '',
+    el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
   panel.showModal();
 }
 
@@ -415,7 +428,8 @@ function card(cat, item) {
   },
   partPicture(cat.kind, item),
   el('div', { class: 'card-body' },
-    el('h2', {}, el('span', {}, tr(item, 'name')), el('span', { class: 'price' }, money(item.cost))),
+    el('h2', {}, el('span', {}, tr(item, 'name'), el('button', { class: 'qmark', type: 'button', 'aria-label': `${t('whatIsThis')} ${tr(item, 'name')}`,
+      onclick: (e) => { e.stopPropagation(); openInfo(item); }, onkeydown: (e) => e.stopPropagation() }, '?')), el('span', { class: 'price' }, money(item.cost))),
     el('dl', {}, cat.rows(item).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))]))));
   node.classList.add('with-pic');
   return node;
@@ -439,7 +453,27 @@ const ROCKET_LOOK = {
 };
 
 // Satellit in der Spitze: Körper, eingeklappte Solarflügel, Instrumente obendrauf (Klick entfernt sie)
+// Bild eines Moduls (Station, Mond, Mars) in der Raketenspitze, je nach Auftrag
+function modulePicture(g, id, cx, bottom, maxW, maxH) {
+  const w = maxW - 10, h = maxH * 0.8, top = bottom - 2 - h;
+  const add = (tag, a) => g.append(svg(tag, a));
+  const hull = { fill: '#e8e2d8', stroke: '#9a9288', 'stroke-width': 0.6 };
+  if (id === 's2') { add('rect', { x: cx - 5, y: top, width: 10, height: h, rx: 3, ...hull }); for (const sx of [-1, 1]) add('rect', { x: cx + sx * 6 - (sx < 0 ? 4 : 0), y: top + 2, width: 4, height: h - 4, fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.4 }); }
+  else if (id === 's5') { add('circle', { cx, cy: bottom - h / 2, r: Math.min(w, h) / 2.4, ...hull }); for (const a of [0, 90, 180, 270]) add('rect', { x: cx - 2, y: bottom - h / 2 - Math.min(w, h) / 2.4 - 2, width: 4, height: 4, fill: '#A88FD6', transform: `rotate(${a} ${cx} ${bottom - h / 2})` }); }
+  else if (id.startsWith('s')) { const ww = id === 's3' ? w * 0.6 : id === 's4' ? w * 0.7 : w * 0.55; add('rect', { x: cx - ww / 2, y: top, width: ww, height: h, rx: ww / 3, ...hull }); add('rect', { x: cx - ww / 2, y: top + h * 0.45, width: ww, height: 2, fill: id === 's3' ? '#7fa9b0' : id === 's4' ? '#e0c070' : '#A88FD6' }); }
+  else if (id === 'm2') { add('rect', { x: cx - w / 2.6, y: bottom - h * 0.45, width: w / 1.3, height: h * 0.25, rx: 2, ...hull }); for (const dx of [-w / 3.2, 0, w / 3.2]) add('circle', { cx: cx + dx, cy: bottom - h * 0.15, r: 2.4, fill: '#4a4550' }); }
+  else if (id === 'm3' || id === 'r2') { add('path', { d: `M${cx - w / 2.2} ${bottom - 2} A${w / 2.2} ${h * 0.8} 0 0 1 ${cx + w / 2.2} ${bottom - 2} Z`, ...hull }); add('rect', { x: cx - 3, y: bottom - 9, width: 6, height: 7, fill: '#1c1918' }); }
+  else if (id === 'm4') { add('rect', { x: cx - w / 2.6, y: bottom - h * 0.55, width: w / 2.2, height: h * 0.53, fill: '#c9c2b8', stroke: '#8a857c', 'stroke-width': 0.6 }); add('rect', { x: cx + 2, y: top + 4, width: 6, height: h - 6, rx: 3, fill: '#d9d2c7' }); }
+  else if (id === 'r3') { add('path', { d: `M${cx - w / 3} ${bottom - 2} L${cx - w / 5} ${top} L${cx + w / 5} ${top} L${cx + w / 3} ${bottom - 2} Z`, ...hull }); add('circle', { cx, cy: top + h * 0.35, r: 2.5, fill: '#2b3a6b' }); }
+  else { // Lander (m1, r1): Körper, Beine, Solarflügel
+    add('rect', { x: cx - w / 4, y: top + h * 0.2, width: w / 2, height: h * 0.5, rx: 2, fill: '#b08d3c', stroke: '#e0c070', 'stroke-width': 0.6 });
+    add('path', { d: `M${cx - w / 4} ${top + h * 0.7} L${cx - w / 2.4} ${bottom - 2} M${cx + w / 4} ${top + h * 0.7} L${cx + w / 2.4} ${bottom - 2}`, stroke: '#B8AFA6', 'stroke-width': 1.2 });
+    if (id === 'm1') add('rect', { x: cx - w / 2.2, y: top, width: w / 1.1, height: 4, fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.4 });
+  }
+}
+
 function payloadIn(g, cx, bottom, maxW, maxH) {
+  if (state.mission && state.mission.module && state.mission.contract) { modulePicture(g, state.mission.contract.id, cx, bottom, maxW, maxH); return; }
   if (!state.bus && !state.instruments.length) {
     g.append(svg('text', { x: cx, y: bottom - maxH / 2, 'text-anchor': 'middle', class: 'svg-muted', 'font-size': 6 }, t('satelliteBus')));
     return;
@@ -531,6 +565,7 @@ function rocketPicture(r, withPayload = false) {
     s.append(svg('path', { d: `M${x} ${ground - 28} L${x - 9} ${ground - 4} L${x} ${ground - 8} Z M${x + w} ${ground - 28} L${x + w + 9} ${ground - 4} L${x + w} ${ground - 8} Z`, fill: '#745F9A' }));
   }
   if (r.id === 'own' || r.rideshare) s.append(svg('rect', { x, y: bodyTop + 30, width: w, height: 4, fill: '#745F9A' }));
+  if (r.id === 'own') s.append(svg('text', { x: cx, y: bodyTop + 80, class: 'rocket-name', transform: `rotate(-90 ${cx} ${bodyTop + 80})`, 'text-anchor': 'end', 'dominant-baseline': 'middle' }, String(r.name).slice(0, 18)));
 
   // Spitze: bei der Rakete vorne durchsichtig, mit dem Satelliten darin
   const nose = `M${cx - fw / 2} ${bodyTop} L${cx - fw / 2} ${top + fh * 0.45} Q${cx - fw / 2} ${top} ${cx} ${top - 4} Q${cx + fw / 2} ${top} ${cx + fw / 2} ${top + fh * 0.45} L${cx + fw / 2} ${bodyTop} Z`;
@@ -570,7 +605,8 @@ function rocketCarouselCenter() {
     return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}`, onclick: () => (k ? moveRocket(items, k) : null) },
       role === 'mid' ? towerPicture(r) : '',
       rocketPicture(r, role === 'mid'),
-      el('figcaption', { class: 'banner' }, tr(r, 'name')));
+      el('figcaption', { class: 'banner' }, tr(r, 'name')),
+      el('span', { class: 'slot-price' }, r.maxPayload ? `${money(r.cost)} · ${kg(r.maxPayload)}` : money(r.cost)));
   };
   const mid = items[i];
   return el('div', {
@@ -643,7 +679,7 @@ function renderRight() {
   const m = state.mission;
   const left = budgetLeft(m.budget, chosen());
   const meters = [];
-  if (!m.free && !m.module) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`, true));
+  if (!m.free && !m.module) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('minimum')}`, true));
   if (state.bus && !m.module) {
     meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
     meters.push(meter(t('powerDraw'), instPower(), powerAvailable(), `${instPower()} / ${powerAvailable()} W`));
@@ -658,6 +694,10 @@ function renderRight() {
   $('right').replaceChildren(
     el('h2', {}, t('budgetLeft')),
     el('p', { class: 'big-number' }, m.free ? t('noLimit') : money(left)),
+    !m.module ? el('div', { class: 'score-box' },
+      el('span', {}, t('sciencePerM')),
+      el('strong', {}, m.budget - left > 0 ? (science() / (m.budget - left)).toFixed(1) : '0.0'),
+      el('p', { class: 'hint' }, t('scoreHint'))) : '',
     el('div', { class: 'meters' }, meters),
     el('div', { class: 'info' }, state.info ? [el('strong', {}, tr(state.info, 'name')), tr(state.info, 'info') || ''] : t('pointAt')));
 }
@@ -875,8 +915,10 @@ function launch(canvas, rocketEl, mode, from) {
     if (mode === 'nofuel' && s > 0) caption(t('capNoFuel'));
     if (mode === 'explode' && boomAt !== null) caption(t('capExplode'));
     if (mode === 'ok' && s > 3.5) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
-    if (tc >= count + ignite && $('next').disabled) $('next').disabled = false; // ab dem Abheben überspringbar
-    if (tc >= count + ignite + flight) return;
+    if (tc >= count + ignite + flight) { // nach kurzer Pause von selbst zum Ergebnis
+      setTimeout(() => { if (state.phase === 'launch') { state.phase = 'result'; render(); } }, 1200);
+      return;
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -1291,6 +1333,13 @@ function saveBest(m, v) {
   if (m.free) return;
   try { if (v > loadBest(m)) localStorage.setItem(`best-${m.id}`, String(v)); } catch { /* ohne Speicher spielbar */ }
 }
+function resetProgress() {
+  resetBest();
+  company = freshCompany(); saveCompany();
+  research = { rp: 0, done: {}, flights: 0, active: null }; saveResearch();
+  try { localStorage.removeItem('seen-level'); localStorage.removeItem('best-company'); } catch { /* ohne Speicher */ }
+  state.levelPick = null;
+}
 function resetBest() {
   try { for (const m of missions) localStorage.removeItem(`best-${m.id}`); } catch { /* ohne Speicher */ }
 }
@@ -1308,12 +1357,13 @@ function footer() {
     next.textContent = state.build === 1 ? t('launch') : t('next');
     next.disabled = !ready;
   } else if (state.phase === 'launch') {
-    next.textContent = t('seeResult');
+    next.classList.add('hidden'); // Ergebnis kommt automatisch
   } else if (state.phase === 'research' || state.phase === 'company') {
-    back.textContent = state.phase === 'company' ? t('menu') : (state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty'));
+    back.textContent = state.phase === 'company' ? t('changeDifficulty') : (state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty'));
     next.classList.add('hidden');
   } else if (state.phase === 'result') {
-    back.textContent = state.mission.contract ? t('backCompany') : t('changeDifficulty');
+    back.textContent = t('changeDifficulty');
+    back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Firma
     next.textContent = state.mission.contract ? t('backCompany') : t('tryAgain');
     next.disabled = false;
   }
