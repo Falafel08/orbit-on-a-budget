@@ -16,7 +16,10 @@ export function ownRocketCost(flights, reusable) {
   return Math.round(price * 10) / 10;
 }
 
-// Erfolgsquote der eigenen Rakete: neue Raketen scheitern anfangs öfter (Spiel-Annahme)
-export function ownRocketReliability(flights) {
-  return Math.min(0.97, Math.round((0.7 + 0.05 * flights) * 100) / 100);
+// Erfolgsquote der eigenen Rakete (Spiel-Annahme): neue Raketen scheitern anfangs öfter,
+// jeder Flug +6 %, Obergrenze 99 %. Qualitätsprogramm: Start bei 85 %, Obergrenze 99,8 % (besser als Falcon 9).
+export function ownRocketReliability(flights, quality) {
+  const start = quality ? 0.85 : 0.75;
+  const cap = quality ? 0.998 : 0.99;
+  return Math.min(cap, Math.round((start + 0.06 * flights) * 1000) / 1000);
 }

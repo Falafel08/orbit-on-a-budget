@@ -30,8 +30,15 @@ test('repeating a mission without beating your best earns no points', () => {
   assert.equal(pointsForMission({ success: true, science: 125, sciencePerMillion: 1.2 }, { free: false }, 1.1), 25);
 });
 
+// Eigene Rakete: wird mit jedem Flug zuverlässiger, bis 99 %. Mit Qualitätsprogramm bis 99,8 %,
+// also besser als Falcon 9 (99,6 %). Linus 14.11.: die eigene Rakete muss Falcon 9 schlagen können.
 test('your own rocket gets more reliable with every flight', () => {
-  assert.equal(ownRocketReliability(0), 0.7);
-  assert.equal(ownRocketReliability(2), 0.8);
-  assert.equal(ownRocketReliability(20), 0.97);
+  assert.equal(ownRocketReliability(0, false), 0.75);
+  assert.equal(ownRocketReliability(2, false), 0.87);
+  assert.equal(ownRocketReliability(20, false), 0.99);
+});
+
+test('a quality program lets your rocket beat Falcon 9', () => {
+  assert.equal(ownRocketReliability(0, true), 0.85);
+  assert.equal(ownRocketReliability(20, true), 0.998);
 });

@@ -133,3 +133,21 @@ const DE = {
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
 for (const list of [missions, instruments, buses, panels, rockets]) for (const x of list) x.de = DE[x.id];
+
+// Kampagne: Aufträge der Reihe nach. base = Mission, deren Teile angeboten werden.
+// cheapest = billigste Lösung in Mio. $ (zum Erkennen einer Pleite), mit den Spieldaten durchgerechnet.
+export const CAMPAIGN_START = 150; // ein Fehlschlag ist verkraftbar, zwei nicht
+export const contracts = [
+  { id: 'c1', base: 'cubesat', minScience: 8, fee: 2, cheapest: 0.47,
+    client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
+    de: { client: 'Raumfahrt-AG einer Uni', goal: 'Starte einen kleinen CubeSat mit Kamera für Studierende.' } },
+  { id: 'c2', base: 'weather', minScience: 55, fee: 130, cheapest: 69.3,
+    client: 'National weather service', goal: 'Put a weather satellite into an 800 km orbit.',
+    de: { client: 'Nationaler Wetterdienst', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' } },
+  { id: 'c3', base: 'ocean', minScience: 125, fee: 190, cheapest: 115,
+    client: 'Ocean research institute', goal: 'Measure sea level with a radar satellite.',
+    de: { client: 'Institut für Meeresforschung', goal: 'Miss die Meereshöhe mit einem Radar-Satelliten.' } },
+  { id: 'c4', base: 'weather', minScience: 100, fee: 160, cheapest: 107,
+    client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
+    de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
+];

@@ -1,5 +1,6 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
-import { missions, instruments, buses, panels, rockets } from './data/parts.js';
+import { missions, instruments, buses, panels, rockets, contracts, CAMPAIGN_START } from './data/parts.js';
+import { settleContract, isBankrupt } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
@@ -12,6 +13,7 @@ const OWN_STAGES = [{ dryMass: 6000, propMass: 60000, isp: 295 }, { dryMass: 900
 const PROJECTS = [
   { id: 'own-rocket', rp: 15, seconds: 40, name: 'projOwn', info: 'projOwnInfo' },
   { id: 'reuse', rp: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket' },
+  { id: 'quality', rp: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
 ];
 const SKIP_RP = 5;
 let research = { rp: 0, done: {}, flights: 0, active: null };
@@ -21,10 +23,23 @@ const saveResearch = () => { try { localStorage.setItem('research', JSON.stringi
 function ownRocket() {
   return {
     id: 'own', name: research.name || t('ownRocketName'), info: t('ownRocketInfo', { n: research.flights }),
-    reliability: ownRocketReliability(research.flights),
+    reliability: ownRocketReliability(research.flights, !!research.done.quality),
     cost: ownRocketCost(research.flights, !!research.done.reuse), stages: OWN_STAGES,
   };
 }
+// ---------- Kampagne: Stand im Browser ----------
+const freshCompany = () => ({ cash: CAMPAIGN_START, index: 0, over: false });
+let company = freshCompany();
+try { company = { ...company, ...JSON.parse(localStorage.getItem('company') || '{}') }; } catch { /* Neustart */ }
+const saveCompany = () => { try { localStorage.setItem('company', JSON.stringify(company)); } catch { /* ohne Speicher */ } };
+const bestCompany = () => { try { return Number(localStorage.getItem('best-company')) || 0; } catch { return 0; } };
+
+// Auftrag als Mission: Teile der Basis-Mission, Budget = Firmengeld
+function contractMission(c) {
+  const base = missions.find((m) => m.id === c.base);
+  return { ...base, id: `campaign-${c.id}`, name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash, minScience: c.minScience, contract: c, de: null };
+}
+
 const rocketList = () => (research.done['own-rocket'] ? [...rockets, ownRocket()] : rockets);
 
 // Forschung läuft im Hintergrund weiter, solange das Spiel offen ist
@@ -116,10 +131,11 @@ function renderHome() {
   if (!$('sat').firstChild) $('sat').append(satelliteSvg());
 
   $('side-buttons').replaceChildren(...(choosing
-    ? [el('button', { class: 'hexbtn', type: 'button', onclick: () => go('research') }, `${t('research')} · ${research.rp} ${t('rpShort')}`),
+    ? [el('button', { class: 'hexbtn', type: 'button', onclick: () => { state.returnTo = 'start'; go('research'); } }, `${t('research')} · ${research.rp} ${t('rpShort')}`),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('menu'))]
     : [el('button', { class: 'hexbtn', type: 'button', onclick: () => go('start') }, t('play')),
+      el('button', { class: 'hexbtn', type: 'button', onclick: () => go('company') }, t('campaign')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]));
 
   $('hexes').replaceChildren(el('h2', { class: 'hex-title' }, t('chooseDifficulty')), ...missions.map((m) => {
@@ -453,6 +469,32 @@ function renderResearch() {
     })));
 }
 
+// ---------- Kampagne: Firmen-Bildschirm ----------
+
+function renderCompany() {
+  const done = company.index >= contracts.length;
+  const c = contracts[company.index];
+  const best = bestCompany();
+  return el('section', { class: 'research enter' },
+    el('h1', {}, t('company')),
+    el('p', { class: 'lead' }, t('companyLead')),
+    el('p', { class: 'big-number rp' }, `${t('cash')}: ${money(company.cash)}`),
+    company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
+    done ? el('p', { class: 'result-msg ok' }, t('won', { c: money(company.cash) })) : '',
+    !done && !company.over ? el('div', { class: 'project card' },
+      el('h2', {}, el('span', {}, t('contractOf', { n: company.index + 1, m: contracts.length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
+      el('p', {}, el('strong', {}, tr(c, 'client'))),
+      el('p', { class: 'hint' }, tr(c, 'goal')),
+      el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
+      el('button', { class: 'primary', type: 'button', onclick: () => startMission(contractMission(c)) }, t('startContract'))) : '',
+    el('ol', { class: 'contracts' }, contracts.map((x, i) => el('li', { class: i < company.index ? 'is-done' : '' },
+      `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`))),
+    el('div', { class: 'research-actions' },
+      el('button', { class: 'secondary', type: 'button', onclick: () => { state.returnTo = 'company'; go('research'); } }, `${t('research')} · ${research.rp} ${t('rpShort')}`),
+      el('button', { class: 'secondary', type: 'button', onclick: () => { company = freshCompany(); saveCompany(); render(); } }, t('restartCompany'))),
+    best ? el('p', { class: 'hint' }, `${t('bestCompany')}: ${money(best)}`) : '');
+}
+
 // ---------- Ergebnis ----------
 
 function renderResult() {
@@ -468,13 +510,15 @@ function renderResult() {
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
+    state.mission.contract && r.fee ? el('p', { class: 'rp-earned' }, t('feeReceived', { c: money(r.fee) })) : '',
+    state.mission.contract ? el('p', { class: 'hint' }, t('cashNow', { c: money(company.cash) })) : '',
     r.repeat ? el('p', { class: 'hint' }, t('noRpRepeat')) : '',
     el('dl', {},
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
       free ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))],
       el('dt', {}, t('science')), el('dd', {}, String(r.science)),
       el('dt', {}, t('sciencePerM')), el('dd', {}, r.sciencePerMillion.toFixed(1)),
-      free ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
+      free || state.mission.contract ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
 }
 
 // Bestwert im Browser speichern, ohne Login. Freies Spiel zählt nicht.
@@ -496,18 +540,18 @@ function footer() {
   back.classList.toggle('hidden', state.phase === 'launch');
   next.classList.remove('hidden');
   if (state.phase === 'build') {
-    back.textContent = state.build === 0 ? t('changeDifficulty') : t('back');
+    back.textContent = state.build === 0 ? (state.mission.contract ? t('backCompany') : t('changeDifficulty')) : t('back');
     const ready = [state.instruments.length > 0, !!state.bus && !!state.panel, !!state.rocket][state.build];
     next.textContent = state.build === 2 ? t('launch') : t('next');
     next.disabled = !ready;
   } else if (state.phase === 'launch') {
     next.textContent = t('seeResult');
-  } else if (state.phase === 'research') {
-    back.textContent = t('changeDifficulty');
+  } else if (state.phase === 'research' || state.phase === 'company') {
+    back.textContent = state.phase === 'company' ? t('menu') : (state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty'));
     next.classList.add('hidden');
   } else if (state.phase === 'result') {
-    back.textContent = t('changeDifficulty');
-    next.textContent = t('tryAgain');
+    back.textContent = state.mission.contract ? t('backCompany') : t('changeDifficulty');
+    next.textContent = state.mission.contract ? t('backCompany') : t('tryAgain');
     next.disabled = false;
   }
 }
@@ -521,8 +565,16 @@ function render() {
   $('home').classList.remove('show');
 
   const stage = $('stage');
-  stage.classList.toggle('full', state.phase === 'result' || state.phase === 'research');
+  stage.classList.toggle('full', ['result', 'research', 'company'].includes(state.phase));
   stage.classList.toggle('launching', state.phase === 'launch');
+  if (state.phase === 'company') {
+    $('mission-label').textContent = t('company');
+    $('budget').textContent = money(company.cash);
+    $('budget').classList.toggle('low', company.over);
+    $('center').replaceChildren(renderCompany());
+    footer();
+    return;
+  }
   if (state.phase === 'research') {
     $('mission-label').textContent = t('research');
     $('budget').textContent = `${research.rp} ${t('rpShort')}`;
@@ -561,21 +613,37 @@ $('next').addEventListener('click', () => {
       }
       if (state.rocket.id === 'own') research.flights += out.attempts;
     }
-    const previousBest = loadBest(state.mission);
-    if (r.success) saveBest(state.mission, r.sciencePerMillion);
+    const contract = state.mission.contract;
+    const previousBest = contract ? 0 : loadBest(state.mission);
+    if (r.success && !contract) saveBest(state.mission, r.sciencePerMillion);
     r.rp = pointsForMission(r, state.mission, previousBest);
-    r.repeat = r.success && !r.rp && !state.mission.free;
+    if (contract) {
+      company.cash = settleContract(company.cash, r, contract.fee);
+      if (r.success) company.index += 1;
+      const next = contracts[company.index];
+      if (next && isBankrupt(company.cash, next.cheapest)) company.over = true;
+      if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
+      saveCompany();
+      r.fee = r.success ? contract.fee : 0;
+    }
+    r.repeat = r.success && !r.rp && !state.mission.free && !contract;
     research.rp += r.rp;
     saveResearch();
     state.result = r;
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
-  else if (state.phase === 'result') { state.phase = 'build'; state.build = 0; }
+  else if (state.phase === 'result') {
+    if (state.mission.contract) state.phase = 'company';
+    else { state.phase = 'build'; state.build = 0; }
+  }
   render();
 });
 
 $('back').addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0) state.build -= 1;
+  else if (state.phase === 'company') state.phase = 'home';
+  else if (state.phase === 'research') state.phase = state.returnTo || 'start';
+  else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company';
   else state.phase = 'start';
   render();
 });

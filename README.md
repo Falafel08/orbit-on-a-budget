@@ -15,6 +15,9 @@ Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission De
 6. See if you reached orbit, how much money is left and your science per million dollars. Then try again for less money.
 7. A new best score earns research points. Repeating the same mission without doing better earns none. Use them to research your own rocket, Orbiter-1. Its first flight is expensive, every flight after that is cheaper, and a reusable booster cuts the price again.
 
+## Campaign
+Run your own space company. You start with $150M and four contracts. Your company pays for the parts, the client pays when the mission works, and what is left funds the next contract. Fail twice in a row and you go bankrupt.
+
 ## Run it on your own computer
 Serve the folder and open `http://localhost:8000`:
 

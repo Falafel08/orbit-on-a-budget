@@ -317,3 +317,11 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .name-form label { width: 100%; color: var(--nebentext); font-size: 0.9rem; }
 .name-form input { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--linie); background: var(--grund); color: var(--text); font: inherit; padding: 0 12px; }
 .name-form button { min-height: 44px; }
+
+/* Kampagne */
+.contracts { color: var(--nebentext); margin: 16px 0; padding-left: 20px; }
+.contracts li { margin: 4px 0; }
+.contracts .is-done { color: var(--gut); }
+.result-msg { text-align: center; font-weight: 700; font-size: 1.2rem; }
+.result-msg.ok { color: var(--gut); }
+.result-msg.fail { color: var(--schlecht); }
