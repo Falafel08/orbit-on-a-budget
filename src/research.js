@@ -23,3 +23,17 @@ export function ownRocketReliability(flights, quality) {
   const cap = quality ? 0.998 : 0.99;
   return Math.min(cap, Math.round((start + 0.06 * flights) * 1000) / 1000);
 }
+
+// Starship-Preis (Linus 14.11.): 100 Mio. $, jede Stufe der Forschung „Wiederverwendung Starship“ halbiert ihn ungefähr.
+// 100 -> 50 -> 25 -> 10 Mio. $. 10 Mio. $ ist Musks Ziel (CNBC 2022), 100 Mio. $ eine Schätzung für heute (Spiel-Annahme).
+export function starshipCost(done) {
+  if (done['ss-reuse-3']) return 10;
+  if (done['ss-reuse-2']) return 25;
+  if (done['ss-reuse-1']) return 50;
+  return 100;
+}
+
+// Geld für offene Forschung, die einem Ziel hilft (für die Pleite-Prüfung: Forschung kostet Geld, Krisp 13:10)
+export function researchCostFor(dest, projects, done) {
+  return projects.filter((p) => !done[p.id] && p.helps && p.helps.includes(dest)).reduce((sum, p) => sum + p.cost, 0);
+}

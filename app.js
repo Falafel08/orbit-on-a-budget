@@ -1,25 +1,31 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { facts } from './data/facts.js';
 import { nasaSources, otherSources } from './data/sources.js';
-import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START } from './data/parts.js';
+import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START, OWN_STAGES, OWN_STAGES_2 } from './data/parts.js';
 import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
 import { setMusic, isPlaying, wantsMusic } from './src/audio.js';
-import { pointsForMission, ownRocketCost, ownRocketReliability } from './src/research.js';
+import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost, researchCostFor } from './src/research.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
-const OWN_STAGES = [{ dryMass: 6000, propMass: 60000, isp: 295 }, { dryMass: 900, propMass: 9500, isp: 340 }];
 // Forschung je Level und Ort (Linus 14.11.): Erde, Raumstation, Mond, Mars. Jedes Projekt schaltet etwas frei.
+// Forschung kostet Geld, Punkte und Zeit (Krisp 13:10, Linus 14.11.). cost in Mio. $.
+// Man plant immer fürs nächste Level: Erde -> Station (Orbiter-2, Starship I), Station -> Mond (Betankung, Starship II),
+// Mond -> Mars (Mondeis, Starship III). helps = Ziele, denen das Projekt hilft (für die Pleite-Prüfung).
 const PROJECTS = [
-  { id: 'own-rocket', level: 1, rp: 15, seconds: 40, name: 'projOwn', info: 'projOwnInfo' },
-  { id: 'reuse', level: 1, rp: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket' },
-  { id: 'quality', level: 1, rp: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
-  { id: 'refuel', level: 2, rp: 30, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo' },
-  { id: 'lunar-ice', level: 3, rp: 30, seconds: 60, name: 'projIce', info: 'projIceInfo' },
-  { id: 'mars-fuel', level: 4, rp: 25, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo' },
+  { id: 'own-rocket', level: 1, rp: 15, cost: 20, seconds: 40, name: 'projOwn', info: 'projOwnInfo', helps: ['leo'] },
+  { id: 'reuse', level: 1, rp: 30, cost: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket', helps: ['leo'] },
+  { id: 'quality', level: 1, rp: 25, cost: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
+  { id: 'orbiter-2', level: 1, rp: 40, cost: 40, seconds: 70, name: 'projOrbiter2', info: 'projOrbiter2Info', needs: 'own-rocket', helps: ['leo'] },
+  { id: 'ss-reuse-1', level: 1, rp: 20, cost: 100, seconds: 50, name: 'projSs1', info: 'projSsInfo', helps: ['leo', 'moon', 'mars'] },
+  { id: 'refuel', level: 2, rp: 30, cost: 150, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo', helps: ['moon', 'mars'] },
+  { id: 'ss-reuse-2', level: 2, rp: 25, cost: 100, seconds: 50, name: 'projSs2', info: 'projSsInfo', needs: 'ss-reuse-1', helps: ['leo', 'moon', 'mars'] },
+  { id: 'lunar-ice', level: 3, rp: 30, cost: 200, seconds: 60, name: 'projIce', info: 'projIceInfo', helps: ['mars'] },
+  { id: 'ss-reuse-3', level: 3, rp: 30, cost: 100, seconds: 50, name: 'projSs3', info: 'projSsInfo', needs: 'ss-reuse-2', helps: ['leo', 'moon', 'mars'] },
+  { id: 'mars-fuel', level: 4, rp: 25, cost: 300, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo', helps: ['mars'] },
 ];
 const ALL_DONE = Object.fromEntries(PROJECTS.map((p) => [p.id, true]));
 // Höchstes erreichtes Level der Kampagne
@@ -33,7 +39,9 @@ function ownRocket() {
   return {
     id: 'own', name: research.name || t('ownRocketName'), info: t('ownRocketInfo', { n: research.flights }),
     reliability: ownRocketReliability(research.flights, !!research.done.quality),
-    cost: ownRocketCost(research.flights, !!research.done.reuse), stages: OWN_STAGES,
+    // Orbiter-2 (Forschung): größere Stufen, trägt Stationsmodule, kostet 60 % mehr
+    cost: Math.round(ownRocketCost(research.flights, !!research.done.reuse) * (research.done['orbiter-2'] ? 1.6 : 1) * 10) / 10,
+    stages: research.done['orbiter-2'] ? OWN_STAGES_2 : OWN_STAGES,
   };
 }
 // ---------- Kampagne: Stand im Browser ----------
@@ -59,7 +67,7 @@ function contractMission(c) {
 const campaignRockets = (index, done = research.done) => {
   const dest = (contracts[index] && contracts[index].dest) || 'leo';
   const list = [...rockets, ...(research.done['own-rocket'] && dest === 'leo' ? [ownRocket()] : []),
-    ...(index >= 1 ? [starship] : []), falconHeavy, sls];
+    ...(index >= 1 ? [{ ...starship, cost: starshipCost(done) }] : []), falconHeavy, sls];
   return rocketsFor(dest, list, done);
 };
 const rocketList = () => (state.mission && state.mission.contract ? campaignRockets(company.index)
@@ -868,14 +876,14 @@ function renderResearch() {
     el('div', { class: 'lab-scene', 'aria-hidden': 'true' }, placeSvg(view, null, delivered)),
     el('h1', {}, t('labOf', { x: t(PLACE_NAME[place]) })),
     el('p', { class: 'lead' }, t('researchLead')),
-    el('p', { class: 'big-number rp' }, `${research.rp} ${t('rpShort')}`),
+    el('p', { class: 'big-number rp' }, `${research.rp} ${t('rpShort')} · ${money(company.cash)}`),
     el('div', { class: 'projects' }, PROJECTS.filter((pr) => pr.level === view).map((pr) => {
       const done = !!research.done[pr.id];
       const locked = (pr.needs && !research.done[pr.needs]) || pr.level > reached;
       const running = a && a.id === pr.id;
-      const canStart = !done && !locked && !a && research.rp >= pr.rp;
+      const canStart = !done && !locked && !a && research.rp >= pr.rp && company.cash >= pr.cost;
       return el('div', { class: `project card${done ? ' done-card' : ''}` },
-        el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')}`)),
+        el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')} · ${money(pr.cost)}`)),
         el('p', { class: 'hint' }, t(pr.info)),
         locked ? el('p', { class: 'hint' }, t('needs', { x: t(PROJECTS.find((x) => x.id === pr.needs).name) })) : '',
         done && pr.id === 'own-rocket' ? el('form', { class: 'name-form', onsubmit: (e) => {
@@ -896,8 +904,12 @@ function renderResearch() {
               onclick: () => { if (research.rp < SKIP_RP) return; research.rp -= SKIP_RP; research.done[a.id] = true; research.active = null; saveResearch(); render(); } },
             t('skip', { n: SKIP_RP })))] : '',
         !done && !running && !locked ? el('button', { class: 'primary', type: 'button', disabled: canStart ? null : '',
-          onclick: () => { if (!canStart) return; research.rp -= pr.rp; research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); render(); } },
-        research.rp >= pr.rp ? t('startResearch', { n: pr.rp }) : t('notEnoughRp')) : '');
+          onclick: () => {
+            if (!canStart) return;
+            research.rp -= pr.rp; company.cash = Math.round((company.cash - pr.cost) * 1000) / 1000; // Forschung kostet Firmengeld
+            research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); saveCompany(); render();
+          } },
+        research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : t('startResearch', { n: pr.rp, c: money(pr.cost) })) : '');
     })));
 }
 
@@ -1339,7 +1351,12 @@ $('next').addEventListener('click', () => {
       company.cash = settleContract(company.cash, r, contract.fee);
       if (r.success) { company.index += 1; state.levelView = null; }
       const next = contracts[company.index];
-      if (next && isBankrupt(company.cash, cheapestMission(contractMission(next), { instruments, buses, panels }, campaignRockets(company.index, ALL_DONE)))) company.over = true;
+      if (next) {
+        const parts = { instruments, buses, panels };
+        const now = cheapestMission(contractMission(next), parts, campaignRockets(company.index));
+        const withResearch = cheapestMission(contractMission(next), parts, campaignRockets(company.index, ALL_DONE)) + researchCostFor(next.dest, PROJECTS, research.done);
+        if (isBankrupt(company.cash, Math.min(now, withResearch))) company.over = true;
+      }
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
       saveCompany();
       r.fee = r.success ? contract.fee : 0;

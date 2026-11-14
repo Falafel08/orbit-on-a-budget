@@ -106,11 +106,15 @@ export const rockets = [
 // 100 t: SpaceX Starship Users Guide (2020), gilt für niedrigen Orbit. 10 Mio. $: Musks Ziel (CNBC, 11.02.2022).
 // Erfolgsquote: 10 von 15 Testflügen (Wikipedia, Stand 14.11.2026). Kein Versicherer deckt Testflüge (Spiel-Annahme).
 export const starship = {
-  id: 'starship', name: 'Starship', cost: 10, maxPayload: 100000, reliability: 0.67,
+  id: 'starship', name: 'Starship', cost: 100, maxPayload: 100000, reliability: 0.67, // 100 Mio. $ ohne Forschung, bis 10 Mio. $ mit (starshipCost)
   capacity: { moon: 100000, mars: 100000 }, needsRefuel: true, // über den Erdorbit hinaus nur mit Betankung im Orbit
   claim: true, uninsurable: true,
-  info: 'SpaceX\'s giant rocket, still in test flights. Price and payload are SpaceX\'s own targets, not NASA data. 10 of 15 test flights worked. No insurer covers it.',
+  info: 'SpaceX\'s giant rocket, still in test flights. Payload is SpaceX\'s own figure, not NASA data. A flight costs about $100M today and gets cheaper with the research Starship reuse. 10 of 15 test flights worked. No insurer covers it.',
 };
+
+// Eigene Rakete (Spiel-Entwurf, Raketengleichung). Orbiter-1 trägt etwa 1,6 t, Orbiter-2 nach Forschung etwa 10 t in den Erdorbit.
+export const OWN_STAGES = [{ dryMass: 6000, propMass: 60000, isp: 295 }, { dryMass: 900, propMass: 9500, isp: 340 }];
+export const OWN_STAGES_2 = [{ dryMass: 20000, propMass: 300000, isp: 300 }, { dryMass: 4000, propMass: 60000, isp: 345 }];
 
 // Mond und Mars (Level 3 und 4). capacity = Nutzlast je Ziel in kg.
 // Falcon Heavy: Preis 178 Mio. $ laut NASA-Startvertrag Europa Clipper (2021). Nutzlast 16,8 t zum Mars (Angabe SpaceX);
@@ -156,7 +160,7 @@ const DE = {
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
   falconHeavy: { info: 'Drei Falcon-9-Stufen nebeneinander. Die NASA zahlte etwa 178 Mio. $ für den Start von Europa Clipper damit. Trägt 16,8 t zum Mars (Angabe von SpaceX).' },
   sls: { info: 'Die Mondrakete der NASA. Sie trägt mehr als 27 t zum Mond. Laut NASA-Prüfbericht kostet eine Rakete etwa 2,2 Mrd. $.' },
-  starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. Preis und Nutzlast sind Ziele von SpaceX, keine NASA-Daten. 10 von 15 Testflügen haben geklappt. Kein Versicherer deckt sie.' },
+  starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. Die Nutzlast ist eine Angabe von SpaceX, keine NASA-Zahl. Ein Flug kostet heute etwa 100 Mio. $ und wird mit der Forschung Starship-Wiederverwendung billiger. 10 von 15 Testflügen haben geklappt. Kein Versicherer deckt sie.' },
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
 for (const list of [missions, instruments, buses, panels, rockets, [starship, falconHeavy, sls]]) for (const x of list) x.de = DE[x.id];
@@ -182,11 +186,11 @@ export const contracts = [
   // Massen und Preise sind Spiel-Annahmen, kein NASA-Wert. Die Raketen-Nutzlast gilt laut NASA für 800 km,
   // eine Station fliegt tiefer. Echte Raketen tragen dorthin mehr, das Spiel rechnet vorsichtig.
   ...[
-    ['s1', 'Core module', 'Kernmodul', 'The heart of the station: computers, control and the first room.', 'Das Herz der Station: Computer, Steuerung und der erste Raum.', 6000, 40, 125],
-    ['s2', 'Power module', 'Energiemodul', 'Big solar wings that give the whole station power.', 'Große Solarflügel, die der ganzen Station Strom geben.', 4000, 30, 115],
-    ['s3', 'Lab module', 'Labormodul', 'A lab for experiments in weightlessness.', 'Ein Labor für Versuche in der Schwerelosigkeit.', 8000, 50, 140],
-    ['s4', 'Habitat module', 'Wohnmodul', 'Beds, kitchen and air for a crew of three.', 'Betten, Küche und Luft für drei Leute.', 9000, 55, 150],
-    ['s5', 'Docking node', 'Andockknoten', 'Lets spacecraft dock. After this the station is complete.', 'Hier docken Raumschiffe an. Danach ist die Station fertig.', 3000, 25, 110],
+    ['s1', 'Core module', 'Kernmodul', 'The heart of the station: computers, control and the first room.', 'Das Herz der Station: Computer, Steuerung und der erste Raum.', 6000, 40, 155],
+    ['s2', 'Power module', 'Energiemodul', 'Big solar wings that give the whole station power.', 'Große Solarflügel, die der ganzen Station Strom geben.', 4000, 30, 145],
+    ['s3', 'Lab module', 'Labormodul', 'A lab for experiments in weightlessness.', 'Ein Labor für Versuche in der Schwerelosigkeit.', 8000, 50, 170],
+    ['s4', 'Habitat module', 'Wohnmodul', 'Beds, kitchen and air for a crew of three.', 'Betten, Küche und Luft für drei Leute.', 9000, 55, 180],
+    ['s5', 'Docking node', 'Andockknoten', 'Lets spacecraft dock. After this the station is complete.', 'Hier docken Raumschiffe an. Danach ist die Station fertig.', 3000, 25, 140],
   ].map(([id, name, nameDe, goal, goalDe, mass, cost, fee]) => ({
     id, level: 2, dest: 'leo', module: { mass, cost, name, de: { name: nameDe } }, fee,
     client: name, goal, de: { client: nameDe, goal: goalDe },
