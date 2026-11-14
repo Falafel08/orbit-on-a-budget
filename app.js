@@ -275,7 +275,7 @@ function openInfo(item) {
   panel.replaceChildren(
     el('h2', { id: 'panel-title' }, tr(item, 'name')),
     el('p', {}, tr(item, 'info') || ''),
-    item.verified === false ? el('p', { class: 'hint' }, t('assumedValues')) : '',
+    item.verified === false ? el('p', { class: 'hint' }, t('assumedValues')) : item.verified === 'mass' ? el('p', { class: 'hint' }, t('massFromNasa')) : '',
     el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
   panel.showModal();
 }

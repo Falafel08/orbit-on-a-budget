@@ -61,9 +61,12 @@ export const buses = [
     info: 'Six 10 cm cubes. ' + BUS_INFO },
   { id: 'cube-12u', name: '12U CubeSat', mass: 12 * U / 2, capacity: 12 * U / 2, power: 0, cost: 0.9, verified: 'mass',
     info: 'Twelve 10 cm cubes. ' + BUS_INFO },
-  { id: 'bus-s', name: 'Small bus', mass: 60, capacity: 40, power: 0, cost: 4, verified: false, info: BUS_INFO },
-  { id: 'bus-m', name: 'Medium bus', mass: 300, capacity: 200, power: 0, cost: 15, verified: false, info: BUS_INFO },
-  { id: 'bus-l', name: 'Large bus', mass: 1500, capacity: 900, power: 0, cost: 45, verified: false, info: BUS_INFO },
+  // Masse und Nutzlast nach echten Bussen im NASA-Katalog RSDO Rapid IV (Datenblätter Ball BCP Small, BCP Large).
+  // Klein: Bus 114 kg, Nutzlast 44 kg. Mittel: Bus 170 kg, Nutzlast 170 kg. Groß: 2.190 kg minus 610 kg Nutzlast = 1.580 kg, Nutzlast 610 kg.
+  // Preise bleiben Spiel-Annahme (RSDO nennt keine Preise öffentlich).
+  { id: 'bus-s', name: 'Small bus', mass: 114, capacity: 44, power: 0, cost: 4, verified: 'mass', info: BUS_INFO + ' Mass and payload like the Ball BCP-Small bus in NASA\'s RSDO catalog.' },
+  { id: 'bus-m', name: 'Medium bus', mass: 170, capacity: 170, power: 0, cost: 15, verified: 'mass', info: BUS_INFO + ' Mass and payload like the larger Ball BCP-Small version in NASA\'s RSDO catalog.' },
+  { id: 'bus-l', name: 'Large bus', mass: 1580, capacity: 610, power: 0, cost: 45, verified: 'mass', info: BUS_INFO + ' Mass and payload like the Ball BCP-Large bus in NASA\'s RSDO catalog.' },
 ];
 
 // Solarpanels: Strom für die Instrumente. Werte sind Spiel-Annahmen (verified: false).
@@ -153,9 +156,9 @@ const DE = {
   'cube-3u': { name: '3U-CubeSat', info: 'Drei 10-cm-Würfel in einer Reihe. ' + BUS_DE },
   'cube-6u': { name: '6U-CubeSat', info: 'Sechs 10-cm-Würfel. ' + BUS_DE },
   'cube-12u': { name: '12U-CubeSat', info: 'Zwölf 10-cm-Würfel. ' + BUS_DE },
-  'bus-s': { name: 'Kleiner Bus', info: BUS_DE },
-  'bus-m': { name: 'Mittlerer Bus', info: BUS_DE },
-  'bus-l': { name: 'Großer Bus', info: BUS_DE },
+  'bus-s': { name: 'Kleiner Bus', info: BUS_DE + ' Masse und Nutzlast wie der Bus Ball BCP-Small im NASA-Katalog RSDO.' },
+  'bus-m': { name: 'Mittlerer Bus', info: BUS_DE + ' Masse und Nutzlast wie die größere Ausführung von Ball BCP-Small im NASA-Katalog RSDO.' },
+  'bus-l': { name: 'Großer Bus', info: BUS_DE + ' Masse und Nutzlast wie der Bus Ball BCP-Large im NASA-Katalog RSDO.' },
   rideshare: { name: 'CubeSat-Mitflug', info: 'Dein CubeSat fliegt auf der Rakete von jemand anderem mit. Das ist billig, aber nur für CubeSats bis 3U.' },
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
   falconHeavy: { info: 'Drei Falcon-9-Stufen nebeneinander. Die NASA zahlte etwa 178 Mio. $ für den Start von Europa Clipper damit. Trägt 16,8 t zum Mars (Angabe von SpaceX).' },

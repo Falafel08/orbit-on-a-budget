@@ -24,6 +24,10 @@ export const nasaSources = [
     url: 'https://www.nasa.gov/wp-content/uploads/2020/02/sls_lift_capabilities_and_configurations_508_08202018_0.pdf' },
   { en: 'SLS cost (about $2.2 billion per rocket): NASA Office of Inspector General, IG-22-003', de: 'SLS-Kosten (etwa 2,2 Mrd. $ pro Rakete): NASA-Prüfbericht IG-22-003',
     url: 'https://oig.nasa.gov/docs/IG-22-003.pdf' },
+  { en: 'Satellite buses, small and medium (Ball BCP-Small: 114 kg carrying 44 kg, 170 kg carrying 170 kg): NASA RSDO Rapid IV catalog', de: 'Satelliten-Busse klein und mittel (Ball BCP-Small: 114 kg trägt 44 kg, 170 kg trägt 170 kg): NASA-Katalog RSDO Rapid IV',
+    url: 'https://assets.science.nasa.gov/content/dam/science/cds/spacecraft-development/rsdo/rapid-iv-catalog/Ball_BCP_Small_Data%20Sheet.pdf' },
+  { en: 'Satellite bus, large (Ball BCP-Large: 610 kg payload): NASA RSDO Rapid IV catalog', de: 'Satelliten-Bus groß (Ball BCP-Large: 610 kg Nutzlast): NASA-Katalog RSDO Rapid IV',
+    url: 'https://assets.science.nasa.gov/content/dam/science/cds/spacecraft-development/rsdo/rapid-iv-catalog/Ball_BCP_Large_Data%20Sheet.pdf' },
   { en: 'CubeSat sizes, masses and rideshare cost: NASA CubeSat 101', de: 'CubeSat-Größen, Massen und Mitflug-Preis: NASA CubeSat 101',
     url: 'https://www3.nasa.gov/sites/default/files/atoms/files/nasa_csli_cubesat_101_508.pdf' },
   // Fun Facts: jede NASA-Seite einmal, benannt nach dem Bild des Fakts

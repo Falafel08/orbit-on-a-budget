@@ -47,3 +47,11 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | SLS Block 1 payload to the Moon: more than 27 t | NASA, SLS Lift Capabilities and Configurations, https://www.nasa.gov/wp-content/uploads/2020/02/sls_lift_capabilities_and_configurations_508_08202018_0.pdf | NASA content, US public domain | Used |
 | SLS cost: about $2.2 billion per rocket ($4.1 billion per launch with Orion) | NASA Office of Inspector General, IG-22-003, https://oig.nasa.gov/docs/IG-22-003.pdf | NASA content, US public domain | Used ($2.2B) |
 | Success rates of Falcon Heavy (99 %) and SLS (95 %); Moon and Mars modules, masses, build costs, fees; research effects (refueling, Moon ice -25 %, Mars fuel plant) | Game assumption | — | Game assumption |
+
+## Satellite buses (changed 14 Nov 2026)
+
+| What | Source | License | Status |
+|---|---|---|---|
+| Small bus 114 kg carrying 44 kg; medium bus 170 kg carrying 170 kg (two heritage configurations of Ball BCP-Small) | NASA RSDO Rapid IV catalog, Ball BCP Small data sheet, https://assets.science.nasa.gov/content/dam/science/cds/spacecraft-development/rsdo/rapid-iv-catalog/Ball_BCP_Small_Data%20Sheet.pdf | Published by NASA, numbers used as facts, no text or images copied | Used |
+| Large bus 1,580 kg (2,190 kg space vehicle minus 610 kg payload) carrying 610 kg | NASA RSDO Rapid IV catalog, Ball BCP Large data sheet, https://assets.science.nasa.gov/content/dam/science/cds/spacecraft-development/rsdo/rapid-iv-catalog/Ball_BCP_Large_Data%20Sheet.pdf | Published by NASA, facts only | Used |
+| Bus prices | Game assumption (RSDO does not publish prices) | — | Game assumption |
