@@ -293,7 +293,7 @@ function rocketCarouselCenter() {
   const slot = (k, role) => {
     const r = items[(i + k + n) % n];
     const picked = cat.picked(r);
-    return el('figure', { class: `slot ${role}${picked ? ' is-picked' : ''}`, onclick: () => (role === 'mid' ? choose('rocket', r) : moveRocket(items, k)) },
+    return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}${picked ? ' is-picked' : ''}`, onclick: () => (role === 'mid' ? choose('rocket', r) : moveRocket(items, k)) },
       role === 'mid' && picked ? el('span', { class: 'picked-tag' }, t('selected')) : '',
       rocketPicture(r),
       el('figcaption', { class: 'banner' }, tr(r, 'name')));
@@ -310,8 +310,20 @@ function rocketCarouselCenter() {
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
     el('div', { class: 'slots' }, n > 2 ? slot(-1, 'side') : '', slot(0, 'mid'), n > 1 ? slot(1, 'side') : ''),
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextRocket'), onclick: () => moveRocket(items, 1) }, '›') : el('span')),
+  el('dl', { class: 'rocket-facts' }, el('dt', {}, t('price')), el('dd', {}, money(mid.cost)), cat.rows(mid).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
   el('button', { class: picked ? 'secondary pick' : 'primary pick', type: 'button', 'aria-pressed': String(picked), onclick: () => choose('rocket', mid) }, picked ? t('selected') : t('select')),
-  el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))));
+  el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))),
+  insuranceBox(),
+  state.mission.module ? el('p', { class: 'hint' }, t('stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) })) : '');
+}
+
+// Versicherung unter der gewählten Rakete
+function insuranceBox() {
+  if (!state.rocket) return '';
+  if (state.rocket.uninsurable) return el('p', { class: 'hint' }, t('noInsurance'));
+  return el('label', { class: 'insure card' },
+    el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
+    el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) })));
 }
 
 // Links: Zahlen der Rakete, die im Karussell vorne steht
@@ -346,10 +358,7 @@ function renderLeft() {
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
       cat.kind === 'rocket' ? rocketDetails(cat)
         : el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
-    state.build === 2 && state.rocket && state.rocket.uninsurable ? el('p', { class: 'hint' }, t('noInsurance')) : null,
-    state.build === 2 && state.rocket && !state.rocket.uninsurable ? el('label', { class: 'insure card' },
-      el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
-      el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) }))) : null].filter(Boolean));
+  ].filter(Boolean));
   left.scrollTop = scroll;
   if (focusIndex >= 0) focusables()[focusIndex]?.focus({ preventScroll: true });
 }
@@ -828,6 +837,37 @@ function renderCompany() {
 
 // ---------- Ergebnis ----------
 
+// Kleine Grafik zum Weltraum-Fakt (Idee Josias 14.11.)
+function factIcon(kind) {
+  const s = svg('svg', { viewBox: '0 0 64 64', class: 'fact-icon', 'aria-hidden': 'true' });
+  const add = (tag, a) => s.append(svg(tag, a));
+  if (kind === 'iss') {
+    add('rect', { x: 4, y: 22, width: 16, height: 20, fill: '#2b3a6b', stroke: '#9fb3e8' });
+    add('rect', { x: 44, y: 22, width: 16, height: 20, fill: '#2b3a6b', stroke: '#9fb3e8' });
+    add('line', { x1: 20, y1: 32, x2: 44, y2: 32, stroke: '#B8AFA6', 'stroke-width': 3 });
+    add('rect', { x: 26, y: 26, width: 12, height: 12, rx: 4, fill: '#d9d2c7' });
+  } else if (kind === 'webb') {
+    for (const [x, y] of [[32, 14], [22, 20], [42, 20], [22, 32], [42, 32], [32, 38], [32, 26]]) add('polygon', { points: `${x},${y - 6} ${x + 5},${y - 3} ${x + 5},${y + 3} ${x},${y + 6} ${x - 5},${y + 3} ${x - 5},${y - 3}`, fill: '#e0c070', stroke: '#8a6a28' });
+    add('polygon', { points: '8,52 56,52 48,46 16,46', fill: '#A88FD6' });
+  } else if (kind === 'moon') {
+    add('circle', { cx: 32, cy: 32, r: 22, fill: '#d9d2c7' });
+    for (const [x, y, r] of [[24, 26, 4], [38, 36, 6], [30, 42, 3]]) add('circle', { cx: x, cy: y, r, fill: '#b8b0a4' });
+  } else if (kind === 'sun') {
+    add('circle', { cx: 32, cy: 32, r: 16, fill: '#ffb347' });
+    for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4; add('line', { x1: 32 + Math.cos(a) * 21, y1: 32 + Math.sin(a) * 21, x2: 32 + Math.cos(a) * 28, y2: 32 + Math.sin(a) * 28, stroke: '#ffb347', 'stroke-width': 3, 'stroke-linecap': 'round' }); }
+  } else if (kind === 'voyager') {
+    add('path', { d: 'M14 20 Q32 40 50 20 Z', fill: '#F5EFE6' });
+    add('rect', { x: 28, y: 28, width: 8, height: 8, fill: '#e0c070' });
+    add('line', { x1: 36, y1: 34, x2: 58, y2: 50, stroke: '#B8AFA6', 'stroke-width': 2 });
+    add('line', { x1: 28, y1: 34, x2: 10, y2: 52, stroke: '#B8AFA6', 'stroke-width': 2 });
+  } else {
+    for (const [x, y, w] of [[10, 14, 6], [40, 10, 4], [24, 34, 8], [48, 40, 5], [14, 48, 4], [34, 52, 6]]) add('rect', { x, y, width: w, height: w * 0.7, fill: '#B8AFA6', transform: `rotate(${x} ${x} ${y})` });
+  }
+  return s;
+}
+
+
+
 function renderResult() {
   const r = state.result;
   const reasons = {
@@ -840,7 +880,7 @@ function renderResult() {
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
-    r.fact ? el('p', { class: 'fact' }, el('strong', {}, t('funFact')), ' ', r.fact[getLang()]) : '',
+    r.fact ? el('div', { class: 'fact' }, factIcon(r.fact.icon), el('p', {}, el('strong', {}, t('funFact')), ' ', r.fact[getLang()])) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
     state.mission.contract && r.fee ? el('p', { class: 'rp-earned' }, t('feeReceived', { c: money(r.fee) })) : '',
     state.mission.contract ? el('p', { class: 'hint' }, t('cashNow', { c: money(company.cash) })) : '',
@@ -900,6 +940,7 @@ function render() {
   const stage = $('stage');
   stage.classList.toggle('full', ['result', 'research', 'company'].includes(state.phase));
   stage.classList.toggle('launching', state.phase === 'launch');
+  stage.classList.toggle('rocket-step', state.phase === 'build' && state.build === 2);
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');
     $('budget').textContent = money(company.cash);
@@ -978,6 +1019,16 @@ $('back').addEventListener('click', () => {
   else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company';
   else state.phase = 'start';
   render();
+});
+
+// Raketen-Schritt: Pfeiltasten blättern durchs Karussell, ohne es erst anzuklicken
+addEventListener('keydown', (e) => {
+  if (state.phase !== 'build' || state.build !== 2 || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+  if (e.target.closest && e.target.closest('input, textarea, select, .carousel')) return; // Karussell hat eigenen Handler
+  const items = offered(catalogs.find((c) => c.kind === 'rocket').items);
+  if (!items.length) return;
+  e.preventDefault();
+  moveRocket(items, e.key === 'ArrowLeft' ? -1 : 1);
 });
 
 $('lang').addEventListener('click', () => { setLang(getLang() === 'en' ? 'de' : 'en'); render(); });
