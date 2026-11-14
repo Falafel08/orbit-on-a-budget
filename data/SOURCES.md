@@ -37,3 +37,13 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | What | Source | License | Status |
 |---|---|---|---|
 | Station modules (Level 2): masses 3,000 to 9,000 kg, build costs $25M to $55M, fees | Game assumption, not NASA data. Rocket capacity uses the NASA value for 800 km; a station flies lower, where real rockets carry more | — | Used |
+
+## Campaign levels 3 and 4 (Moon, Mars)
+
+| What | Source | License | Status |
+|---|---|---|---|
+| Falcon Heavy price: about $178M (launch services for Europa Clipper) | NASA news release, 23 Jul 2021, https://www.nasa.gov/news-release/nasa-awards-launch-services-contract-for-europa-clipper-mission/ | NASA content, US public domain | Used |
+| Falcon Heavy payload to Mars: 16,800 kg (SpaceX figure). The game uses the same value for the Moon, which is conservative | https://en.wikipedia.org/wiki/Falcon_Heavy | CC BY-SA (facts only) | Used, marked as SpaceX figure |
+| SLS Block 1 payload to the Moon: more than 27 t | NASA, SLS Lift Capabilities and Configurations, https://www.nasa.gov/wp-content/uploads/2020/02/sls_lift_capabilities_and_configurations_508_08202018_0.pdf | NASA content, US public domain | Used |
+| SLS cost: about $2.2 billion per rocket ($4.1 billion per launch with Orion) | NASA Office of Inspector General, IG-22-003, https://oig.nasa.gov/docs/IG-22-003.pdf | NASA content, US public domain | Used ($2.2B) |
+| Success rates of Falcon Heavy (99 %) and SLS (95 %); Moon and Mars modules, masses, build costs, fees; research effects (refueling, Moon ice -25 %, Mars fuel plant) | Game assumption | — | Game assumption |

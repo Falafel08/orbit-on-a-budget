@@ -18,9 +18,10 @@ Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission De
 ## Campaign
 Run your own space company from a base you see from above: Mission control for contracts, the research lab, the launch pad. You start with $110M. Your company pays for the parts, the client pays when the mission works, and what is left funds the next contract. Fail twice in a row and you go bankrupt.
 
-- Level 1, Satellites: four contracts for satellites.
-- Level 2, Space station: five flights, each brings one module. The station grows above your base.
-- Level 3, Moon base, and Level 4, Mars: coming soon.
+- Level 1, Earth orbit: four contracts for satellites. Research lab on Earth: your own rocket.
+- Level 2, Space station: five flights, each brings one module. Research on the station: orbital refueling.
+- Level 3, Moon base: four landings with Falcon Heavy, NASA's SLS or (after refueling) Starship. Research: fuel from Moon ice.
+- Level 4, Mars: three flights. The crewed landing needs a fuel plant on Mars first.
 
 ## Run it on your own computer
 Serve the folder and open `http://localhost:8000`:

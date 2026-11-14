@@ -134,9 +134,10 @@ const offered = (items) => (state.mission && state.mission.allowed ? items.filte
 // Satellit nach der Skizze: Körper, zwei Solarflügel, eigenes Abzeichen statt NASA-Schriftzug
 function satelliteSvg() {
   const s = svg('svg', { viewBox: '0 0 600 260' });
+  const cells = grad(s, 'linearGradient', [['0', '#4a62b0'], ['0.45', '#2b3a6b'], ['1', '#18224a']], { x1: '0', y1: '0', x2: '1', y2: '1' });
   const panel = (x) => {
     const g = svg('g');
-    g.append(svg('rect', { x, y: 70, width: 200, height: 120, rx: 4, fill: '#2b3a6b', stroke: '#F5EFE6', 'stroke-width': 3 }));
+    g.append(svg('rect', { x, y: 70, width: 200, height: 120, rx: 4, fill: cells, stroke: '#F5EFE6', 'stroke-width': 3 }));
     for (let i = 1; i < 5; i++) g.append(svg('line', { x1: x + i * 40, y1: 70, x2: x + i * 40, y2: 190, stroke: '#9fb3e8', 'stroke-width': 1.5 }));
     for (let j = 1; j < 3; j++) g.append(svg('line', { x1: x, y1: 70 + j * 40, x2: x + 200, y2: 70 + j * 40, stroke: '#9fb3e8', 'stroke-width': 1.5 }));
     return g;
@@ -144,7 +145,8 @@ function satelliteSvg() {
   s.append(panel(10), panel(390));
   s.append(svg('rect', { x: 210, y: 122, width: 40, height: 16, fill: '#B8AFA6' }));
   s.append(svg('rect', { x: 350, y: 122, width: 40, height: 16, fill: '#B8AFA6' }));
-  s.append(svg('rect', { x: 245, y: 60, width: 110, height: 140, rx: 50, fill: '#d9d2c7', stroke: '#F5EFE6', 'stroke-width': 3 }));
+  const hull = grad(s, 'radialGradient', [['0', '#ffffff'], ['0.6', '#d9d2c7'], ['1', '#9a9288']], { cx: '0.35', cy: '0.3', r: '0.85' });
+  s.append(svg('rect', { x: 245, y: 60, width: 110, height: 140, rx: 50, fill: hull, stroke: '#F5EFE6', 'stroke-width': 3 }));
   s.append(svg('circle', { cx: 300, cy: 130, r: 30, fill: '#745F9A' }));
   s.append(svg('text', { x: 300, y: 137, 'text-anchor': 'middle', fill: '#fff', 'font-size': 20, 'font-weight': 700, 'font-family': 'sans-serif' }, 'OoB'));
   s.append(svg('line', { x1: 300, y1: 60, x2: 300, y2: 20, stroke: '#F5EFE6', 'stroke-width': 3 }));
@@ -937,6 +939,7 @@ function baseSvg(c) {
   }
   s.append(svg('polygon', { points: pts([iso(3.6, 3), iso(4.4, 3), iso(4.4, 5), iso(3.6, 5)]), fill: '#6b675f' }));
   s.append(svg('polygon', { points: pts([iso(3, 2.6), iso(6, 2.6), iso(6, 3.4), iso(3, 3.4)]), fill: '#6b675f' }));
+  groundLight(s);
 
   // Leitstand: Aufträge
   const dishTop = iso(2, 1.5);
@@ -1019,10 +1022,18 @@ function cylinder(s, x, y, len, r, light, dark, solid) {
   g.append(svg('ellipse', { cx: x, cy: y, rx: r * 0.35, ry: r, fill: light }));
   return g;
 }
+function groundLight(s) {
+  const light = grad(s, 'linearGradient', [['0', 'rgba(255,248,230,0.16)'], ['0.55', 'rgba(255,248,230,0)'], ['1', 'rgba(0,0,0,0.3)']], { x1: '0', y1: '0', x2: '1', y2: '1' });
+  s.append(svg('polygon', { points: pts([iso(0, 0), iso(8, 0), iso(8, 8), iso(0, 8)]), fill: light, 'pointer-events': 'none' }));
+  // Kante der Bodenplatte, damit sie wie ein Block wirkt
+  s.append(svg('polygon', { points: pts([iso(0, 8), iso(8, 8), [iso(8, 8)[0], iso(8, 8)[1] + 10], [iso(0, 8)[0], iso(0, 8)[1] + 10]]), fill: 'rgba(0,0,0,0.45)' }));
+  s.append(svg('polygon', { points: pts([iso(8, 0), iso(8, 8), [iso(8, 8)[0], iso(8, 8)[1] + 10], [iso(8, 0)[0], iso(8, 0)[1] + 10]]), fill: 'rgba(0,0,0,0.3)' }));
+}
 function isoGround(s, a, b, stroke) {
   for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) {
     s.append(svg('polygon', { points: pts([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)]), fill: (x + y) % 2 ? a : b, stroke, 'stroke-width': 0.5 }));
   }
+  groundLight(s);
 }
 function crater(s, gx, gy, r, dark, rim) {
   const [x, y] = iso(gx, gy);
