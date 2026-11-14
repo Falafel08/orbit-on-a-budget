@@ -360,3 +360,15 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .dots { display: flex; justify-content: center; gap: 6px; margin: 0; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--linie); }
 .dot.on { background: var(--akzent-text); }
+
+/* Basis von oben (Idee Josias) */
+.company { width: 100%; max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: 24px; align-items: start; padding: 16px; overflow: auto; max-height: 100%; }
+.base-wrap { display: grid; gap: 8px; }
+.base { width: 100%; height: auto; }
+.bldg { cursor: pointer; outline: none; }
+.bldg polygon, .bldg ellipse { transition: filter 150ms ease; }
+.bldg:hover polygon, .bldg:hover ellipse, .bldg:focus-visible polygon { filter: brightness(1.25); }
+.bldg-tag { fill: rgba(23, 21, 20, 0.85); stroke: var(--akzent-text); stroke-width: 1; }
+.bldg:focus-visible .bldg-tag { stroke-width: 3; }
+.bldg-label { fill: #F5EFE6; font: 600 11px sans-serif; }
+@media (max-width: 800px) { .company { grid-template-columns: 1fr; } }

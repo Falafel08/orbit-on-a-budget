@@ -690,30 +690,104 @@ function renderResearch() {
     })));
 }
 
-// ---------- Kampagne: Firmen-Bildschirm ----------
+// ---------- Kampagne: Basis von oben (Idee Josias 14.11.) ----------
+// Isometrisch gezeichnet: Gitterpunkt (x, y) wird zu Bildschirm (X, Y). Gebäude sind Quader mit drei Seiten.
+const iso = (x, y) => [(x - y) * 30, (x + y) * 15];
+const pts = (list) => list.map(([x, y]) => `${x},${y}`).join(' ');
 
+function isoBox(gx, gy, w, d, h, [top, left, right]) {
+  const g = svg('g');
+  const a = iso(gx, gy), b = iso(gx + w, gy), c = iso(gx + w, gy + d), e = iso(gx, gy + d);
+  const up = ([x, y]) => [x, y - h];
+  g.append(svg('polygon', { points: pts([e, c, up(c), up(e)]), fill: left }));
+  g.append(svg('polygon', { points: pts([c, b, up(b), up(c)]), fill: right }));
+  g.append(svg('polygon', { points: pts([up(a), up(b), up(c), up(e)]), fill: top }));
+  return g;
+}
+
+// Klickbares Gebäude mit Namensschild darüber
+function building(label, [lx, ly], onSelect, parts) {
+  const g = svg('g', { class: 'bldg', tabindex: '0', role: 'button', 'aria-label': label });
+  for (const p of parts) g.append(p);
+  const w = label.length * 6.4 + 18;
+  g.append(svg('rect', { x: lx - w / 2, y: ly - 15, width: w, height: 20, rx: 10, class: 'bldg-tag' }));
+  g.append(svg('text', { x: lx, y: ly - 1, 'text-anchor': 'middle', class: 'bldg-label' }, label));
+  g.addEventListener('click', onSelect);
+  g.addEventListener('keydown', press(onSelect));
+  return g;
+}
+
+// Leitstand: springt zum Auftrag rechts
+const focusContract = () => { const b = document.querySelector('.project .primary') || document.querySelector('.company-panel h1'); b?.scrollIntoView({ block: 'center', behavior: 'smooth' }); b?.focus?.({ preventScroll: true }); };
+
+function baseSvg(c) {
+  const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('baseLabel') });
+  // Boden: 8 x 8 Felder, Straße zur Startrampe
+  for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) {
+    s.append(svg('polygon', { points: pts([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)]), fill: (x + y) % 2 ? '#3d4a3a' : '#43513f', stroke: '#2f3a2d', 'stroke-width': 0.5 }));
+  }
+  s.append(svg('polygon', { points: pts([iso(3.6, 3), iso(4.4, 3), iso(4.4, 5), iso(3.6, 5)]), fill: '#6b675f' }));
+  s.append(svg('polygon', { points: pts([iso(3, 2.6), iso(6, 2.6), iso(6, 3.4), iso(3, 3.4)]), fill: '#6b675f' }));
+
+  // Leitstand: Aufträge
+  const dishTop = iso(2, 1.5);
+  s.append(building(t('bldgControl'), [iso(2, 2)[0], iso(2, 2)[1] - 70], focusContract, [
+    isoBox(1, 1, 2, 2, 40, ['#8e7bb5', '#5b4a7c', '#6d5a92']),
+    svg('line', { x1: dishTop[0], y1: dishTop[1] - 40, x2: dishTop[0], y2: dishTop[1] - 56, stroke: '#d9d2c7', 'stroke-width': 2 }),
+    svg('path', { d: `M${dishTop[0] - 12} ${dishTop[1] - 62} Q${dishTop[0]} ${dishTop[1] - 48} ${dishTop[0] + 12} ${dishTop[1] - 62} Z`, fill: '#F5EFE6' }),
+  ]));
+
+  // Forschungslabor mit Kuppel
+  const dome = iso(6, 2);
+  s.append(building(t('bldgLab'), [dome[0], dome[1] - 66], () => { state.returnTo = 'company'; go('research'); }, [
+    isoBox(5, 1, 2, 2, 28, ['#5f9aa0', '#2f5e63', '#3f747a']),
+    svg('ellipse', { cx: dome[0], cy: dome[1] - 30, rx: 22, ry: 16, fill: '#cfe6ea', stroke: '#9fc7cd' }),
+  ]));
+
+  // Startrampe mit Rakete: startet den aktuellen Auftrag
+  const padC = iso(4, 6);
+  const canStart = c && !company.over;
+  s.append(building(t('bldgPad'), [padC[0], padC[1] - 100], () => { if (canStart) startMission(contractMission(c)); else focusContract(); }, [
+    isoBox(3, 5, 2, 2, 6, ['#8a857c', '#5a564f', '#6e6a62']),
+    svg('rect', { x: padC[0] + 16, y: padC[1] - 70, width: 5, height: 64, fill: '#B8AFA6' }),
+    svg('path', { d: `M${padC[0] - 6} ${padC[1] - 10} L${padC[0] - 6} ${padC[1] - 60} Q${padC[0]} ${padC[1] - 80} ${padC[0] + 6} ${padC[1] - 60} L${padC[0] + 6} ${padC[1] - 10} Z`, fill: '#F5EFE6' }),
+    svg('rect', { x: padC[0] - 6, y: padC[1] - 40, width: 12, height: 4, fill: '#A88FD6' }),
+  ]));
+
+  // Tanks und Antenne als Deko
+  for (const [gx, gy] of [[6.6, 5.2], [7.2, 5.8]]) {
+    const [x, y] = iso(gx, gy);
+    s.append(svg('rect', { x: x - 8, y: y - 26, width: 16, height: 26, fill: '#d9d2c7' }));
+    s.append(svg('ellipse', { cx: x, cy: y - 26, rx: 8, ry: 4, fill: '#F5EFE6' }));
+    s.append(svg('ellipse', { cx: x, cy: y, rx: 8, ry: 4, fill: '#b8b0a4' }));
+  }
+  return s;
+}
+
+// ---------- Kampagne: Firmen-Bildschirm ----------
+// Links die Basis von oben, rechts Geld und Auftrag. Gebäude wählen Aufträge und Forschung.
 function renderCompany() {
   const done = company.index >= contracts.length;
   const c = contracts[company.index];
   const best = bestCompany();
-  return el('section', { class: 'research enter' },
-    el('h1', {}, t('company')),
-    el('p', { class: 'lead' }, t('companyLead')),
-    el('p', { class: 'big-number rp' }, `${t('cash')}: ${money(company.cash)}`),
-    company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
-    done ? el('p', { class: 'result-msg ok' }, t('won', { c: money(company.cash) })) : '',
-    !done && !company.over ? el('div', { class: 'project card' },
-      el('h2', {}, el('span', {}, t('contractOf', { n: company.index + 1, m: contracts.length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
-      el('p', {}, el('strong', {}, tr(c, 'client'))),
-      el('p', { class: 'hint' }, tr(c, 'goal')),
-      el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
-      el('button', { class: 'primary', type: 'button', onclick: () => startMission(contractMission(c)) }, t('startContract'))) : '',
-    el('ol', { class: 'contracts' }, contracts.map((x, i) => el('li', { class: i < company.index ? 'is-done' : '' },
-      `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`))),
-    el('div', { class: 'research-actions' },
-      el('button', { class: 'secondary', type: 'button', onclick: () => { state.returnTo = 'company'; go('research'); } }, `${t('research')} · ${research.rp} ${t('rpShort')}`),
-      el('button', { class: 'secondary', type: 'button', onclick: () => { company = freshCompany(); saveCompany(); render(); } }, t('restartCompany'))),
-    best ? el('p', { class: 'hint' }, `${t('bestCompany')}: ${money(best)}`) : '');
+  return el('section', { class: 'company enter' },
+    el('div', { class: 'base-wrap' }, baseSvg(done ? null : c), el('p', { class: 'hint' }, t('baseHint'))),
+    el('div', { class: 'company-panel' },
+      el('h1', {}, t('company')),
+      el('p', { class: 'big-number rp' }, `${t('cash')}: ${money(company.cash)}`),
+      company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
+      done ? el('p', { class: 'result-msg ok' }, t('won', { c: money(company.cash) })) : '',
+      !done && !company.over ? el('div', { class: 'project card' },
+        el('h2', {}, el('span', {}, t('contractOf', { n: company.index + 1, m: contracts.length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
+        el('p', {}, el('strong', {}, tr(c, 'client'))),
+        el('p', { class: 'hint' }, tr(c, 'goal')),
+        el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
+        el('button', { class: 'primary', type: 'button', onclick: () => startMission(contractMission(c)) }, t('startContract'))) : '',
+      el('ol', { class: 'contracts' }, contracts.map((x, i) => el('li', { class: i < company.index ? 'is-done' : '' },
+        `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`))),
+      el('div', { class: 'research-actions' },
+        el('button', { class: 'secondary', type: 'button', onclick: () => { company = freshCompany(); saveCompany(); render(); } }, t('restartCompany'))),
+      best ? el('p', { class: 'hint' }, `${t('bestCompany')}: ${money(best)}`) : ''));
 }
 
 // ---------- Ergebnis ----------
