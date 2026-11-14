@@ -564,3 +564,16 @@ button.secondary:active:not(:disabled), .steps button:active, .level:active:not(
 .launch-rocket.closed .shield { opacity: 1; transform: none; }
 
 .kenney.gray { filter: grayscale(1) brightness(1.05); }
+
+/* Fortschritt im Auftrag (Bau-Ansicht links) */
+.contract-box { cursor: default; margin-bottom: 12px; padding: 10px 12px; }
+.contract-box:hover { transform: none; }
+.contract-box h3 { margin: 0 0 6px; font-size: 0.95rem; color: var(--akzent-text); }
+.contract-steps { margin: 0 0 6px; padding-left: 20px; font-size: 0.85rem; color: var(--nebentext); }
+.contract-steps .is-done { color: var(--gut); }
+.contract-steps .is-now { color: var(--text); font-weight: 700; }
+.contract-box .hint { margin: 4px 0; font-size: 0.85rem; }
+.link-btn { background: none; border: none; padding: 4px 0; color: var(--akzent-text); font: 600 0.85rem sans-serif; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.new-company { margin-top: 18px; }
+
+.lvl-scene { pointer-events: none; } /* Vorschau im Karussell, Gebäude dort nicht anklickbar */

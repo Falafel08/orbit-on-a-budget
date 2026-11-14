@@ -67,7 +67,8 @@ function contractMission(c) {
 // denn Forschung kostet Punkte und Zeit, kein Geld.
 const campaignRockets = (index, done = research.done) => {
   const dest = (contracts[index] && contracts[index].dest) || 'leo';
-  const list = [...rockets, ...(research.done['own-rocket'] && dest === 'leo' ? [ownRocket()] : []),
+  // Modulflüge: kein CubeSat-Mitflug (der trägt nur CubeSats bis 3U)
+  const list = [...rockets.filter((r) => !(contracts[index] && contracts[index].module && r.rideshare)), ...(research.done['own-rocket'] && dest === 'leo' ? [ownRocket()] : []),
     ...(index >= 1 ? [{ ...starship, cost: starshipCost(done) }] : []), falconHeavy, sls];
   return rocketsFor(dest, list, done);
 };
@@ -213,6 +214,16 @@ function renderLevelSelect() {
   };
   const l = LEVELS[i - 1], open = i <= reached, pr = levelProgress(i);
   const started = company.index > contracts.findIndex((x) => x.level === i);
+  // nächster Auftrag in diesem Level (nur im aktuellen Level spielbar)
+  const next = contracts[company.index];
+  const playable = open && next && next.level === i && !company.over;
+  const needs = playable && contractLocked(next, research.done) ? PROJECTS.find((p) => p.id === next.requires) : null;
+  const toResearch = () => document.querySelector('.lvl-research')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  let label = `🔒 ${t('locked')}`;
+  if (open && pr.done >= pr.total) label = t('levelDone');
+  else if (company.over) label = t('bankrupt');
+  else if (needs) label = `🧪 ${t('researchFirst', { x: t(needs.name) })}`;
+  else if (playable) label = started ? t('continueLevel') : t('startLevel');
   return el('div', { class: 'level-select' },
     el('h2', { class: 'hex-title' }, t('levelSelect')),
     el('div', { class: 'lvl-stage' },
@@ -222,13 +233,18 @@ function renderLevelSelect() {
     unlocking ? el('p', { class: 'unlock-msg' }, t('levelUnlocked', { n: i })) : '',
     el('p', { class: 'lvl-goal' }, t(`levelGoal${i}`)),
     open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
-    el('button', { class: 'primary start-big', type: 'button', disabled: open ? null : '',
-      onclick: () => { if (!open) return; state.levelView = i; go('company'); } },
-    open ? (started && pr.done < pr.total ? t('continueLevel') : t('startLevel')) : `🔒 ${t('locked')}`),
+    playable ? el('p', { class: 'hint' }, `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
+    el('button', { class: 'primary start-big', type: 'button', disabled: playable ? null : '',
+      onclick: () => { if (!playable) return; if (needs) { toResearch(); return; } startMission(contractMission(next)); } }, label),
     // Forschung dieses Ortes in der Mitte: man plant fürs nächste Level
     open ? el('section', { class: 'lvl-research' },
       el('h3', {}, `${t('labOf', { x: t(PLACE_NAME[l.place]) })} · ${research.rp} ${t('rpShort')}`),
-      el('div', { class: 'projects' }, PROJECTS.filter((p) => p.level === i).map((p) => projectCard(p, reached)))) : '');
+      el('div', { class: 'projects' }, PROJECTS.filter((p) => p.level === i).map((p) => projectCard(p, reached)))) : '',
+    // Neue Firma: braucht man nach Fehlern, darum hier vor der Wahl (Linus 14.11.). Zweiter Klick bestätigt.
+    el('button', { class: state.confirmRestart ? 'secondary danger-text new-company' : 'secondary new-company', type: 'button', onclick: () => {
+      if (!state.confirmRestart) { state.confirmRestart = true; render(); return; }
+      state.confirmRestart = false; company = freshCompany(); saveCompany(); state.levelPick = 1; render();
+    } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany')));
 }
 
 function go(phase) {
@@ -638,6 +654,25 @@ function insuranceBox() {
     el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) })));
 }
 
+// Fortschritt im Auftrag (Linus 14.11.): alle Aufträge des Levels mit Haken, Ziel und Zahlung.
+// Forschungs-Hinweis nur, wenn gerade Forschung bezahlbar ist, die diesem Ziel hilft (unauffällig, Wunsch des Teams).
+function contractBox() {
+  const c = state.mission && state.mission.contract;
+  if (!c) return null;
+  const inLevel = contracts.filter((x) => x.level === c.level);
+  const helpful = PROJECTS.filter((p) => !research.done[p.id] && p.level <= reachedLevel() && (!p.needs || research.done[p.needs])
+    && p.helps && p.helps.includes(c.dest) && research.rp >= p.rp && company.cash - p.cost >= 0 && !research.active);
+  return el('section', { class: 'contract-box card' },
+    el('h3', {}, `${t('level')} ${c.level} · ${t('contractOf', { n: inLevel.indexOf(c) + 1, m: inLevel.length })}`),
+    el('ol', { class: 'contract-steps' }, inLevel.map((x) => {
+      const i = contracts.indexOf(x);
+      return el('li', { class: i < company.index ? 'is-done' : x === c ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')}`);
+    })),
+    el('p', { class: 'hint' }, `${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.`),
+    helpful.length ? el('button', { class: 'link-btn', type: 'button', onclick: () => { state.returnTo = 'build'; state.researchView = helpful[0].level; go('research'); } },
+      `🧪 ${t('researchAvailable', { x: t(helpful[0].name) })}`) : '');
+}
+
 // Neu zeichnen ohne Springen: Scroll-Position und Fokus bleiben, Einblenden nur beim Schrittwechsel.
 // Sonst rutschte z. B. der Versicherungs-Haken nach dem Klick aus dem Bild.
 let leftStep = null;
@@ -651,6 +686,7 @@ function renderLeft() {
   const focusIndex = sameStep ? focusables().indexOf(document.activeElement) : -1;
   leftStep = state.build;
   left.replaceChildren(...[
+    contractBox(),
     state.mission.module ? el('p', { class: 'hint' }, t({ moon: 'moonFlight', mars: 'marsFlight' }[state.mission.dest] || 'stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
       : el('nav', { class: 'steps', 'aria-label': t('buildSteps') }, t('steps').slice(0, 2).map((name, i) => el('button', {
         type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
@@ -1187,7 +1223,7 @@ function baseSvg(c) {
 // ---------- Orte der Level: Raumstation, Mond, Mars (Linus 14.11.) ----------
 // Jeder Ort hat dieselben drei Funktionen: Leitstand (Auftrag), Labor (Forschung dieses Ortes), Start- bzw. Andockplatz.
 let sceneSeq = 0;
-const labAction = (level) => () => { state.returnTo = 'company'; state.researchView = level; go('research'); };
+const labAction = (level) => () => { state.returnTo = 'start'; state.researchView = level; go('research'); };
 const padAction = (c) => () => {
   if (c && !company.over && !contractLocked(c, research.done)) startMission(contractMission(c));
   else focusContract();
@@ -1544,7 +1580,7 @@ function footer() {
   back.classList.toggle('hidden', state.phase === 'launch');
   next.classList.remove('hidden');
   if (state.phase === 'build') {
-    back.textContent = state.build === 0 || state.mission.module ? (state.mission.contract ? t('backCompany') : t('changeDifficulty')) : t('back');
+    back.textContent = state.build === 0 || state.mission.module ? t('changeDifficulty') : t('back');
     const affordable = !state.mission.contract || budgetLeft(state.mission.budget, chosen()) >= 0; // Firma kann nicht mehr ausgeben, als sie hat
     const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build]);
     next.textContent = state.build === 1 ? t('launch') : t('next');
@@ -1552,12 +1588,12 @@ function footer() {
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch
   } else if (state.phase === 'research' || state.phase === 'company') {
-    back.textContent = state.phase === 'company' ? t('changeDifficulty') : (state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty'));
+    back.textContent = state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty');
     next.classList.add('hidden');
   } else if (state.phase === 'result') {
     back.textContent = t('changeDifficulty');
     back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Firma
-    next.textContent = state.mission.contract ? t('backCompany') : t('tryAgain');
+    next.textContent = state.mission.contract ? t('changeDifficulty') : t('tryAgain');
     next.disabled = false;
   }
 }
@@ -1655,7 +1691,7 @@ $('next').addEventListener('click', () => {
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
   else if (state.phase === 'result') {
-    if (state.mission.contract) state.phase = 'company';
+    if (state.mission.contract) { state.phase = 'start'; state.levelPick = reachedLevel(); } // zurück zur Levelauswahl
     else { state.phase = 'build'; state.build = 0; }
   }
   render();
@@ -1664,8 +1700,8 @@ $('next').addEventListener('click', () => {
 $('back').addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0 && !(state.mission && state.mission.module)) state.build -= 1;
   else if (state.phase === 'company') state.phase = 'start';
-  else if (state.phase === 'research') state.phase = state.returnTo || 'start';
-  else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company';
+  else if (state.phase === 'research') state.phase = state.returnTo || 'start'; // auch zurück in die Bau-Ansicht
+  else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'start';
   else state.phase = 'start';
   render();
 });
