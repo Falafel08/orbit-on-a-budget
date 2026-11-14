@@ -162,6 +162,7 @@ function go(phase) {
 
 function startMission(m) {
   leftStep = null; // neue Mission: links oben anfangen
+  state.rocketView = null;
   Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null });
   render();
 }
@@ -246,6 +247,48 @@ function card(cat, item) {
 // Schritte: Instrumente, Satellit (Bus und Solarpanel), Rakete
 const STEP_CATS = [['instrument'], ['bus', 'panel'], ['rocket']];
 
+// Raketen als Karussell mit Pfeilen (Skizze Josias NASA.pdf, Linus 14.11.)
+// Bild-Höhe nach Nutzlast, damit große Raketen größer aussehen
+function rocketPicture(r) {
+  const cap = r.maxPayload ?? 1600; // eigene Rakete: etwa 1,6 t in den Orbit
+  const h = 80 + Math.min(1, Math.log10(Math.max(cap, 10)) / 5) * 120;
+  const w = r.id === 'starship' ? 34 : r.id === 'pegasus' || r.rideshare ? 16 : 22;
+  const body = { falcon9: '#F5EFE6', starship: '#b8bec6', pegasus: '#F5EFE6', own: '#A88FD6' }[r.id] || '#d9d2c7';
+  const x = 60 - w / 2, top = 210 - h;
+  const s = svg('svg', { viewBox: '0 0 120 220', class: 'rocket-pic', role: 'img', 'aria-label': tr(r, 'name') });
+  s.append(svg('path', { d: `M${x} ${top + w} Q60 ${top - w * 0.6} ${x + w} ${top + w} Z`, fill: body }));
+  s.append(svg('rect', { x, y: top + w, width: w, height: h - w, fill: body }));
+  s.append(svg('path', { d: `M${x} 210 L${x - 10} 214 L${x} ${190} Z M${x + w} 210 L${x + w + 10} 214 L${x + w} 190 Z`, fill: '#745F9A' }));
+  if (r.id === 'pegasus') s.append(svg('path', { d: `M${x} ${top + h * 0.55} L${x - 22} ${top + h * 0.7} L${x} ${top + h * 0.68} Z M${x + w} ${top + h * 0.55} L${x + w + 22} ${top + h * 0.7} L${x + w} ${top + h * 0.68} Z`, fill: '#B8AFA6' }));
+  if (r.id === 'falcon9') s.append(svg('rect', { x, y: top + h * 0.35, width: w, height: 6, fill: '#0b0a12' }));
+  if (r.rideshare) for (let i = 0; i < 3; i++) s.append(svg('rect', { x: 60 - 4, y: top + w + 6 + i * 10, width: 8, height: 7, fill: '#745F9A' }));
+  return s;
+}
+
+function rocketCarousel(cat) {
+  const items = offered(cat.items);
+  if (!items.length) return null;
+  if (state.rocketView == null && state.rocket) state.rocketView = Math.max(0, items.findIndex((x) => x.id === state.rocket.id));
+  const i = Math.min(Math.max(0, state.rocketView ?? 0), items.length - 1);
+  const r = items[i];
+  const move = (d) => { state.rocketView = (i + d + items.length) % items.length; state.info = items[state.rocketView]; render(); };
+  const picked = cat.picked(r);
+  return el('div', {
+    class: 'carousel card', onkeydown: (e) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); move(-1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); move(1); }
+    },
+  },
+  el('div', { class: 'carousel-stage' },
+    el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevRocket'), onclick: () => move(-1) }, '‹'),
+    rocketPicture(r),
+    el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextRocket'), onclick: () => move(1) }, '›')),
+  el('h2', {}, el('span', {}, tr(r, 'name')), el('span', { class: 'price' }, money(r.cost))),
+  el('dl', {}, cat.rows(r).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
+  el('button', { class: picked ? 'secondary pick' : 'primary pick', type: 'button', 'aria-pressed': String(picked), onclick: () => choose('rocket', r) }, picked ? t('selected') : t('select')),
+  el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))));
+}
+
 // Neu zeichnen ohne Springen: Scroll-Position und Fokus bleiben, Einblenden nur beim Schrittwechsel.
 // Sonst rutschte z. B. der Versicherungs-Haken nach dem Klick aus dem Bild.
 let leftStep = null;
@@ -254,7 +297,7 @@ function renderLeft() {
   const left = $('left');
   const sameStep = leftStep === state.build;
   const scroll = sameStep ? left.scrollTop : 0;
-  const focusables = () => [...left.querySelectorAll('.card, input, .steps button')];
+  const focusables = () => [...left.querySelectorAll('.catalog .card, input, .steps button, .carousel button')];
   const focusIndex = sameStep ? focusables().indexOf(document.activeElement) : -1;
   leftStep = state.build;
   left.replaceChildren(...[
@@ -265,7 +308,8 @@ function renderLeft() {
     el('p', { class: 'hint' }, t(cats[0].hint)),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
-      el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
+      cat.kind === 'rocket' ? rocketCarousel(cat)
+        : el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
     state.build === 2 && state.rocket && state.rocket.uninsurable ? el('p', { class: 'hint' }, t('noInsurance')) : null,
     state.build === 2 && state.rocket && !state.rocket.uninsurable ? el('label', { class: 'insure card' },
       el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
