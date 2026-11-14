@@ -76,3 +76,11 @@ test('a rideshare launch fails if the satellite is too heavy', () => {
   assert.equal(r.reachedOrbit, false);
   assert.ok(r.problems.includes('rideshare-mass'));
 });
+
+// Schwierigkeit: eine Mission kann Mindest-Wissenschaft verlangen
+test('a mission fails if it brings less science than required', () => {
+  const r = missionResult({ ...base, mission: { budget: 60, requiredDv: 9400, minScience: 50 } });
+  assert.equal(r.reachedOrbit, true);
+  assert.equal(r.success, false);
+  assert.ok(r.problems.includes('science'));
+});

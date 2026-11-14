@@ -38,14 +38,18 @@ export function missionResult({ mission, instruments, bus, rocket }) {
   if (!rocket.rideshare && dv < mission.requiredDv) problems.push('delta-v');
 
   const reachedOrbit = problems.length === 0;
+  // Erfolg: Orbit erreicht und genug Wissenschaft für die Schwierigkeit
+  if (reachedOrbit && science < (mission.minScience ?? 0)) problems.push('science');
+  const success = problems.length === 0;
   return {
     reachedOrbit,
+    success,
     budgetLeft: left,
     spent,
     payload,
     deltaV: dv,
     science,
-    sciencePerMillion: reachedOrbit && spent > 0 ? science / spent : 0,
+    sciencePerMillion: success && spent > 0 ? science / spent : 0,
     problems,
   };
 }

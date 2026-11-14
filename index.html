@@ -10,11 +10,15 @@
 <body>
   <header class="top">
     <span class="title">Orbit on a Budget</span>
-    <span class="step" id="step"></span>
+    <span class="mission-label" id="mission-label"></span>
     <span class="budget" id="budget" aria-live="polite"></span>
   </header>
 
-  <main id="screen"></main>
+  <div class="stage full" id="stage">
+    <aside class="side left" id="left" aria-label="Parts"></aside>
+    <main class="center" id="center"></main>
+    <aside class="side right" id="right" aria-label="Mission status"></aside>
+  </div>
 
   <footer class="bottom">
     <button class="secondary" id="back" type="button">Back</button>
