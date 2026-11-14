@@ -35,6 +35,8 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: 'Buildings, domes, rovers and rocks: Kenney Space Kit (CC0), www.kenney.nl', de: 'Gebäude, Kuppeln, Rover und Felsen: Kenney Space Kit (CC0), www.kenney.nl',
+    url: 'https://kenney.nl/assets/space-kit' },
   { en: 'Background image: Cosmic Cliffs, NASA, ESA, CSA, and STScI (ESA/Webb, CC BY 4.0)', de: 'Hintergrundbild: Cosmic Cliffs, NASA, ESA, CSA, and STScI (ESA/Webb, CC BY 4.0)',
     url: 'https://esawebb.org/images/weic2205a/' },
   { en: 'Falcon 9 success rate: public launch records', de: 'Erfolgsquote Falcon 9: öffentliche Startliste',

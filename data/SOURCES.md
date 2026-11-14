@@ -55,3 +55,9 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | Small bus 114 kg carrying 44 kg; medium bus 170 kg carrying 170 kg (two heritage configurations of Ball BCP-Small) | NASA RSDO Rapid IV catalog, Ball BCP Small data sheet, https://assets.science.nasa.gov/content/dam/science/cds/spacecraft-development/rsdo/rapid-iv-catalog/Ball_BCP_Small_Data%20Sheet.pdf | Published by NASA, numbers used as facts, no text or images copied | Used |
 | Large bus 1,580 kg (2,190 kg space vehicle minus 610 kg payload) carrying 610 kg | NASA RSDO Rapid IV catalog, Ball BCP Large data sheet, https://assets.science.nasa.gov/content/dam/science/cds/spacecraft-development/rsdo/rapid-iv-catalog/Ball_BCP_Large_Data%20Sheet.pdf | Published by NASA, facts only | Used |
 | Bus prices | Game assumption (RSDO does not publish prices) | — | Game assumption |
+
+## Graphics
+
+| What | Source | License | Status |
+|---|---|---|---|
+| Isometric buildings, domes, dishes, rover, craters, rocks, astronaut (20 images, cropped and scaled) | Kenney Space Kit 2.0, https://kenney.nl/assets/space-kit | CC0 1.0 (public domain, credit optional), license file in `assets/kenney/License.txt` | Used (`assets/kenney/`) |

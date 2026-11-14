@@ -1,5 +1,6 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { facts } from './data/facts.js';
+import { SPRITES } from './assets/kenney/sprites.js';
 import { nasaSources, otherSources } from './data/sources.js';
 import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START, OWN_STAGES, OWN_STAGES_2 } from './data/parts.js';
 import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked } from './src/campaign.js';
@@ -1089,6 +1090,12 @@ function building(label, [lx, ly], onSelect, parts) {
 // Leitstand: springt zum Auftrag rechts
 const focusContract = () => { const b = document.querySelector('.project .primary') || document.querySelector('.company-panel h1'); b?.scrollIntoView({ block: 'center', behavior: 'smooth' }); b?.focus?.({ preventScroll: true }); };
 
+// Kenney-Bild (Space Kit, CC0) an einen Bodenpunkt stellen. k skaliert, foot = Anteil der Höhe unter dem Bodenpunkt.
+function sprite(name, x, y, k = 0.7, foot = 0.22, extra = '') {
+  const [w0, h0] = SPRITES[name], w = w0 * k, h = h0 * k;
+  return svg('image', { href: `assets/kenney/${name}.png`, x: x - w / 2, y: y - h * (1 - foot), width: w, height: h, class: `kenney ${extra}` });
+}
+
 function baseSvg(c) {
   const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('baseLabel') });
   // Boden: 8 x 8 Felder, Straße zur Startrampe
@@ -1099,37 +1106,19 @@ function baseSvg(c) {
   s.append(svg('polygon', { points: pts([iso(3, 2.6), iso(6, 2.6), iso(6, 3.4), iso(3, 3.4)]), fill: '#6b675f' }));
   groundLight(s);
 
-  // Leitstand: Aufträge
-  const dishTop = iso(2, 1.5);
-  s.append(building(t('bldgControl'), [iso(2, 2)[0], iso(2, 2)[1] - 70], focusContract, [
-    isoBox(1, 1, 2, 2, 40, ['#8e7bb5', '#5b4a7c', '#6d5a92']),
-    svg('line', { x1: dishTop[0], y1: dishTop[1] - 40, x2: dishTop[0], y2: dishTop[1] - 56, stroke: '#d9d2c7', 'stroke-width': 2 }),
-    svg('path', { d: `M${dishTop[0] - 12} ${dishTop[1] - 62} Q${dishTop[0]} ${dishTop[1] - 48} ${dishTop[0] + 12} ${dishTop[1] - 62} Z`, fill: '#F5EFE6' }),
+  // Leitstand (Aufträge), Labor (Forschung), Startrampe (Start): Bilder aus dem Kenney Space Kit
+  const [hx, hy] = iso(2, 2), [lx, ly] = iso(6, 2), [px, py] = iso(4, 6);
+  s.append(sprite('satelliteDish_large', ...iso(1, 4.4), 0.9));
+  s.append(building(t('bldgControl'), [hx, hy - 78], focusContract, [sprite('hangar_largeA', hx, hy, 0.8)]));
+  s.append(building(t('bldgLab'), [lx, ly - 62], labAction(1), [sprite('hangar_roundGlass', lx, ly, 1.2)]));
+  s.append(building(t('bldgPad'), [px, py - 96], padAction(c), [
+    sprite('platform_large', px, py, 0.75, 0.5),
+    svg('path', { d: `M${px - 6} ${py - 6} L${px - 6} ${py - 56} Q${px} ${py - 76} ${px + 6} ${py - 56} L${px + 6} ${py - 6} Z`, fill: '#F5EFE6' }),
+    svg('rect', { x: px - 6, y: py - 36, width: 12, height: 4, fill: '#A88FD6' }),
   ]));
-
-  // Forschungslabor mit Kuppel
-  const dome = iso(6, 2);
-  s.append(building(t('bldgLab'), [dome[0], dome[1] - 66], labAction(1), [
-    isoBox(5, 1, 2, 2, 28, ['#5f9aa0', '#2f5e63', '#3f747a']),
-    svg('ellipse', { cx: dome[0], cy: dome[1] - 30, rx: 22, ry: 16, fill: '#cfe6ea', stroke: '#9fc7cd' }),
-  ]));
-
-  // Startrampe mit Rakete: startet den aktuellen Auftrag
-  const padC = iso(4, 6);
-  s.append(building(t('bldgPad'), [padC[0], padC[1] - 100], padAction(c), [
-    isoBox(3, 5, 2, 2, 6, ['#8a857c', '#5a564f', '#6e6a62']),
-    svg('rect', { x: padC[0] + 16, y: padC[1] - 70, width: 5, height: 64, fill: '#B8AFA6' }),
-    svg('path', { d: `M${padC[0] - 6} ${padC[1] - 10} L${padC[0] - 6} ${padC[1] - 60} Q${padC[0]} ${padC[1] - 80} ${padC[0] + 6} ${padC[1] - 60} L${padC[0] + 6} ${padC[1] - 10} Z`, fill: '#F5EFE6' }),
-    svg('rect', { x: padC[0] - 6, y: padC[1] - 40, width: 12, height: 4, fill: '#A88FD6' }),
-  ]));
-
-  // Tanks und Antenne als Deko
-  for (const [gx, gy] of [[6.6, 5.2], [7.2, 5.8]]) {
-    const [x, y] = iso(gx, gy);
-    s.append(svg('rect', { x: x - 8, y: y - 26, width: 16, height: 26, fill: '#d9d2c7' }));
-    s.append(svg('ellipse', { cx: x, cy: y - 26, rx: 8, ry: 4, fill: '#F5EFE6' }));
-    s.append(svg('ellipse', { cx: x, cy: y, rx: 8, ry: 4, fill: '#b8b0a4' }));
-  }
+  s.append(sprite('machine_generatorLarge', ...iso(6.8, 5.4), 0.6));
+  s.append(sprite('barrels', ...iso(7.2, 6.6), 0.7));
+  s.append(sprite('astronautA', ...iso(5.2, 4.6), 0.55));
   return s;
 }
 
@@ -1242,16 +1231,21 @@ function moonScene(c, delivered) {
   s.append(svg('circle', { cx: -200, cy: -70, r: 20, fill: earth }));
   s.append(svg('path', { d: 'M-212 -76 q8 -6 18 0 q6 4 12 0', stroke: 'rgba(255,255,255,0.6)', 'stroke-width': 2, fill: 'none' }));
   isoGround(s, '#8a8780', '#93908a', '#77746e');
-  crater(s, 6.6, 5.6, 22, '#6f6c66', '#a9a6a0'); crater(s, 1.2, 6.4, 14, '#6f6c66', '#a9a6a0'); crater(s, 7.2, 1.2, 10, '#6f6c66', '#a9a6a0');
+  // Mond: Krater und Felsen grau statt orange (Mars-Farben aus dem Kenney-Paket)
+  s.append(sprite('craterLarge', ...iso(6.6, 5.8), 1.4, 0.5, 'gray'));
+  s.append(sprite('crater', ...iso(1.2, 6.6), 1.1, 0.5, 'gray'));
+  s.append(sprite('rock_largeA', ...iso(7.3, 1.2), 0.6, 0.22, 'gray'));
+  s.append(sprite('rocks_smallA', ...iso(0.8, 3.2), 0.6, 0.5, 'gray'));
   // gelieferte Teile der Mondbasis
-  if (delivered >= 1) for (let i = 0; i < 3; i++) { const [x, y] = iso(0.6 + i * 0.5, 3.8); s.append(svg('rect', { x: x - 10, y: y - 26, width: 20, height: 14, fill: '#2b3a6b', stroke: '#9fb3e8', transform: `skewY(-20)` })); }
-  if (delivered >= 2) { const [x, y] = iso(5.6, 4.4); s.append(svg('rect', { x: x - 12, y: y - 12, width: 24, height: 9, rx: 2, fill: '#d9d2c7' }), svg('circle', { cx: x - 8, cy: y - 2, r: 4, fill: '#4a4550' }), svg('circle', { cx: x + 8, cy: y - 2, r: 4, fill: '#4a4550' })); }
-  if (delivered >= 3) { const [x, y] = iso(3.2, 1.2); s.append(dome(s, x, y, 34, '#f5efe6', '#8f8a80')); }
-  if (delivered >= 4) { const [x, y] = iso(7, 3.2); s.append(isoBox(6.6, 2.8, 0.8, 0.8, 22, ['#c9c2b8', '#8a857c', '#a9a29a']), svg('rect', { x: x + 6, y: y - 44, width: 6, height: 22, fill: '#B8AFA6' })); }
+  if (delivered >= 1) s.append(sprite('machine_generatorLarge', ...iso(0.9, 4.4), 0.6));
+  if (delivered >= 2) s.append(sprite('rover', ...iso(5.4, 4.6), 1.2));
+  if (delivered >= 3) s.append(sprite('hangar_largeB', ...iso(3.4, 1.2), 0.55));
+  if (delivered >= 4) s.append(sprite('machine_barrelLarge', ...iso(7, 3.4), 0.8));
   const [cx, cy] = iso(2, 2), [lx, ly] = iso(6, 2), [px, py] = iso(4, 6);
-  s.append(building(t('bldgControl'), [cx, cy - 56], focusContract, [dome(s, cx, cy, 30, '#ede8df', '#8f8a80', [svg('rect', { x: cx - 6, y: cy - 10, width: 12, height: 10, fill: '#1c1918' })])]));
-  s.append(building(t('bldgLab'), [lx, ly - 52], labAction(3), [dome(s, lx, ly, 26, '#e3f1f4', '#6f979d', [svg('rect', { x: lx - 18, y: ly - 14, width: 36, height: 4, fill: '#2b3a6b' })])]));
-  s.append(building(t('bldgLanding'), [px, py - 92], padAction(c), landingPad(s, px, py, '#6b675f', true)));
+  s.append(building(t('bldgControl'), [cx, cy - 58], focusContract, [sprite('hangar_roundA', cx, cy, 1.1)]));
+  s.append(building(t('bldgLab'), [lx, ly - 56], labAction(3), [sprite('hangar_roundGlass', lx, ly, 1.1)]));
+  s.append(building(t('bldgLanding'), [px, py - 92], padAction(c), [sprite('platform_large', px, py, 0.7, 0.5), ...landingPad(s, px, py, 'transparent', true).slice(2)]));
+  s.append(sprite('astronautA', ...iso(3.2, 4.2), 0.5));
   return s;
 }
 
@@ -1260,15 +1254,18 @@ function marsScene(c, delivered) {
   s.append(svg('rect', { x: -270, y: -110, width: 540, height: 380, fill: grad(s, 'linearGradient', [['0', '#3a1d14'], ['0.5', '#a65a36'], ['1', '#d98b5a']], { x1: '0', x2: '0', y1: '0', y2: '1' }) }));
   s.append(svg('circle', { cx: 210, cy: -70, r: 9, fill: '#fff3d6', opacity: 0.8 }));
   isoGround(s, '#a5552f', '#b0603a', '#8a4526');
-  crater(s, 6.8, 5.4, 18, '#8a4526', '#c9784e'); crater(s, 0.8, 6.6, 12, '#8a4526', '#c9784e');
-  for (const [gx, gy, r] of [[1, 1, 5], [7.2, 2, 4], [2.5, 7.4, 6], [5.5, 0.6, 3]]) { const [x, y] = iso(gx, gy); s.append(svg('ellipse', { cx: x, cy: y - r / 2, rx: r * 1.3, ry: r, fill: '#6e3420' })); }
-  if (delivered >= 1) s.append(isoBox(0.6, 3.4, 1, 1, 18, ['#d9d2c7', '#8a857c', '#b8b0a4']));
-  if (delivered >= 2) { const [x, y] = iso(3.2, 1.0); s.append(dome(s, x, y, 36, '#f5e6da', '#9a6a52')); }
-  if (delivered >= 3) { const [x, y] = iso(5.6, 4.6); s.append(svg('line', { x1: x, y1: y, x2: x, y2: y - 34, stroke: '#F5EFE6', 'stroke-width': 2 }), svg('rect', { x, y: y - 34, width: 18, height: 11, fill: '#A88FD6' })); }
+  s.append(sprite('craterLarge', ...iso(6.8, 5.6), 1.3, 0.5));
+  s.append(sprite('rock_largeB', ...iso(1, 1), 0.6));
+  s.append(sprite('rock_largeA', ...iso(7.2, 2), 0.5));
+  s.append(sprite('rocks_smallA', ...iso(2.5, 7.2), 0.6, 0.5));
+  if (delivered >= 1) s.append(sprite('hangar_smallA', ...iso(0.9, 4), 0.45));
+  if (delivered >= 2) s.append(sprite('hangar_largeB', ...iso(3.4, 1.0), 0.55));
+  if (delivered >= 3) { s.append(sprite('astronautA', ...iso(5.6, 4.6), 0.55)); s.append(sprite('rover', ...iso(6.2, 4.2), 1.2)); }
   const [cx, cy] = iso(2, 2), [lx, ly] = iso(6, 2), [px, py] = iso(4, 6);
-  s.append(building(t('bldgControl'), [cx, cy - 56], focusContract, [dome(s, cx, cy, 30, '#f2e1d3', '#9a6a52', [svg('rect', { x: cx - 6, y: cy - 10, width: 12, height: 10, fill: '#1c1918' })])]));
-  s.append(building(t('bldgLab'), [lx, ly - 52], labAction(4), [dome(s, lx, ly, 26, '#e3f1f4', '#6f979d', [svg('rect', { x: lx - 18, y: ly - 14, width: 36, height: 4, fill: '#2b3a6b' })])]));
-  s.append(building(t('bldgLanding'), [px, py - 92], padAction(c), landingPad(s, px, py, '#7a4a35', true)));
+  s.append(building(t('bldgControl'), [cx, cy - 58], focusContract, [sprite('hangar_roundA', cx, cy, 1.1)]));
+  s.append(building(t('bldgLab'), [lx, ly - 56], labAction(4), [sprite('hangar_roundGlass', lx, ly, 1.1)]));
+  s.append(building(t('bldgLanding'), [px, py - 92], padAction(c), [sprite('platform_large', px, py, 0.7, 0.5), ...landingPad(s, px, py, 'transparent', true).slice(2)]));
+  s.append(sprite('satelliteDish_detailed', ...iso(1.4, 5.6), 0.9));
   return s;
 }
 

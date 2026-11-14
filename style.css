@@ -562,3 +562,5 @@ button.secondary:active:not(:disabled), .steps button:active, .level:active:not(
 .rocket-pic .shield-l { transform: translateX(-60%); }
 .rocket-pic .shield-r { transform: translateX(60%); }
 .launch-rocket.closed .shield { opacity: 1; transform: none; }
+
+.kenney.gray { filter: grayscale(1) brightness(1.05); }
