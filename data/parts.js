@@ -146,7 +146,8 @@ for (const list of [missions, instruments, buses, panels, rockets, [starship]]) 
 
 // Kampagne: Aufträge der Reihe nach. base = Mission, deren Teile angeboten werden.
 // Die Pleite-Grenze rechnet src/campaign.js (cheapestMission) aus den verfügbaren Raketen aus.
-export const CAMPAIGN_START = 150; // Pleite-Grenze rechnet cheapestMission, seit Starship liegt sie niedrig
+// 110: Ein Fehlstart mit Falcon 9 bei Auftrag 2 (82 Mio. $) ist verkraftbar, danach bleibt nur noch Starship (23 Mio. $). Scheitert auch der, ist die Firma pleite.
+export const CAMPAIGN_START = 110;
 export const contracts = [
   { id: 'c1', base: 'cubesat', minScience: 8, fee: 2,
     client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
