@@ -342,12 +342,21 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .image-credit:hover, .image-credit:focus-visible { color: var(--text); text-decoration: underline; }
 @media (max-width: 700px) { .image-credit { left: auto; right: 16px; transform: none; bottom: 70px; white-space: normal; max-width: 60vw; text-align: right; } }
 
-/* Raketen-Karussell (Skizze Josias) */
-.carousel { display: grid; gap: 10px; cursor: default; }
-.carousel-stage { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; }
-.carousel .arrow { min-height: 44px; min-width: 44px; border-radius: 50%; font-size: 1.6rem; line-height: 1; padding: 0; }
-.rocket-pic { width: 100%; max-height: 220px; }
-.carousel .pick { min-height: 44px; }
+/* Raketen-Karussell in der Mitte (Skizze Josias) */
+.carousel { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; outline: none; }
+.carousel:focus-visible { outline: 3px solid var(--akzent-text); outline-offset: -6px; border-radius: var(--ecke); }
+.carousel-stage { width: 100%; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 8px; }
+.carousel .arrow { min-height: 48px; min-width: 48px; border-radius: 50%; font-size: 1.8rem; line-height: 1; padding: 0; }
+.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 6px; }
+.slot { margin: 0; position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.slot.side { opacity: 0.55; transform: scale(0.85); transform-origin: bottom center; transition: opacity 200ms ease; }
+.slot.side:hover { opacity: 0.85; }
+.slot .rocket-pic { width: 100%; height: 40vh; }
+.slot.side .banner { font-size: 0.65rem; padding: 3px 6px; }
+.slot .banner { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.banner { margin-top: -6px; padding: 4px 12px; border-radius: 8px; background: #e8c547; color: #171514; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; transform: rotate(-3deg); white-space: nowrap; }
+.picked-tag { position: absolute; bottom: 34px; padding: 3px 10px; border-radius: 6px; background: #e0605a; color: #fff; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; z-index: 1; }
+.carousel .pick { flex: none; min-height: 48px; min-width: 180px; padding: 0 28px; }
 .dots { display: flex; justify-content: center; gap: 6px; margin: 0; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--linie); }
 .dot.on { background: var(--akzent-text); }

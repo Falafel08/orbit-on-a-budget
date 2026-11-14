@@ -255,7 +255,7 @@ function rocketPicture(r) {
   const w = r.id === 'starship' ? 34 : r.id === 'pegasus' || r.rideshare ? 16 : 22;
   const body = { falcon9: '#F5EFE6', starship: '#b8bec6', pegasus: '#F5EFE6', own: '#A88FD6' }[r.id] || '#d9d2c7';
   const x = 60 - w / 2, top = 210 - h;
-  const s = svg('svg', { viewBox: '0 0 120 220', class: 'rocket-pic', role: 'img', 'aria-label': tr(r, 'name') });
+  const s = svg('svg', { viewBox: '25 0 70 220', class: 'rocket-pic', role: 'img', 'aria-label': tr(r, 'name') });
   s.append(svg('path', { d: `M${x} ${top + w} Q60 ${top - w * 0.6} ${x + w} ${top + w} Z`, fill: body }));
   s.append(svg('rect', { x, y: top + w, width: w, height: h - w, fill: body }));
   s.append(svg('path', { d: `M${x} 210 L${x - 10} 214 L${x} ${190} Z M${x + w} 210 L${x + w + 10} 214 L${x + w} 190 Z`, fill: '#745F9A' }));
@@ -265,28 +265,58 @@ function rocketPicture(r) {
   return s;
 }
 
-function rocketCarousel(cat) {
-  const items = offered(cat.items);
-  if (!items.length) return null;
+// Welche Rakete im Karussell gerade vorne steht
+function rocketView(items) {
   if (state.rocketView == null && state.rocket) state.rocketView = Math.max(0, items.findIndex((x) => x.id === state.rocket.id));
-  const i = Math.min(Math.max(0, state.rocketView ?? 0), items.length - 1);
-  const r = items[i];
-  const move = (d) => { state.rocketView = (i + d + items.length) % items.length; state.info = items[state.rocketView]; render(); };
-  const picked = cat.picked(r);
+  return Math.min(Math.max(0, state.rocketView ?? 0), items.length - 1);
+}
+function moveRocket(items, d) {
+  const i = rocketView(items);
+  state.rocketView = (i + d + items.length) % items.length;
+  state.info = items[state.rocketView];
+  render();
+  document.querySelector('.carousel')?.focus({ preventScroll: true });
+}
+
+// Mitte: Karussell wie in Josias' Skizze. Links und rechts die Nachbarn, vorne groß die aktuelle Rakete,
+// darunter Namensband, Schild „Ausgewählt“ und der Knopf.
+function rocketCarouselCenter() {
+  const cat = catalogs.find((c) => c.kind === 'rocket');
+  const items = offered(cat.items);
+  const n = items.length;
+  const i = rocketView(items);
+  const slot = (k, role) => {
+    const r = items[(i + k + n) % n];
+    const picked = cat.picked(r);
+    return el('figure', { class: `slot ${role}${picked ? ' is-picked' : ''}`, onclick: () => (role === 'mid' ? choose('rocket', r) : moveRocket(items, k)) },
+      role === 'mid' && picked ? el('span', { class: 'picked-tag' }, t('selected')) : '',
+      rocketPicture(r),
+      el('figcaption', { class: 'banner' }, tr(r, 'name')));
+  };
+  const mid = items[i];
+  const picked = cat.picked(mid);
   return el('div', {
-    class: 'carousel card', onkeydown: (e) => {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); move(-1); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); move(1); }
+    class: 'carousel', tabindex: '0', 'aria-label': t('hintRocket'), onkeydown: (e) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); moveRocket(items, -1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); moveRocket(items, 1); }
     },
   },
   el('div', { class: 'carousel-stage' },
-    el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevRocket'), onclick: () => move(-1) }, '‹'),
-    rocketPicture(r),
-    el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextRocket'), onclick: () => move(1) }, '›')),
-  el('h2', {}, el('span', {}, tr(r, 'name')), el('span', { class: 'price' }, money(r.cost))),
-  el('dl', {}, cat.rows(r).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
-  el('button', { class: picked ? 'secondary pick' : 'primary pick', type: 'button', 'aria-pressed': String(picked), onclick: () => choose('rocket', r) }, picked ? t('selected') : t('select')),
+    n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
+    el('div', { class: 'slots' }, n > 2 ? slot(-1, 'side') : '', slot(0, 'mid'), n > 1 ? slot(1, 'side') : ''),
+    n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextRocket'), onclick: () => moveRocket(items, 1) }, '›') : el('span')),
+  el('button', { class: picked ? 'secondary pick' : 'primary pick', type: 'button', 'aria-pressed': String(picked), onclick: () => choose('rocket', mid) }, picked ? t('selected') : t('select')),
   el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))));
+}
+
+// Links: Zahlen der Rakete, die im Karussell vorne steht
+function rocketDetails(cat) {
+  const items = offered(cat.items);
+  if (!items.length) return null;
+  const r = items[rocketView(items)];
+  return el('div', { class: 'card rocket-details' },
+    el('h2', {}, el('span', {}, tr(r, 'name')), el('span', { class: 'price' }, money(r.cost))),
+    el('dl', {}, cat.rows(r).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])));
 }
 
 // Neu zeichnen ohne Springen: Scroll-Position und Fokus bleiben, Einblenden nur beim Schrittwechsel.
@@ -297,7 +327,7 @@ function renderLeft() {
   const left = $('left');
   const sameStep = leftStep === state.build;
   const scroll = sameStep ? left.scrollTop : 0;
-  const focusables = () => [...left.querySelectorAll('.catalog .card, input, .steps button, .carousel button')];
+  const focusables = () => [...left.querySelectorAll('.catalog .card, input, .steps button')];
   const focusIndex = sameStep ? focusables().indexOf(document.activeElement) : -1;
   leftStep = state.build;
   left.replaceChildren(...[
@@ -308,7 +338,7 @@ function renderLeft() {
     el('p', { class: 'hint' }, t(cats[0].hint)),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
-      cat.kind === 'rocket' ? rocketCarousel(cat)
+      cat.kind === 'rocket' ? rocketDetails(cat)
         : el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
     state.build === 2 && state.rocket && state.rocket.uninsurable ? el('p', { class: 'hint' }, t('noInsurance')) : null,
     state.build === 2 && state.rocket && !state.rocket.uninsurable ? el('label', { class: 'insure card' },
@@ -432,6 +462,7 @@ function rocketSvg() {
 }
 
 function renderBuild() {
+  if (state.build === 2) return rocketCarouselCenter();
   const zone = el('div', { class: 'dropzone' }, rocketSvg());
   zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('over'));
