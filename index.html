@@ -29,7 +29,7 @@
 
   <div class="app" id="app">
     <header class="top">
-      <span class="title">Orbit on a Budget</span>
+      <button class="round-back" id="back" type="button"></button>
       <span class="mission-label" id="mission-label"></span>
       <span class="budget" id="budget" aria-live="polite"></span>
     </header>
@@ -40,10 +40,8 @@
       <aside class="side right" id="right"></aside>
     </div>
 
-    <footer class="bottom">
-      <button class="secondary" id="back" type="button">Back</button>
-      <button class="primary" id="next" type="button">Next</button>
-    </footer>
+    <!-- Hauptknopf (Weiter, Starten, Nochmal): app.js setzt ihn je Ansicht an die passende Stelle, z. B. über die Rakete -->
+    <div class="park" hidden><button class="primary action" id="next" type="button"></button></div>
   </div>
 
   <dialog class="panel" id="panel" aria-labelledby="panel-title"></dialog>

@@ -136,6 +136,27 @@ function svg(tag, attrs = {}, text) {
   if (text) node.textContent = text;
   return node;
 }
+// Strich-Icons statt Emoji auf Knöpfen (Linus und Freund 14.11.: weniger Text, mehr Icons)
+const ICONS = {
+  back: 'M15 5 L8 12 L15 19',
+  next: 'M9 5 L16 12 L9 19',
+  rocket: 'M12 2.5 C15.2 5.5 16.2 9.5 15.6 14.5 L8.4 14.5 C7.8 9.5 8.8 5.5 12 2.5 Z M8.6 11 L5.5 15.5 L8.4 15.5 M15.4 11 L18.5 15.5 L15.6 15.5 M10 17.5 L12 21.5 L14 17.5 M12 7.5 L12 9',
+  flask: 'M9 3 L15 3 M10.2 3 L10.2 9 L5 19 C4.5 20.2 5.2 21 6.3 21 L17.7 21 C18.8 21 19.5 20.2 19 19 L13.8 9 L13.8 3 M7.4 15 L16.6 15',
+  info: 'M12 2.8 A9.2 9.2 0 1 0 12.01 2.8 Z M12 11 L12 17 M12 7.4 L12 7.6',
+  star: 'M12 3 L14.6 9 L21 9.4 L16 13.5 L17.7 20 L12 16.4 L6.3 20 L8 13.5 L3 9.4 L9.4 9 Z',
+  retry: 'M4.5 12 A7.5 7.5 0 1 0 7 6.4 M4 3.5 L4.5 7.5 L8.5 7',
+};
+function icon(name) {
+  const s = svg('svg', { viewBox: '0 0 24 24', class: 'icon', 'aria-hidden': 'true' });
+  s.append(svg('path', { d: ICONS[name], fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+  return s;
+}
+// Hinweis als Infobox mit Icon statt losem Textblock
+const infobox = (text) => el('div', { class: 'infobox' }, icon('info'), el('p', {}, text));
+const NEXT = document.getElementById('next'), BACK = document.getElementById('back');
+const setBack = (text) => BACK.replaceChildren(el('span', { class: 'round' }, icon('back')), el('span', { class: 'back-label' }, text));
+const setNext = (text, ic, after = false) => NEXT.replaceChildren(...(after ? [el('span', {}, text), icon(ic)] : [icon(ic), el('span', {}, text)]));
+
 const press = (fn) => (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } };
 
 const instMass = () => state.instruments.reduce((m, i) => m + i.mass, 0);
@@ -191,9 +212,11 @@ function renderHome() {
     // gleiche Reihenfolge in beiden Ansichten, Einstellungen immer unten (Fund Josias 14.11.)
     ? [el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('menu')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => openFacts(0) }, t('spaceFacts')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]
     : [el('button', { class: 'hexbtn', type: 'button', onclick: () => { state.levelPick = null; go('start'); } }, t('play')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => openFacts(0) }, t('spaceFacts')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]));
 
   $('hexes').replaceChildren(choosing ? renderLevelSelect() : '');
@@ -230,11 +253,11 @@ function renderLevelSelect() {
   const playable = open && next && next.level === i && !company.over;
   const needs = playable && contractLocked(next, research.done) ? PROJECTS.find((p) => p.id === next.requires) : null;
   const toResearch = () => document.querySelector('.lvl-research')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  let label = `🔒 ${t('locked')}`;
-  if (open && pr.done >= pr.total) label = t('levelDone');
-  else if (company.over) label = t('bankrupt');
-  else if (needs) label = `🧪 ${t('researchFirst', { x: t(needs.name) })}`;
-  else if (playable) label = started ? t('continueLevel') : t('startLevel');
+  let label = [`🔒 ${t('locked')}`];
+  if (open && pr.done >= pr.total) label = [t('levelDone')];
+  else if (company.over) label = [t('bankrupt')];
+  else if (needs) label = [icon('flask'), el('span', {}, t('researchFirst', { x: t(needs.name) }))];
+  else if (playable) label = [icon('rocket'), el('span', {}, started ? t('continueLevel') : t('startLevel'))];
   return el('div', { class: 'level-select' },
     el('h2', { class: 'hex-title' }, t('levelSelect')),
     el('div', { class: 'lvl-stage' },
@@ -246,7 +269,7 @@ function renderLevelSelect() {
     open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
     playable ? el('p', { class: 'hint' }, `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
     el('button', { class: 'primary start-big', type: 'button', disabled: playable ? null : '',
-      onclick: () => { if (!playable) return; if (needs) { toResearch(); return; } startMission(contractMission(next)); } }, label),
+      onclick: () => { if (!playable) return; if (needs) { toResearch(); return; } startMission(contractMission(next)); } }, ...label),
     // Forschung dieses Ortes in der Mitte: man plant fürs nächste Level
     open ? el('section', { class: 'lvl-research' },
       el('h3', {}, `${t('labOf', { x: t(PLACE_NAME[l.place]) })} · ${research.rp} ${t('rpShort')}`),
@@ -298,6 +321,27 @@ function openSettings() {
     el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
   draw();
   panel.showModal();
+}
+
+// Alle Weltraum-Fakten mit Erklärbild zum Durchblättern (Linus und Freund 14.11.). Pfeiltasten blättern.
+function openFacts(i, dir = null) {
+  const panel = $('panel');
+  const n = facts.length, k = (i + n) % n, f = facts[k];
+  panel.replaceChildren(
+    el('h2', { id: 'panel-title' }, icon('star'), ` ${t('spaceFacts')}`),
+    el('div', { class: 'facts-view' },
+      el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevFact'), 'data-dir': 'prev', onclick: () => openFacts(k - 1, 'prev') }, icon('back')),
+      el('figure', { class: 'fact big-fact' }, factPicture(f), el('figcaption', {}, el('p', {}, f[getLang()]),
+        el('a', { class: 'fact-source', href: f.source, target: '_blank', rel: 'noopener' }, t('factSource')))),
+      el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextFact'), 'data-dir': 'next', onclick: () => openFacts(k + 1, 'next') }, icon('next'))),
+    el('p', { class: 'dots', 'aria-label': t('factOf', { n: k + 1, m: n }) }, facts.map((x, j) => el('span', { class: j === k ? 'dot on' : 'dot' }))),
+    el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
+  panel.onkeydown = (e) => {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); openFacts(k - 1, 'prev'); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); openFacts(k + 1, 'next'); }
+  };
+  if (!panel.open) { panel.showModal(); panel.addEventListener('close', () => { panel.onkeydown = null; }, { once: true }); }
+  if (dir) panel.querySelector(`.facts-view .arrow[data-dir="${dir}"]`).focus({ preventScroll: true }); // Fokus bleibt auf dem Pfeil
 }
 
 function openInfo(item) {
@@ -531,18 +575,50 @@ function payloadIn(g, cx, bottom, maxW, maxH) {
   });
 }
 
-// Startturm aus Stahl (Linus 14.11.): steht fest in der Mitte, dreht im Karussell nicht mit.
-// Gleicher Ausschnitt wie die Raketen-Bilder, darum liegt er genau neben der vorderen Rakete.
-function towerPicture(r) {
+// Startturm wie bei SpaceX (Linus und Freund 14.11.): massiver Gitterturm, schräg gesehen (Vorder- und Seitenfläche),
+// zwei Greifarme halten die Rakete. Der hintere Arm liegt hinter der Rakete, der vordere davor (eigenes Bild über der Rakete).
+// Steht fest in der Mitte, dreht im Karussell nicht mit. Gleicher Ausschnitt wie die Raketen-Bilder (viewBox 8 0 84 320).
+// Maße in Bild-Einheiten, Ursprung wie im Raketenbild: Mitte x = 50, Rampe y = 312.
+const TOWER = { x0: 10, x1: 24, depth: 6, h: 272, catchY: 150 };
+const halfWidth = (look) => look.w / 2 + (look.boosters ? look.boosters.w : 0);
+const armHeight = (look) => Math.min(TOWER.catchY, (look.H - 84) * 0.75); // unterhalb der Spitze, auch bei kleinen Raketen
+// Arm als Pfad: von der Turmkante bis knapp hinter die Rakete. open 0..1 schwenkt ihn weg (vorn nach unten, hinten nach oben).
+function armPath(reach, y, open, side) {
+  const a = open * 1.25, L = reach - TOWER.x1, ex = TOWER.x1 + L * Math.cos(a), ey = y + side * L * Math.sin(a) * 0.32;
+  const pts = [[TOWER.x1, y - 2.5], [ex, ey - 2], [ex, ey + 2], [TOWER.x1, y + 2.5]]; // Arm wird zur Spitze etwas schmaler
+  return { pts, d: `M${pts.map((q) => q.join(' ')).join(' L')} Z`, ex, ey };
+}
+// Fachwerk im Arm: Zickzack zwischen Ober- und Unterkante
+function armTruss(a, color) {
+  const [[x0, y0], [x1, y1], [, y2], [, y3]] = a.pts;
+  let d = '';
+  for (let k = 0; k < 6; k++) {
+    const u = k / 6, v = (k + 1) / 6, xa = x0 + (x1 - x0) * u, xb = x0 + (x1 - x0) * v;
+    const top = (q) => y0 + (y1 - y0) * q, bot = (q) => y3 + (y2 - y3) * q;
+    d += `M${xa} ${k % 2 ? top(u) : bot(u)} L${xb} ${k % 2 ? bot(v) : top(v)} `;
+  }
+  return svg('path', { d, stroke: color, 'stroke-width': 0.6, fill: 'none' });
+}
+function towerPicture(r, front = false) {
   const look = ROCKET_LOOK[r.id] || ROCKET_LOOK.own;
-  const ground = 312, t1 = 14, t2 = 23, tt = ground - 250, bodyX = 50 - look.w / 2;
-  const s = svg('svg', { viewBox: '8 0 84 320', class: 'tower-pic', 'aria-hidden': 'true' });
-  s.append(svg('path', { d: `M${t1} ${ground} L${t1} ${tt} M${t2} ${ground} L${t2} ${tt}`, stroke: '#8a8f96', 'stroke-width': 1.4 }));
+  const ground = 312, top = ground - TOWER.h, { x0, x1, depth } = TOWER, y = ground - armHeight(look), reach = 50 + halfWidth(look) + 3;
+  const s = svg('svg', { viewBox: '8 0 84 320', class: front ? 'tower-pic tower-front' : 'tower-pic', 'aria-hidden': 'true' });
+  if (front) { // vorderer Arm mit Greifer, liegt über der Rakete
+    const a = armPath(reach, y + 3, 0, 1);
+    s.append(svg('path', { d: a.d, fill: '#9aa0a8' }), armTruss(a, '#6f747b'), svg('rect', { x: a.ex - 2, y: a.ey - 7, width: 4, height: 14, rx: 1, fill: '#c9ced4' }));
+    return s;
+  }
+  s.append(svg('polygon', { points: `${x1},${ground} ${x1 + depth},${ground - 4} ${x1 + depth},${top - 4} ${x1},${top}`, fill: '#3f434a' })); // Seite
+  s.append(svg('polygon', { points: `${x0},${top} ${x1},${top} ${x1 + depth},${top - 4} ${x0 + depth},${top - 4}`, fill: '#7d838b' }));     // Dach
+  s.append(svg('rect', { x: x0, y: top, width: x1 - x0, height: TOWER.h, fill: '#5c6168' }));                                               // Vorderseite
   let lattice = '';
-  for (let y = ground; y > tt + 12; y -= 12) lattice += `M${t1} ${y} L${t2} ${y - 12} M${t1} ${y - 12} L${t2} ${y} `;
-  s.append(svg('path', { d: lattice, stroke: '#6f747b', 'stroke-width': 0.7 }));
-  for (const ay of [ground - 120, ground - 220]) s.append(svg('rect', { x: t2, y: ay, width: bodyX - t2, height: 2, fill: '#8a8f96' }));
-  s.append(svg('rect', { x: t1 - 3, y: ground, width: 2 * (50 - t1) + 6, height: 4, fill: '#5a564f' })); // Rampe
+  for (let yy = ground; yy > top + 14; yy -= 14) lattice += `M${x0} ${yy} L${x1} ${yy - 14} M${x0} ${yy - 14} L${x1} ${yy} M${x0} ${yy} L${x1} ${yy} `;
+  s.append(svg('path', { d: lattice, stroke: '#8a9098', 'stroke-width': 0.6 }));
+  s.append(svg('path', { d: `M${x0 + 3} ${top} L${x0 + 3} ${top - 14}`, stroke: '#8a9098', 'stroke-width': 1 })); // Blitzableiter
+  s.append(svg('rect', { x: x0 - 1, y: y - 9, width: x1 - x0 + 2, height: 18, rx: 1, fill: '#474c53' })); // Schlitten, fährt am Turm hoch und runter
+  const back = armPath(reach, y - 3, 0, -1);
+  s.append(svg('path', { d: back.d, fill: '#555a61' }), armTruss(back, '#3f434a'), svg('rect', { x: back.ex - 2, y: back.ey - 7, width: 4, height: 14, rx: 1, fill: '#6f747b' }));
+  s.append(svg('rect', { x: x0 - 3, y: ground, width: 2 * (50 - x0) + 6, height: 4, fill: '#5a564f' })); // Rampe
   return s;
 }
 
@@ -638,6 +714,7 @@ function rocketCarouselCenter() {
     return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}`, onclick: () => (k ? moveRocket(items, k) : null) },
       role === 'mid' ? towerPicture(r) : '',
       rocketPicture(r, role === 'mid'),
+      role === 'mid' ? towerPicture(r, true) : '',
       el('figcaption', { class: 'banner' }, tr(r, 'name')),
       el('span', { class: 'slot-price' }, r.maxPayload ? `${money(r.cost)} · ${kg(r.maxPayload)}` : money(r.cost)));
   };
@@ -648,6 +725,7 @@ function rocketCarouselCenter() {
       if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); moveRocket(items, 1); }
     },
   },
+  el('div', { class: 'action-bar' }, NEXT),
   el('div', { class: 'carousel-stage' },
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'data-dir': 'prev', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
     // endlos: ab zwei Raketen stehen immer links und rechts Nachbarn (bei zwei ist es dieselbe)
@@ -683,7 +761,7 @@ function contractBox() {
     })),
     el('p', { class: 'hint' }, `${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.`),
     helpful.length ? el('button', { class: 'link-btn', type: 'button', onclick: () => { state.returnTo = 'build'; state.researchView = helpful[0].level; go('research'); } },
-      `🧪 ${t('researchAvailable', { x: t(helpful[0].name) })}`) : '');
+      icon('flask'), el('span', {}, t('researchAvailable', { x: t(helpful[0].name) }))) : '');
 }
 
 // Neu zeichnen ohne Springen: Scroll-Position und Fokus bleiben, Einblenden nur beim Schrittwechsel.
@@ -700,12 +778,12 @@ function renderLeft() {
   leftStep = state.build;
   left.replaceChildren(...[
     contractBox(),
-    state.mission.module ? el('p', { class: 'hint' }, t({ moon: 'moonFlight', mars: 'marsFlight' }[state.mission.dest] || 'stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
+    state.mission.module ? infobox(t({ moon: 'moonFlight', mars: 'marsFlight' }[state.mission.dest] || 'stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
       : el('nav', { class: 'steps', 'aria-label': t('buildSteps') }, t('steps').slice(0, 2).map((name, i) => el('button', {
         type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
         onclick: () => { state.build = i; render(); },
       }, name))),
-    cats.length ? el('p', { class: 'hint' }, t(cats[0].hint)) : el('p', { class: 'hint' }, t('hintRocket')),
+    infobox(cats.length ? t(cats[0].hint) : t('hintRocket')),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
       el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
@@ -812,7 +890,8 @@ function renderLaunch() {
   const canvas = el('canvas', { 'aria-hidden': 'true' });
   const rocket = rocketPicture(state.rocket, true);
   rocket.classList.add('launch-rocket');
-  const wrap = el('div', { class: 'launch-wrap', role: 'img', 'aria-label': t('launch') }, canvas, rocket);
+  const front = el('canvas', { class: 'front', 'aria-hidden': 'true' }); // vorderer Greifarm liegt vor der Rakete
+  const wrap = el('div', { class: 'launch-wrap', role: 'img', 'aria-label': t('launch') }, canvas, rocket, front);
   // die Bau-Ansicht bleibt kurz stehen und blendet aus, nur ohne die vordere Rakete (die übernimmt die Szene)
   const old = $('center').firstElementChild;
   if (old) {
@@ -821,13 +900,13 @@ function renderLaunch() {
     requestAnimationFrame(() => old.classList.add('fading')); // erst nach dem Einhängen, sonst kein Übergang
     setTimeout(() => old.remove(), 600);
   }
-  $('next').disabled = true;
-  requestAnimationFrame(() => launch(canvas, rocket, launchMode(state.result), state.launchFrom));
+  NEXT.disabled = true;
+  requestAnimationFrame(() => launch(canvas, rocket, launchMode(state.result), state.launchFrom, front));
   return wrap;
 }
 
-function launch(canvas, rocketEl, mode, from) {
-  const ctx = canvas.getContext('2d');
+function launch(canvas, rocketEl, mode, from, frontCanvas) {
+  const ctx = canvas.getContext('2d'), fctx = frontCanvas.getContext('2d');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const intro = reduce ? 0 : 700, count = reduce ? 600 : 3000, ignite = reduce ? 200 : 1400;
   const look = ROCKET_LOOK[state.rocket.id] || ROCKET_LOOK.own;
@@ -838,8 +917,10 @@ function launch(canvas, rocketEl, mode, from) {
     const r = canvas.getBoundingClientRect();
     if (Math.round(r.width) === Math.round(W) && Math.round(r.height) === Math.round(H)) return;
     W = r.width; H = r.height;
-    canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio;
-    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    for (const [c, x] of [[canvas, ctx], [frontCanvas, fctx]]) {
+      c.width = W * devicePixelRatio; c.height = H * devicePixelRatio;
+      x.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
     stars = Array.from({ length: 120 }, () => [Math.random() * W, Math.random() * H, Math.random()]);
   }
   fit();
@@ -869,20 +950,29 @@ function launch(canvas, rocketEl, mode, from) {
   const clamp = (x) => Math.max(0, Math.min(1, x));
   // Neigung nach dem Abheben (Gravity Turn): bis etwa 35°, nur wenn die Rakete wirklich fliegt
   const tilt = (s) => (mode === 'ok' || mode === 'explode' ? Math.min(0.6, Math.max(0, s - 1) * 0.22) : 0);
+  const armY0 = armHeight(look); // Höhe der Greifarme am Turm, wie im Bau
 
-  function tower(cx, gy, unit, fall) {
-    // Ständer aus Stahl: kippt beim Countdown nach links weg, richtet sich zur Landung wieder auf
-    const left = cx - 36 * unit, right = cx - 27 * unit, top = gy - 250 * unit;
-    ctx.save();
-    ctx.globalAlpha = 1 - Math.max(0, fall - 0.6) / 0.4;
-    ctx.translate(left, gy); ctx.rotate(-ease(Math.min(1, fall)) * 1.35); ctx.translate(-left, -gy);
-    ctx.strokeStyle = '#8a8f96'; ctx.lineWidth = Math.max(1.5, unit * 1.4);
-    ctx.beginPath(); ctx.moveTo(left, gy); ctx.lineTo(left, top); ctx.moveTo(right, gy); ctx.lineTo(right, top);
-    for (let yy = gy; yy > top + 12 * unit; yy -= 12 * unit) { ctx.moveTo(left, yy); ctx.lineTo(right, yy - 12 * unit); ctx.moveTo(left, yy - 12 * unit); ctx.lineTo(right, yy); }
-    ctx.stroke();
-    ctx.fillStyle = '#8a8f96';
-    for (const ay of [gy - 120 * unit, gy - 220 * unit]) ctx.fillRect(right, ay, (cx - look.w / 2 * unit) - right, Math.max(2, unit * 2));
-    ctx.restore();
+  // Startturm (wie towerPicture, gleiche Maße): Bild-Einheiten -> Leinwand. armY = Höhe der Arme über der Rampe.
+  // c = Leinwand: hinten (Turm und hinterer Arm) oder vorn (vorderer Arm, liegt über der Rakete).
+  function tower(c, cx, gy, unit, open, armY, reach, front) {
+    const X = (x) => cx + (x - 50) * unit, Y = (y) => gy + (y - 312) * unit;
+    const { x0, x1, depth } = TOWER, top = 312 - TOWER.h;
+    const poly = (list, color) => { c.fillStyle = color; c.beginPath(); list.forEach(([x, y], i) => (i ? c.lineTo(X(x), Y(y)) : c.moveTo(X(x), Y(y)))); c.closePath(); c.fill(); };
+    const arm = (y, side, color, claw) => {
+      const a = armPath(reach, y, open, side);
+      poly(a.pts, color);
+      poly([[a.ex - 2, a.ey - 7], [a.ex + 2, a.ey - 7], [a.ex + 2, a.ey + 7], [a.ex - 2, a.ey + 7]], claw);
+    };
+    if (front) { arm(312 - armY + 3, 1, '#9aa0a8', '#c9ced4'); return; }
+    poly([[x1, 312], [x1 + depth, 308], [x1 + depth, top - 4], [x1, top]], '#3f434a');
+    poly([[x0, top], [x1, top], [x1 + depth, top - 4], [x0 + depth, top - 4]], '#7d838b');
+    poly([[x0, top], [x1, top], [x1, 312], [x0, 312]], '#5c6168');
+    c.strokeStyle = '#8a9098'; c.lineWidth = Math.max(0.8, unit * 0.6); c.beginPath();
+    for (let yy = 312; yy > top + 14; yy -= 14) { c.moveTo(X(x0), Y(yy)); c.lineTo(X(x1), Y(yy - 14)); c.moveTo(X(x0), Y(yy - 14)); c.lineTo(X(x1), Y(yy)); c.moveTo(X(x0), Y(yy)); c.lineTo(X(x1), Y(yy)); }
+    c.moveTo(X(x0 + 3), Y(top)); c.lineTo(X(x0 + 3), Y(top - 14));
+    c.stroke();
+    poly([[x0 - 1, 312 - armY - 9], [x1 + 1, 312 - armY - 9], [x1 + 1, 312 - armY + 9], [x0 - 1, 312 - armY + 9]], '#474c53'); // Schlitten
+    arm(312 - armY - 3, -1, '#555a61', '#6f747b');
   }
 
   // Feuer an der Düse, Ursprung (0, 0), zeigt nach unten (wird mit der Rakete gedreht)
@@ -912,6 +1002,11 @@ function launch(canvas, rocketEl, mode, from) {
     ctx.fillStyle = '#6f747b';
     ctx.fillRect(x - 4 * unit, baseY - h + 4 * unit, 4 * unit, 3 * unit); ctx.fillRect(x + w, baseY - h + 4 * unit, 4 * unit, 3 * unit);
     ctx.fillStyle = '#4a4550'; ctx.fillRect(cx - w * 0.35, baseY - 6 * unit, w * 0.7, 6 * unit);
+    if (state.rocket.id === 'own') { // Name wie auf der Rakete im Bau, von unten nach oben gelesen
+      ctx.save(); ctx.translate(cx, baseY - h * 0.45); ctx.rotate(-Math.PI / 2);
+      ctx.font = `700 ${5 * unit}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#2b2440';
+      ctx.fillText(String(state.rocket.name).slice(0, 18), 0, 0); ctx.restore();
+    }
     if (legs > 0) {
       ctx.strokeStyle = '#3a3540'; ctx.lineWidth = Math.max(1.5, unit * 1.6);
       ctx.beginPath();
@@ -1023,7 +1118,7 @@ function launch(canvas, rocketEl, mode, from) {
     // Hitzeschild schließt sich beim Countdown über dem Satelliten
     if (tc >= 0) rocketEl.classList.add('closed');
 
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H); fctx.clearRect(0, 0, W, H);
     // dunkler Himmel blendet während des Countdowns ein: kein harter Bildwechsel, aber dichter (Josias 14.11.)
     const skyA = 0.94 * ease(clamp((tc + intro) / 2200));
     if (skyA > 0) {
@@ -1039,10 +1134,14 @@ function launch(canvas, rocketEl, mode, from) {
     }
     ctx.save(); ctx.translate(sx, sy);
     const gy = groundY + cam;
+    // Arme: schwenken beim Countdown auf; beim Rückflug fahren sie auf Fanghöhe und schließen sich, wenn der Booster ankommt
+    const armOpen = returning ? 1 - ease(clamp((tr - 3300) / 500)) : tc > 0 ? ease(clamp(tc / Math.min(1500, count))) : 0; // ganz offen vor der Zündung, auch bei kurzem Countdown
+    const armY = returning ? armY0 + (TOWER.catchY - armY0) * ease(clamp(tr / 1100)) : armY0;
+    const reach = 50 + (returning ? look.w / 2 : halfWidth(look)) + 3;
     if (gy < H + 400) {
       ctx.fillStyle = '#5a564f'; ctx.fillRect(cx - 40 * unit, gy, 80 * unit, 4 * unit);   // Rampe wie im Bau
-      const fall = returning ? 1.2 * (1 - ease(clamp((tr - 500) / 1000))) : (tc > 0 ? Math.min(1.2, tc / 1300) : 0);
-      tower(cx, gy, unit, fall);
+      tower(ctx, cx, gy, unit, armOpen, armY, reach, false);
+      if (!arriving) { fctx.save(); fctx.translate(sx, sy); tower(fctx, cx, gy, unit, armOpen, armY, reach, true); fctx.restore(); }
     }
     if (fire && alt < H * 0.8 && !reduce) for (let i = 0; i < 3; i++) smoke.push({ x: (Math.random() - 0.5) * look.w * unit, y: 0, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 0.8, r: 8 + Math.random() * 14, life: 1 });
     for (const p of smoke) {
@@ -1061,14 +1160,14 @@ function launch(canvas, rocketEl, mode, from) {
     let landed = false;
     if (returning) {
       const p = clamp((tr - 1100) / 2200);
-      const bAlt = H * 1.1 * (1 - p) * (1 - p);
+      const bAlt = H * 1.1 * (1 - p) * (1 - p) + 14 * unit; // hängt zum Schluss knapp über der Rampe in den Armen
       landed = p >= 1;
       if (!landed) {
         if (!sound.retro) sound.retro = rumble(2.4, false);
         ctx.save(); ctx.translate(cx, gy - bAlt); flame(1.2, unit, 0.7); ctx.restore();
         if (bAlt < H * 0.2) for (let i = 0; i < 2; i++) smoke.push({ x: (Math.random() - 0.5) * look.w * unit, y: 0, vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 0.5, r: 6 + Math.random() * 10, life: 0.8 });
       }
-      booster(cx, gy - bAlt, unit, clamp((p - 0.75) / 0.25));
+      booster(cx, gy - bAlt, unit, 0);
     }
     ctx.restore();
     if (arriving) arrival(Math.min(1, ta / arrive));
@@ -1170,7 +1269,7 @@ function projectCard(pr, reached) {
             research.rp -= pr.rp; company.cash = Math.round((company.cash - pr.cost) * 1000) / 1000; // Forschung kostet Firmengeld
             research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); saveCompany(); render();
           } },
-        research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : ruins ? t('wouldBankrupt') : t('startResearch', { n: pr.rp, c: money(pr.cost) })) : '');
+        canStart ? icon('flask') : '', el('span', {}, research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : ruins ? t('wouldBankrupt') : t('startResearch', { n: pr.rp, c: money(pr.cost) }))) : '');
 }
 
 // ---------- Kampagne: Basis von oben (Idee Josias 14.11.) ----------
@@ -1591,24 +1690,24 @@ function resetBest() {
 // ---------- Knöpfe unten und Gesamtaufbau ----------
 
 function footer() {
-  const back = $('back'), next = $('next');
+  const back = BACK, next = NEXT;
   back.classList.toggle('hidden', state.phase === 'launch');
   next.classList.remove('hidden');
   if (state.phase === 'build') {
-    back.textContent = state.build === 0 || state.mission.module ? t('changeDifficulty') : t('back');
+    setBack(state.build === 0 || state.mission.module ? t('changeDifficulty') : t('back'));
     const affordable = !state.mission.contract || budgetLeft(state.mission.budget, chosen()) >= 0; // Firma kann nicht mehr ausgeben, als sie hat
     const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build]);
-    next.textContent = state.build === 1 ? t('launch') : t('next');
+    if (state.build === 1) setNext(t('launch'), 'rocket'); else setNext(t('next'), 'next', true);
     next.disabled = !ready;
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch
   } else if (state.phase === 'research' || state.phase === 'company') {
-    back.textContent = state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty');
+    setBack(state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty'));
     next.classList.add('hidden');
   } else if (state.phase === 'result') {
-    back.textContent = t('changeDifficulty');
-    back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Firma
-    next.textContent = state.mission.contract ? t('changeDifficulty') : t('tryAgain');
+    setBack(t('changeDifficulty'));
+    back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Levelauswahl
+    if (state.mission.contract) setNext(t('changeDifficulty'), 'next', true); else setNext(t('tryAgain'), 'retry');
     next.disabled = false;
   }
 }
@@ -1649,17 +1748,17 @@ function render() {
   if (state.phase === 'build') {
     // Fokus in der Mitte merken und nach dem Neuzeichnen zurückgeben (Tastatur-Nutzer)
     const f = document.activeElement, center = $('center');
-    const key = f && center.contains(f) ? (f.matches('.insure input') ? '.insure input' : f.dataset.dir ? `.arrow[data-dir="${f.dataset.dir}"]` : f.classList.contains('carousel') ? '.carousel' : null) : null;
+    const key = f === NEXT ? '#next' : f && center.contains(f) ? (f.matches('.insure input') ? '.insure input' : f.dataset.dir ? `.arrow[data-dir="${f.dataset.dir}"]` : f.classList.contains('carousel') ? '.carousel' : null) : null;
     renderLeft(); renderRight(); center.replaceChildren(renderBuild());
     if (key) center.querySelector(key)?.focus({ preventScroll: true });
   }
   if (state.phase === 'launch' && !$('center').querySelector('.launch-wrap')) $('center').replaceChildren(renderLaunch()); // nur einmal pro Start
-  if (state.phase === 'result') $('center').replaceChildren(renderResult());
+  if (state.phase === 'result') { $('center').replaceChildren(renderResult()); $('center').firstElementChild.append(NEXT); }
   if (state.phase === 'research') $('center').replaceChildren(renderResearch());
   footer();
 }
 
-$('next').addEventListener('click', () => {
+NEXT.addEventListener('click', () => {
   if (state.phase === 'build') {
     if (state.build < 1) { state.build += 1; render(); return; }
     const r = missionResult({ ...state, insurance: insuranceCost() });
@@ -1705,7 +1804,7 @@ $('next').addEventListener('click', () => {
   render();
 });
 
-$('back').addEventListener('click', () => {
+BACK.addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0 && !(state.mission && state.mission.module)) state.build -= 1;
   else if (state.phase === 'company') state.phase = 'start';
   else if (state.phase === 'research') state.phase = state.returnTo || 'start'; // auch zurück in die Bau-Ansicht
