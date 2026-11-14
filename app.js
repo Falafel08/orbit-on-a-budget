@@ -168,7 +168,8 @@ function startMission(m) {
   leftStep = null; // neue Mission: links oben anfangen
   state.rocketView = null;
   Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null });
-  if (m.module) Object.assign(state, { build: 2, bus: { ...moduleBus(m.module), name: m.module.name, de: m.module.de } });
+  if (m.module) Object.assign(state, { build: 1, bus: { ...moduleBus(m.module), name: m.module.name, de: m.module.de } });
+  state.rocket = offered(rocketList())[0] || null; // vorne im Karussell = gewählt
   render();
 }
 
@@ -250,71 +251,138 @@ function card(cat, item) {
 }
 
 // Schritte: Instrumente, Satellit (Bus und Solarpanel), Rakete
-const STEP_CATS = [['instrument'], ['bus', 'panel'], ['rocket']];
+// Die Rakete wählt man im Karussell in der Mitte, darum nur zwei Schritte
+const STEP_CATS = [['instrument'], ['bus', 'panel']];
 
-// Raketen als Karussell mit Pfeilen (Skizze Josias NASA.pdf, Linus 14.11.)
-// Bild-Höhe nach Nutzlast, damit große Raketen größer aussehen
-function rocketPicture(r) {
-  const cap = r.maxPayload ?? 1600; // eigene Rakete: etwa 1,6 t in den Orbit
-  const h = 80 + Math.min(1, Math.log10(Math.max(cap, 10)) / 5) * 120;
-  const w = r.id === 'starship' ? 34 : r.id === 'pegasus' || r.rideshare ? 16 : 22;
-  const body = { falcon9: '#F5EFE6', starship: '#b8bec6', pegasus: '#F5EFE6', own: '#A88FD6' }[r.id] || '#d9d2c7';
-  const x = 60 - w / 2, top = 210 - h;
-  const s = svg('svg', { viewBox: '25 0 70 220', class: 'rocket-pic', role: 'img', 'aria-label': tr(r, 'name') });
-  s.append(svg('path', { d: `M${x} ${top + w} Q60 ${top - w * 0.6} ${x + w} ${top + w} Z`, fill: body }));
-  s.append(svg('rect', { x, y: top + w, width: w, height: h - w, fill: body }));
-  s.append(svg('path', { d: `M${x} 210 L${x - 10} 214 L${x} ${190} Z M${x + w} 210 L${x + w + 10} 214 L${x + w} 190 Z`, fill: '#745F9A' }));
-  if (r.id === 'pegasus') s.append(svg('path', { d: `M${x} ${top + h * 0.55} L${x - 22} ${top + h * 0.7} L${x} ${top + h * 0.68} Z M${x + w} ${top + h * 0.55} L${x + w + 22} ${top + h * 0.7} L${x + w} ${top + h * 0.68} Z`, fill: '#B8AFA6' }));
-  if (r.id === 'falcon9') s.append(svg('rect', { x, y: top + h * 0.35, width: w, height: 6, fill: '#0b0a12' }));
-  if (r.rideshare) for (let i = 0; i < 3; i++) s.append(svg('rect', { x: 60 - 4, y: top + w + 6 + i * 10, width: 8, height: 7, fill: '#745F9A' }));
+// Raketen als Karussell in der Mitte (Skizze Josias NASA.pdf, Linus 14.11.).
+// Die Rakete vorne ist die gewählte und trägt den Satelliten sichtbar in der Spitze.
+let gradSeq = 0;
+const ROCKET_LOOK = {
+  rideshare: { H: 170, w: 16, body: ['#ece6dc', '#b8b0a4'] },
+  pegasus: { H: 165, w: 16, body: ['#f5efe6', '#bdb5a9'] },
+  own: { H: 230, w: 20, body: ['#c9b6ec', '#7d68a6'] },
+  falcon9: { H: 285, w: 20, body: ['#ffffff', '#c9c2b8'] },
+  starship: { H: 305, w: 32, body: ['#d6dbe1', '#8d949c'] },
+};
+
+// Satellit in der Spitze: Körper, eingeklappte Solarflügel, Instrumente obendrauf (Klick entfernt sie)
+function payloadIn(g, cx, bottom, maxW, maxH) {
+  if (!state.bus && !state.instruments.length) {
+    g.append(svg('text', { x: cx, y: bottom - maxH / 2, 'text-anchor': 'middle', class: 'svg-muted', 'font-size': 6 }, t('satelliteBus')));
+    return;
+  }
+  const bw = state.bus ? Math.min(maxW - 10, 12 + Math.sqrt(state.bus.capacity) * 1.1) : 0;
+  const bh = state.bus ? Math.min(maxH * 0.45, bw * 0.8) : 0;
+  const top = bottom - 2 - bh;
+  if (state.bus) {
+    if (state.panel) for (const x of [cx - bw / 2 - 4, cx + bw / 2 + 1]) g.append(svg('rect', { x, y: top, width: 3, height: bh, fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.4 }));
+    g.append(svg('rect', { x: cx - bw / 2, y: top, width: bw, height: bh, rx: 1, fill: '#b08d3c', stroke: '#e0c070', 'stroke-width': 0.5 }));
+  }
+  const n = state.instruments.length;
+  state.instruments.forEach((inst, i) => {
+    const size = Math.min(12, (maxW - 6) / Math.min(3, n) - 1.5);
+    const row = Math.floor(i / 3), inRow = Math.min(3, n - row * 3), col = i % 3;
+    const x = cx + (col - (inRow - 1) / 2) * (size + 1.5);
+    const y = (state.bus ? top : bottom - 2) - 0.5 - row * (size + 1);
+    const name = tr(inst, 'name');
+    const chip = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `${t('remove')} ${name}`, transform: `translate(${x} ${y}) scale(${size})` });
+    chip.append(svg('title', {}, name));
+    for (const p of instrumentShape(inst.id)) chip.append(p);
+    chip.addEventListener('click', (e) => { e.stopPropagation(); choose('instrument', inst); });
+    chip.addEventListener('keydown', press(() => choose('instrument', inst)));
+    g.append(chip);
+  });
+}
+
+function rocketPicture(r, withPayload = false) {
+  const look = ROCKET_LOOK[r.id] || ROCKET_LOOK.own;
+  const { H, w } = look;
+  const cx = 50, ground = 312, top = ground - H, x = cx - w / 2;
+  const id = `rg${++gradSeq}`;
+  const s = svg('svg', { viewBox: '8 0 84 320', class: 'rocket-pic', role: 'img', 'aria-label': tr(r, 'name') });
+  const defs = svg('defs');
+  const grad = svg('linearGradient', { id, x1: '0', x2: '1', y1: '0', y2: '0' });
+  grad.append(svg('stop', { offset: '0', 'stop-color': look.body[0] }), svg('stop', { offset: '0.55', 'stop-color': look.body[0] }), svg('stop', { offset: '1', 'stop-color': look.body[1] }));
+  defs.append(grad); s.append(defs);
+  const fill = `url(#${id})`;
+  const starship = r.id === 'starship';
+  const fh = starship ? 50 : 84;                       // Höhe der Spitze
+  const fw = starship ? w : withPayload ? Math.max(w + 22, 46) : Math.max(w + 10, 30); // vorne breiter, damit der Satellit gut zu sehen ist
+  const bodyTop = top + fh;
+
+  // Triebwerk und Körper
+  s.append(svg('path', { d: `M${cx - w * 0.35} ${ground - 8} L${cx - w * 0.5} ${ground} L${cx + w * 0.5} ${ground} L${cx + w * 0.35} ${ground - 8} Z`, fill: '#4a4550' }));
+  s.append(svg('rect', { x, y: bodyTop, width: w, height: ground - 8 - bodyTop, fill }));
+  if (r.id === 'falcon9') {
+    s.append(svg('rect', { x, y: bodyTop + (ground - bodyTop) * 0.24, width: w, height: 5, fill: '#1c1918' }));
+    for (const sx of [-1, 1]) s.append(svg('line', { x1: cx + sx * w * 0.42, y1: ground - 60, x2: cx + sx * w * 0.42, y2: ground - 10, stroke: '#3a3540', 'stroke-width': 1.2 }));
+  }
+  if (r.id === 'pegasus') {
+    s.append(svg('path', { d: `M${x} ${ground - 70} L${x - 22} ${ground - 50} L${x + w + 22} ${ground - 50} L${x + w} ${ground - 70} Z`, fill: '#bdb5a9' }));
+  }
+  if (starship) {
+    for (const sy of [bodyTop + 6, ground - 40]) {
+      const fl = sy > bodyTop + 10 ? 9 : 6;
+      s.append(svg('path', { d: `M${x} ${sy} L${x - fl} ${sy + fl * 1.6} L${x} ${sy + fl * 2.4} Z M${x + w} ${sy} L${x + w + fl} ${sy + fl * 1.6} L${x + w} ${sy + fl * 2.4} Z`, fill: '#6f767e' }));
+    }
+  } else if (r.id !== 'falcon9') {
+    s.append(svg('path', { d: `M${x} ${ground - 28} L${x - 9} ${ground - 4} L${x} ${ground - 8} Z M${x + w} ${ground - 28} L${x + w + 9} ${ground - 4} L${x + w} ${ground - 8} Z`, fill: '#745F9A' }));
+  }
+  if (r.id === 'own' || r.rideshare) s.append(svg('rect', { x, y: bodyTop + 30, width: w, height: 4, fill: '#745F9A' }));
+
+  // Spitze: bei der Rakete vorne durchsichtig, mit dem Satelliten darin
+  const nose = `M${cx - fw / 2} ${bodyTop} L${cx - fw / 2} ${top + fh * 0.45} Q${cx - fw / 2} ${top} ${cx} ${top - 4} Q${cx + fw / 2} ${top} ${cx + fw / 2} ${top + fh * 0.45} L${cx + fw / 2} ${bodyTop} Z`;
+  if (withPayload) {
+    s.append(svg('path', { d: nose, fill: 'rgba(245,239,230,0.08)', stroke: 'rgba(245,239,230,0.7)', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
+    payloadIn(s, cx, bodyTop, fw, fh * 0.75);
+  } else {
+    s.append(svg('path', { d: nose, fill }));
+  }
   return s;
 }
 
-// Welche Rakete im Karussell gerade vorne steht
+// Welche Rakete vorne steht. Vorne = gewählt.
 function rocketView(items) {
-  if (state.rocketView == null && state.rocket) state.rocketView = Math.max(0, items.findIndex((x) => x.id === state.rocket.id));
-  return Math.min(Math.max(0, state.rocketView ?? 0), items.length - 1);
+  if (state.rocketView == null) state.rocketView = Math.max(0, state.rocket ? items.findIndex((x) => x.id === state.rocket.id) : 0);
+  return Math.min(Math.max(0, state.rocketView), items.length - 1);
 }
 function moveRocket(items, d) {
   const i = rocketView(items);
   state.rocketView = (i + d + items.length) % items.length;
-  state.info = items[state.rocketView];
+  state.rocket = items[state.rocketView];
+  state.info = state.rocket;
+  state.slide = d;
   render();
-  document.querySelector('.carousel')?.focus({ preventScroll: true });
 }
 
-// Mitte: Karussell wie in Josias' Skizze. Links und rechts die Nachbarn, vorne groß die aktuelle Rakete,
-// darunter Namensband, Schild „Ausgewählt“ und der Knopf.
 function rocketCarouselCenter() {
   const cat = catalogs.find((c) => c.kind === 'rocket');
   const items = offered(cat.items);
   const n = items.length;
+  if (!n) return el('div');
   const i = rocketView(items);
+  if (!state.rocket || state.rocket.id !== items[i].id) state.rocket = items[i];
+  const slide = state.slide; state.slide = null;
   const slot = (k, role) => {
     const r = items[(i + k + n) % n];
-    const picked = cat.picked(r);
-    return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}${picked ? ' is-picked' : ''}`, onclick: () => (role === 'mid' ? choose('rocket', r) : moveRocket(items, k)) },
-      role === 'mid' && picked ? el('span', { class: 'picked-tag' }, t('selected')) : '',
-      rocketPicture(r),
+    return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}`, onclick: () => (k ? moveRocket(items, k) : null) },
+      rocketPicture(r, role === 'mid'),
       el('figcaption', { class: 'banner' }, tr(r, 'name')));
   };
   const mid = items[i];
-  const picked = cat.picked(mid);
   return el('div', {
     class: 'carousel', tabindex: '0', 'aria-label': t('hintRocket'), onkeydown: (e) => {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); moveRocket(items, -1); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); moveRocket(items, 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); moveRocket(items, -1); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); moveRocket(items, 1); }
     },
   },
   el('div', { class: 'carousel-stage' },
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
-    el('div', { class: 'slots' }, n > 2 ? slot(-1, 'side') : '', slot(0, 'mid'), n > 1 ? slot(1, 'side') : ''),
+    el('div', { class: `slots${slide ? (slide > 0 ? ' slide-next' : ' slide-prev') : ''}` }, n > 2 ? slot(-1, 'side') : '', slot(0, 'mid'), n > 1 ? slot(1, 'side') : ''),
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextRocket'), onclick: () => moveRocket(items, 1) }, '›') : el('span')),
   el('dl', { class: 'rocket-facts' }, el('dt', {}, t('price')), el('dd', {}, money(mid.cost)), cat.rows(mid).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
-  el('button', { class: picked ? 'secondary pick' : 'primary pick', type: 'button', 'aria-pressed': String(picked), onclick: () => choose('rocket', mid) }, picked ? t('selected') : t('select')),
-  el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))),
-  insuranceBox(),
-  state.mission.module ? el('p', { class: 'hint' }, t('stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) })) : '');
+  n > 1 ? el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))) : '',
+  insuranceBox());
 }
 
 // Versicherung unter der gewählten Rakete
@@ -326,21 +394,12 @@ function insuranceBox() {
     el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) })));
 }
 
-// Links: Zahlen der Rakete, die im Karussell vorne steht
-function rocketDetails(cat) {
-  const items = offered(cat.items);
-  if (!items.length) return null;
-  const r = items[rocketView(items)];
-  return el('div', { class: 'card rocket-details' },
-    el('h2', {}, el('span', {}, tr(r, 'name')), el('span', { class: 'price' }, money(r.cost))),
-    el('dl', {}, cat.rows(r).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])));
-}
-
 // Neu zeichnen ohne Springen: Scroll-Position und Fokus bleiben, Einblenden nur beim Schrittwechsel.
 // Sonst rutschte z. B. der Versicherungs-Haken nach dem Klick aus dem Bild.
 let leftStep = null;
 function renderLeft() {
-  const cats = STEP_CATS[state.build].map((k) => catalogs.find((c) => c.kind === k));
+  // Stationsflug: das Modul steht fest, links nur der Hinweis
+  const cats = state.mission.module ? [] : STEP_CATS[state.build].map((k) => catalogs.find((c) => c.kind === k));
   const left = $('left');
   const sameStep = leftStep === state.build;
   const scroll = sameStep ? left.scrollTop : 0;
@@ -349,15 +408,14 @@ function renderLeft() {
   leftStep = state.build;
   left.replaceChildren(...[
     state.mission.module ? el('p', { class: 'hint' }, t('stationFlight', { m: tr(state.mission.module, 'name'), kg: kg(state.mission.module.mass), c: money(state.mission.module.cost) }))
-      : el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
+      : el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').slice(0, 2).map((name, i) => el('button', {
         type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
         onclick: () => { state.build = i; render(); },
       }, name))),
-    el('p', { class: 'hint' }, t(cats[0].hint)),
+    cats.length ? el('p', { class: 'hint' }, t(cats[0].hint)) : el('p', { class: 'hint' }, t('hintRocket')),
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
-      cat.kind === 'rocket' ? rocketDetails(cat)
-        : el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
+      el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
   ].filter(Boolean));
   left.scrollTop = scroll;
   if (focusIndex >= 0) focusables()[focusIndex]?.focus({ preventScroll: true });
@@ -477,8 +535,8 @@ function rocketSvg() {
 }
 
 function renderBuild() {
-  if (state.build === 2) return rocketCarouselCenter();
-  const zone = el('div', { class: 'dropzone' }, rocketSvg());
+  // Mitte: Raketen-Karussell, die vordere Rakete trägt den Satelliten. Teile lassen sich hineinziehen.
+  const zone = el('div', { class: 'dropzone' }, rocketCarouselCenter());
   zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('over'));
   zone.addEventListener('drop', (e) => {
@@ -914,8 +972,8 @@ function footer() {
   next.classList.remove('hidden');
   if (state.phase === 'build') {
     back.textContent = state.build === 0 || state.mission.module ? (state.mission.contract ? t('backCompany') : t('changeDifficulty')) : t('back');
-    const ready = [state.instruments.length > 0, !!state.bus && !!state.panel, !!state.rocket][state.build];
-    next.textContent = state.build === 2 ? t('launch') : t('next');
+    const ready = state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build];
+    next.textContent = state.build === 1 ? t('launch') : t('next');
     next.disabled = !ready;
   } else if (state.phase === 'launch') {
     next.textContent = t('seeResult');
@@ -940,7 +998,6 @@ function render() {
   const stage = $('stage');
   stage.classList.toggle('full', ['result', 'research', 'company'].includes(state.phase));
   stage.classList.toggle('launching', state.phase === 'launch');
-  stage.classList.toggle('rocket-step', state.phase === 'build' && state.build === 2);
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');
     $('budget').textContent = money(company.cash);
@@ -974,7 +1031,7 @@ function render() {
 
 $('next').addEventListener('click', () => {
   if (state.phase === 'build') {
-    if (state.build < 2) { state.build += 1; render(); return; }
+    if (state.build < 1) { state.build += 1; render(); return; }
     const r = missionResult({ ...state, insurance: insuranceCost() });
     if (r.reachedOrbit) {
       const out = launchOutcome(state.rocket.reliability ?? 1, !!insuranceCost());
@@ -1023,7 +1080,7 @@ $('back').addEventListener('click', () => {
 
 // Raketen-Schritt: Pfeiltasten blättern durchs Karussell, ohne es erst anzuklicken
 addEventListener('keydown', (e) => {
-  if (state.phase !== 'build' || state.build !== 2 || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+  if (state.phase !== 'build' || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
   if (e.target.closest && e.target.closest('input, textarea, select, .carousel')) return; // Karussell hat eigenen Handler
   const items = offered(catalogs.find((c) => c.kind === 'rocket').items);
   if (!items.length) return;

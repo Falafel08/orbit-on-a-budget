@@ -133,7 +133,7 @@ h2 { font-size: 1rem; margin: 0 0 8px; }
 /* Rakete in der Mitte, Ablagefläche */
 .dropzone {
   width: 100%;
-  max-width: 420px;
+  max-width: 900px; /* Karussell braucht Breite */
   flex: 1;
   min-height: 0;
   display: flex;
@@ -353,7 +353,13 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .carousel:focus-visible { outline: 3px solid var(--akzent-text); outline-offset: -6px; border-radius: var(--ecke); }
 .carousel-stage { width: 100%; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 8px; }
 .carousel .arrow { min-height: 48px; min-width: 48px; border-radius: 50%; font-size: 1.8rem; line-height: 1; padding: 0; }
-.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 6px; }
+.slots { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); align-items: end; gap: 6px; }
+/* Wechsel gleitet in Pfeilrichtung (Linus 14.11.) */
+.slots.slide-next { animation: slide-next 260ms ease; }
+.slots.slide-prev { animation: slide-prev 260ms ease; }
+@keyframes slide-next { from { transform: translateX(18%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes slide-prev { from { transform: translateX(-18%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .slots.slide-next, .slots.slide-prev { animation: none; } }
 .slot.mid { grid-column: 2; }
 .slot.side.prev { grid-column: 1; }
 .slot.side.next { grid-column: 3; }
@@ -364,7 +370,9 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .slot { margin: 0; position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
 .slot.side { opacity: 0.55; transform: scale(0.85); transform-origin: bottom center; transition: opacity 200ms ease; }
 .slot.side:hover { opacity: 0.85; }
-.slot .rocket-pic { width: 100%; height: 40vh; }
+.slot .rocket-pic { width: 100%; height: 36vh; }
+.slot.mid .rocket-pic { height: 54vh; }
+.carousel { overflow-y: auto; justify-content: flex-start; padding-top: 8px; }
 .slot.side .banner { font-size: 0.65rem; padding: 3px 6px; }
 .slot .banner { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .banner { margin-top: -6px; padding: 4px 12px; border-radius: 8px; background: #e8c547; color: #171514; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; transform: rotate(-3deg); white-space: nowrap; }
