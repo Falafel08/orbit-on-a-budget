@@ -802,6 +802,10 @@ function launch(canvas, rocketEl, mode, from) {
   const smoke = [];
   const flight = mode === 'heavy' ? 3200 : mode === 'nofuel' ? 3600 : 5200;
   const back = reusable ? 3800 : 0;                                   // Rückflug des Boosters
+  // Ankunft am Ziel (Josias 14.11.): Modul dockt an der Station an, Lander setzt auf Mond oder Mars auf
+  const dest = state.mission.module ? (state.mission.dest || 'leo') : null;
+  const arrive = mode === 'ok' && dest && !reduce ? 3400 : 0;
+  const deliveredBefore = dest ? contracts.filter((x) => x.level === state.mission.contract.level && contracts.indexOf(x) < contracts.indexOf(state.mission.contract)).length : 0;
   function altitude(s) {
     if (mode === 'heavy') return 0;
     if (mode === 'nofuel') {
@@ -874,6 +878,53 @@ function launch(canvas, rocketEl, mode, from) {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Ankunftsszene über die ganze Fläche. p = 0..1 über die Dauer der Ankunft.
+  function arrival(p) {
+    const fadeIn = clamp(p / 0.12);
+    if (dest === 'mars') {
+      const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a140e'); g.addColorStop(0.55, '#a65a36'); g.addColorStop(1, '#d98b5a');
+      ctx.fillStyle = g;
+    } else ctx.fillStyle = '#05040a';
+    ctx.fillRect(0, 0, W, H);
+    if (dest !== 'mars') for (const [x, y, b] of stars) { ctx.fillStyle = `rgba(245,239,230,${0.3 + b * 0.6})`; ctx.fillRect(x, y, 1.6, 1.6); }
+    const u = H / 600;                                                // Maßstab der Szene
+    if (dest === 'leo') {
+      // Erde unten, Station in der Mitte, neues Modul gleitet heran und dockt an
+      const eg = ctx.createRadialGradient(W / 2, H * 1.9, H * 0.6, W / 2, H * 1.9, H * 1.25);
+      eg.addColorStop(0, '#4f8fd0'); eg.addColorStop(0.9, '#24507f'); eg.addColorStop(1, 'rgba(140,200,255,0.6)');
+      ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(W / 2, H * 1.9, H * 1.25, 0, Math.PI * 2); ctx.fill();
+      const sx0 = W * 0.56, sy0 = H * 0.42;
+      ctx.fillStyle = '#8a8f96'; ctx.fillRect(sx0 - 200 * u, sy0 - 3 * u, 400 * u, 6 * u);
+      for (const dx of [-200, -150, 120, 170]) { ctx.fillStyle = deliveredBefore >= 2 || dx > 0 ? '#2b3a6b' : 'rgba(43,58,107,0.35)'; ctx.fillRect(sx0 + dx * u, sy0 - 60 * u, 34 * u, 120 * u); }
+      const cyl = (x, len, r, light) => { const g = ctx.createLinearGradient(0, sy0 - r, 0, sy0 + r); g.addColorStop(0, light); g.addColorStop(1, '#8f8a80'); ctx.fillStyle = g; ctx.fillRect(x, sy0 - r, len, 2 * r); };
+      for (let k = 0; k < deliveredBefore; k++) cyl(sx0 - 40 * u + k * 30 * u - (k % 2 ? 0 : 60 * u), 60 * u, 16 * u, '#f5efe6');
+      const dockX = sx0 - 60 * u - 70 * u, mx = -120 * u + (dockX + 120 * u) * ease(clamp((p - 0.12) / 0.6));
+      cyl(mx, 70 * u, 18 * u, '#ffffff');
+      if (p > 0.72) caption(t('capDocked'));
+    } else {
+      // Mond oder Mars: Boden unten, Lander bremst mit Feuer und setzt auf
+      const surf = H * 0.78;
+      ctx.fillStyle = dest === 'mars' ? '#a5552f' : '#8a8780';
+      ctx.beginPath(); ctx.ellipse(W / 2, surf + H * 0.9, W * 1.2, H * 0.9, 0, 0, Math.PI * 2); ctx.fill();
+      for (const [x, r] of [[0.2, 40], [0.7, 26], [0.85, 50]]) { ctx.fillStyle = dest === 'mars' ? '#8a4526' : '#6f6c66'; ctx.beginPath(); ctx.ellipse(W * x, surf + 40 * u, r * u, r * 0.3 * u, 0, 0, Math.PI * 2); ctx.fill(); }
+      if (dest === 'moon') { ctx.fillStyle = '#4f8fd0'; ctx.beginPath(); ctx.arc(W * 0.15, H * 0.18, 26 * u, 0, Math.PI * 2); ctx.fill(); }
+      const L = u * 1.8; // Lander groß genug, dass man ihn gut sieht
+      const q = clamp((p - 0.12) / 0.6), ly = -80 * L + (surf + 80 * L) * (1 - (1 - q) * (1 - q)), lx = W / 2;
+      if (q < 1) { ctx.save(); ctx.translate(lx, ly); flame(1, L * 0.9, 0.6); ctx.restore(); }
+      // Lander: goldener Körper, Beine, Solarflügel
+      ctx.fillStyle = '#b08d3c'; ctx.fillRect(lx - 22 * L, ly - 50 * L, 44 * L, 34 * L);
+      ctx.fillStyle = '#2b3a6b'; ctx.fillRect(lx - 60 * L, ly - 46 * L, 34 * L, 10 * L); ctx.fillRect(lx + 26 * L, ly - 46 * L, 34 * L, 10 * L);
+      ctx.strokeStyle = '#B8AFA6'; ctx.lineWidth = 3 * L; ctx.beginPath();
+      ctx.moveTo(lx - 18 * L, ly - 16 * L); ctx.lineTo(lx - 34 * L, ly); ctx.moveTo(lx + 18 * L, ly - 16 * L); ctx.lineTo(lx + 34 * L, ly); ctx.stroke();
+      if (q >= 1) {
+        const d = clamp((p - 0.72) / 0.2);
+        ctx.fillStyle = `rgba(200,195,188,${0.5 * (1 - d)})`; ctx.beginPath(); ctx.ellipse(lx, surf, 60 * L * (1 + d), 14 * L, 0, 0, Math.PI * 2); ctx.fill();
+        caption(t(dest === 'mars' ? 'capMarsLanded' : 'capMoonLanded'));
+      }
+    }
+    if (fadeIn < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - fadeIn})`; ctx.fillRect(0, 0, W, H); }
+  }
+
   function caption(text) {
     ctx.font = '600 20px sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
     const x = Math.min(W * 0.76, W - ctx.measureText(text).width / 2 - 16); // rechts neben der Rakete, nie über den Rand
@@ -902,10 +953,12 @@ function launch(canvas, rocketEl, mode, from) {
 
     const tc = passed - intro;                                        // Zeit seit Countdown-Beginn
     const s = Math.max(0, (tc - count - ignite) / 1000);              // Sekunden seit dem Abheben
-    const tr = tc - count - ignite - flight;                          // Zeit seit Ende des Aufstiegs (Rückflug)
+    const ta = tc - count - ignite - flight;                          // Zeit seit Ende des Aufstiegs
+    const arriving = arrive > 0 && ta >= 0 && ta < arrive;            // Ankunft am Ziel
+    const tr = ta - arrive;                                           // Rückflug des Boosters danach
     const returning = reusable && tr >= 0;
     const igniting = tc >= count;
-    const fire = igniting && !returning && (tc < count + ignite || burning(s));
+    const fire = igniting && !returning && !arriving && (tc < count + ignite || burning(s));
     const alt = tc < count + ignite ? 0 : altitude(Math.min(s, flight / 1000));
     const camUp = Math.max(0, alt - H * 0.08);
     const cam = returning ? camUp * (1 - ease(clamp(tr / 1100))) : camUp;  // Kamera fährt zur Landung zurück
@@ -921,7 +974,15 @@ function launch(canvas, rocketEl, mode, from) {
     // Hitzeschild schließt sich beim Countdown über dem Satelliten
     if (tc >= 0) rocketEl.classList.add('closed');
 
-    ctx.clearRect(0, 0, W, H);                                        // Hintergrund bleibt der der Bau-Ansicht
+    ctx.clearRect(0, 0, W, H);
+    // dunkler Himmel blendet während des Countdowns ein: kein harter Bildwechsel, aber dichter (Josias 14.11.)
+    const skyA = 0.94 * ease(clamp((tc + intro) / 2200));
+    if (skyA > 0) {
+      const sg = ctx.createLinearGradient(0, 0, 0, H);
+      sg.addColorStop(0, `rgba(5,4,10,${skyA})`); sg.addColorStop(0.8, `rgba(16,20,38,${skyA})`); sg.addColorStop(1, `rgba(30,36,60,${skyA})`);
+      ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+      for (const [x, y, b] of stars) if (cam === 0) { ctx.fillStyle = `rgba(245,239,230,${(0.2 + b * 0.5) * skyA})`; ctx.fillRect(x, y, 1.4, 1.4); }
+    }
     if (cam > 0) for (const [x, y, b] of stars) {                     // Sterne ziehen vorbei, schräg zur Neigung
       ctx.fillStyle = `rgba(245,239,230,${0.25 + b * 0.6})`;
       const yy = (y + cam * 0.15 * (0.5 + b)) % H, xx = ((x - cam * 0.1 * Math.sin(angle) * (0.5 + b)) % W + W) % W;
@@ -961,13 +1022,14 @@ function launch(canvas, rocketEl, mode, from) {
       booster(cx, gy - bAlt, unit, clamp((p - 0.75) / 0.25));
     }
     ctx.restore();
+    if (arriving) arrival(ta / arrive);
 
     // Rakete (SVG): Größe und Lage aus Maßstab und Boden, dazu Flug, Neigung und Wackeln. Beim Rückflug ist sie im All.
     rocketEl.style.height = `${320 * unit}px`;
     rocketEl.style.left = `${cx}px`;
     rocketEl.style.top = `${groundY - 312 * unit}px`;
     rocketEl.style.transform = `translate(calc(-50% + ${sx}px), ${-(alt - camUp) + sy}px) rotate(${angle}rad)`;
-    rocketEl.style.opacity = (mode === 'explode' && boomAt !== null) || returning ? '0' : '1';
+    rocketEl.style.opacity = (mode === 'explode' && boomAt !== null) || returning || arriving ? '0' : '1';
 
     if (tc >= 0 && !igniting) {
       ctx.font = '800 96px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#F5EFE6';
@@ -976,9 +1038,9 @@ function launch(canvas, rocketEl, mode, from) {
     if (mode === 'heavy' && s > 0) caption(t('capHeavy'));
     if (mode === 'nofuel' && s > 0) caption(t('capNoFuel'));
     if (mode === 'explode' && boomAt !== null) caption(t('capExplode'));
-    if (mode === 'ok' && s > 3.5 && !returning) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
+    if (mode === 'ok' && s > 3.5 && !returning && !arriving) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
     if (landed) caption(t('capLanded'));
-    if (tc >= count + ignite + flight + back) { // nach kurzer Pause von selbst zum Ergebnis
+    if (tc >= count + ignite + flight + arrive + back) { // nach kurzer Pause von selbst zum Ergebnis
       setTimeout(() => { if (state.phase === 'launch') { state.phase = 'result'; render(); } }, 1200);
       return;
     }
