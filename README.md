@@ -7,9 +7,9 @@ A browser game for students. You plan a space mission with a fixed budget, pick 
 Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission Design Game.
 
 ## How to play
-1. Choose a difficulty. Each one is a mission with a fixed budget and the science it needs.
+1. Choose a difficulty. Each one is a different mission with its own parts, budget and science target.
 2. Drag instruments onto the rocket. Each one adds science, mass, power draw and cost.
-3. Drag on a satellite bus that can carry and power them.
+3. Build the satellite: a bus that carries the instruments and solar panels that power them.
 4. Book a rocket or a CubeSat rideshare.
 5. Launch.
 6. See if you reached orbit, how much money is left and your science per million dollars. Then try again for less money.

@@ -96,3 +96,26 @@ test('a bought rocket fails if the satellite is heavier than its capacity', () =
   assert.equal(r.reachedOrbit, false);
   assert.ok(r.problems.includes('rocket-mass'));
 });
+
+// Solarpanel: bringt Strom, kostet Geld und wiegt etwas (Besprechung Sa 13:10)
+test('a solar panel adds power, mass and cost', () => {
+  const r = missionResult({
+    ...base,
+    instruments: [{ cost: 5, mass: 20, power: 130, science: 40 }],
+    bus: { cost: 10, mass: 80, power: 0, capacity: 50 },
+    panel: { cost: 2, mass: 10, power: 150 },
+  });
+  assert.equal(r.reachedOrbit, true);
+  assert.equal(r.budgetLeft, 23);
+  assert.equal(r.payload, 110);
+});
+
+test('without enough panel power the instruments cannot run', () => {
+  const r = missionResult({
+    ...base,
+    instruments: [{ cost: 5, mass: 20, power: 130, science: 40 }],
+    bus: { cost: 10, mass: 80, power: 0, capacity: 50 },
+    panel: { cost: 1, mass: 5, power: 100 },
+  });
+  assert.ok(r.problems.includes('power'));
+});

@@ -1,12 +1,12 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
-import { missions, instruments, buses, rockets } from './data/parts.js';
+import { missions, instruments, buses, panels, rockets } from './data/parts.js';
 import { budgetLeft, deltaV, missionResult } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
 import { setMusic, isPlaying, wantsMusic } from './src/audio.js';
 
 // Phasen: home, start (Waben), build, launch, result
-const state = { phase: 'home', build: 0, mission: null, instruments: [], bus: null, rocket: null, result: null, info: null };
+const state = { phase: 'home', build: 0, mission: null, instruments: [], bus: null, panel: null, rocket: null, result: null, info: null };
 
 const $ = (id) => document.getElementById(id);
 // Geld: unter 1 Mio. in Tausend, Minus vor dem Dollarzeichen
@@ -40,8 +40,11 @@ const press = (fn) => (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preve
 const instMass = () => state.instruments.reduce((m, i) => m + i.mass, 0);
 const instPower = () => state.instruments.reduce((p, i) => p + i.power, 0);
 const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
-const payload = () => (state.bus ? state.bus.mass : 0) + instMass();
-const chosen = () => [...state.instruments, state.bus, state.rocket].filter(Boolean);
+const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0);
+const powerAvailable = () => (state.bus ? state.bus.power : 0) + (state.panel ? state.panel.power : 0);
+const chosen = () => [...state.instruments, state.bus, state.panel, state.rocket].filter(Boolean);
+// Teile, die die aktuelle Mission anbietet
+const offered = (items) => (state.mission && state.mission.allowed ? items.filter((x) => state.mission.allowed.includes(x.id)) : items);
 
 // ---------- Home und Waben ----------
 
@@ -87,6 +90,7 @@ function renderHome() {
   $('hexes').replaceChildren(el('h2', { class: 'hex-title' }, t('chooseDifficulty')), ...missions.map((m) => {
     const best = loadBest(m);
     return el('button', { class: `hex ${LEVEL_CLASS[m.level]}`, type: 'button', onclick: () => startMission(m), title: tr(m, 'goal') },
+      !m.free && best ? el('span', { class: 'done', 'aria-label': t('completed') }, '✓') : '',
       el('span', { class: 'lvl' }, t(`lvl${m.level}`)),
       el('span', { class: 'meta' }, m.free ? t('noLimit') : `${t('budget')} ${money(m.budget)}`),
       !m.free && best ? el('span', { class: 'meta' }, `${t('best')}: ${best.toFixed(1)}`) : '');
@@ -100,7 +104,7 @@ function go(phase) {
 }
 
 function startMission(m) {
-  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, rocket: null, info: null });
+  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, info: null });
   render();
 }
 
@@ -155,8 +159,10 @@ function choose(kind, item) {
 const catalogs = [
   { kind: 'instrument', items: instruments, hint: 'hintInstrument',
     rows: (i) => [[t('science'), i.science], [t('mass'), kg(i.mass)], [t('power'), `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
-  { kind: 'bus', items: buses, hint: 'hintBus',
-    rows: (b) => [[t('carries'), kg(b.capacity)], [t('power'), `${b.power} W`], [t('ownMass'), kg(b.mass)]], picked: (b) => state.bus === b },
+  { kind: 'bus', items: buses, hint: 'hintBus', group: 'groupBus',
+    rows: (b) => [[t('carries'), kg(b.capacity)], [t('ownMass'), kg(b.mass)]], picked: (b) => state.bus === b },
+  { kind: 'panel', items: panels, group: 'groupPanel',
+    rows: (pn) => [[t('power'), `${pn.power} W`], [t('mass'), kg(pn.mass)]], picked: (pn) => state.panel === pn },
   { kind: 'rocket', items: rockets, hint: 'hintRocket',
     rows: (r) => (r.maxPayload !== undefined
       ? [[t('carriesToOrbit'), kg(r.maxPayload)], [t('yourSatellite'), kg(payload())]]
@@ -177,15 +183,20 @@ function card(cat, item) {
   return node;
 }
 
+// Schritte: Instrumente, Satellit (Bus und Solarpanel), Rakete
+const STEP_CATS = [['instrument'], ['bus', 'panel'], ['rocket']];
+
 function renderLeft() {
-  const cat = catalogs[state.build];
+  const cats = STEP_CATS[state.build].map((k) => catalogs.find((c) => c.kind === k));
   $('left').replaceChildren(
     el('nav', { class: 'steps', 'aria-label': 'Build steps' }, t('steps').map((name, i) => el('button', {
       type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
       onclick: () => { state.build = i; render(); },
     }, name))),
-    el('p', { class: 'hint' }, t(cat.hint)),
-    el('div', { class: 'catalog enter' }, cat.items.map((item) => card(cat, item))));
+    el('p', { class: 'hint' }, t(cats[0].hint)),
+    ...cats.flatMap((cat) => [
+      cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
+      el('div', { class: 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean));
 }
 
 function meter(label, value, max, text) {
@@ -209,7 +220,7 @@ function renderRight() {
   if (!m.free) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('needed')}`));
   if (state.bus) {
     meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
-    meters.push(meter(t('powerDraw'), instPower(), state.bus.power, `${instPower()} / ${state.bus.power} W`));
+    meters.push(meter(t('powerDraw'), instPower(), powerAvailable(), `${instPower()} / ${powerAvailable()} W`));
   }
   if (state.rocket && state.bus) {
     if (state.rocket.maxPayload !== undefined) meters.push(meter(t('satMass'), payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`));
@@ -233,6 +244,11 @@ function rocketSvg() {
   if (state.bus) {
     s.append(svg('rect', { x: 88, y: 150, width: 84, height: 70, rx: 6, fill: '#3a3245', stroke: '#A88FD6' }));
     s.append(svg('text', { x: 130, y: 212, 'text-anchor': 'middle', class: 'svg-muted' }, tr(state.bus, 'name')));
+    if (state.panel) {
+      const w = Math.min(46, 14 + Math.sqrt(state.panel.power) * 0.9); // größeres Panel, breitere Flügel
+      s.append(svg('rect', { x: 88 - w, y: 170, width: w, height: 26, fill: '#2b3a6b', stroke: '#9fb3e8' }));
+      s.append(svg('rect', { x: 172, y: 170, width: w, height: 26, fill: '#2b3a6b', stroke: '#9fb3e8' }));
+    }
   } else {
     s.append(svg('text', { x: 130, y: 200, 'text-anchor': 'middle', class: 'svg-muted' }, t('satelliteBus')));
   }
@@ -384,7 +400,7 @@ function footer() {
   back.classList.toggle('hidden', state.phase === 'launch');
   if (state.phase === 'build') {
     back.textContent = state.build === 0 ? t('changeDifficulty') : t('back');
-    const ready = [state.instruments.length > 0, !!state.bus, !!state.rocket][state.build];
+    const ready = [state.instruments.length > 0, !!state.bus && !!state.panel, !!state.rocket][state.build];
     next.textContent = state.build === 2 ? t('launch') : t('next');
     next.disabled = !ready;
   } else if (state.phase === 'launch') {

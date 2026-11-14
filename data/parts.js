@@ -2,34 +2,31 @@
 // Geld in Mio. US-Dollar, Masse in kg, Strom in W, Isp in s, Delta-v in m/s.
 
 // Schwierigkeit = Budget und Mindest-Wissenschaft (Besprechung Sa 14.11.)
+// Jede Stufe ist eine eigene Mission mit eigenen Teilen (Besprechung Sa 13:10).
+// allowed: welche Teile die Mission anbietet. Freies Spiel: alle Teile.
 export const missions = [
   {
     id: 'cubesat', level: 'Easy', name: 'Student CubeSat',
     goal: 'Get a small CubeSat with a camera into low Earth orbit.',
-    budget: 1, minScience: 8,
-    requiredDv: 9400, // erdnaher Orbit inkl. Verluste, zu belegen
-    verified: false,
+    budget: 1, minScience: 8, requiredDv: 9400, verified: false,
+    allowed: ['cube-camera', 'cube-radiometer', 'cube-1u', 'cube-3u', 'cube-6u', 'panel-body', 'panel-deploy', 'rideshare'],
   },
   {
     id: 'weather', level: 'Intermediate', name: 'Weather satellite',
-    goal: 'Put a weather satellite into an 800 km orbit.',
-    budget: 120, minScience: 55,
-    requiredDv: 9500, // zu belegen
-    verified: false,
+    goal: 'Put a weather satellite into an 800 km orbit to watch clouds and storms.',
+    budget: 120, minScience: 55, requiredDv: 9500, verified: false,
+    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'pegasus', 'falcon9'],
   },
   {
-    id: 'weather-tight', level: 'Hard', name: 'Weather satellite, tight budget',
-    goal: 'The same weather satellite with a third less money.',
-    budget: 80, minScience: 55,
-    requiredDv: 9500, // zu belegen
-    verified: false,
+    id: 'ocean', level: 'Hard', name: 'Ocean satellite',
+    goal: 'Measure sea level from an 800 km orbit. The radar needs a lot of power.',
+    budget: 120, minScience: 125, requiredDv: 9500, verified: false,
+    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'pegasus', 'falcon9'],
   },
   {
     id: 'free', level: 'Unrestricted', name: 'Free play', free: true,
     goal: 'No budget and no science target. Try out any combination.',
-    budget: 100000, minScience: 0,
-    requiredDv: 9500,
-    verified: false,
+    budget: 100000, minScience: 0, requiredDv: 9500, verified: false,
   },
 ];
 
@@ -56,17 +53,31 @@ export const instruments = [
 const U = 1.33;
 const BUS_INFO = 'The body of the satellite. It holds the instruments and gives them power, a radio and a computer.';
 export const buses = [
-  { id: 'cube-1u', name: '1U CubeSat', mass: U / 2, capacity: U / 2, power: 2, cost: 0.05, verified: 'mass',
+  { id: 'cube-1u', name: '1U CubeSat', mass: U / 2, capacity: U / 2, power: 0, cost: 0.05, verified: 'mass',
     info: 'A 10 cm cube. ' + BUS_INFO },
-  { id: 'cube-3u', name: '3U CubeSat', mass: 3 * U / 2, capacity: 3 * U / 2, power: 7, cost: 0.15, verified: 'mass',
+  { id: 'cube-3u', name: '3U CubeSat', mass: 3 * U / 2, capacity: 3 * U / 2, power: 0, cost: 0.15, verified: 'mass',
     info: 'Three 10 cm cubes in a row. ' + BUS_INFO },
-  { id: 'cube-6u', name: '6U CubeSat', mass: 6 * U / 2, capacity: 6 * U / 2, power: 20, cost: 0.4, verified: 'mass',
+  { id: 'cube-6u', name: '6U CubeSat', mass: 6 * U / 2, capacity: 6 * U / 2, power: 0, cost: 0.4, verified: 'mass',
     info: 'Six 10 cm cubes. ' + BUS_INFO },
-  { id: 'cube-12u', name: '12U CubeSat', mass: 12 * U / 2, capacity: 12 * U / 2, power: 40, cost: 0.9, verified: 'mass',
+  { id: 'cube-12u', name: '12U CubeSat', mass: 12 * U / 2, capacity: 12 * U / 2, power: 0, cost: 0.9, verified: 'mass',
     info: 'Twelve 10 cm cubes. ' + BUS_INFO },
-  { id: 'bus-s', name: 'Small bus', mass: 60, capacity: 40, power: 150, cost: 4, verified: false, info: BUS_INFO },
-  { id: 'bus-m', name: 'Medium bus', mass: 300, capacity: 200, power: 800, cost: 15, verified: false, info: BUS_INFO },
-  { id: 'bus-l', name: 'Large bus', mass: 1500, capacity: 900, power: 3000, cost: 45, verified: false, info: BUS_INFO },
+  { id: 'bus-s', name: 'Small bus', mass: 60, capacity: 40, power: 0, cost: 4, verified: false, info: BUS_INFO },
+  { id: 'bus-m', name: 'Medium bus', mass: 300, capacity: 200, power: 0, cost: 15, verified: false, info: BUS_INFO },
+  { id: 'bus-l', name: 'Large bus', mass: 1500, capacity: 900, power: 0, cost: 45, verified: false, info: BUS_INFO },
+];
+
+// Solarpanels: Strom für die Instrumente. Werte sind Spiel-Annahmen (verified: false).
+export const panels = [
+  { id: 'panel-body', name: 'Body solar cells', mass: 0.1, power: 2, cost: 0.02, verified: false,
+    info: 'Solar cells glued onto the sides of the CubeSat. Light and cheap, but little power.' },
+  { id: 'panel-deploy', name: 'Fold-out CubeSat panels', mass: 0.3, power: 8, cost: 0.06, verified: false,
+    info: 'Small wings that fold out in orbit. Four times the power of body cells.' },
+  { id: 'panel-s', name: 'Small solar wing', mass: 8, power: 150, cost: 1, verified: false,
+    info: 'One small wing. Enough for a camera and a lightning mapper.' },
+  { id: 'panel-m', name: 'Medium solar wings', mass: 25, power: 500, cost: 3, verified: false,
+    info: 'Two wings. Enough for most weather instruments.' },
+  { id: 'panel-l', name: 'Large solar wings', mass: 70, power: 1500, cost: 8, verified: false,
+    info: 'Two big wings for power-hungry instruments like a radar.' },
 ];
 
 // Gekaufte Raketen: Nutzlast in einen 800-km-Sonnensynchron-Orbit laut NASA Launch Services Program
@@ -95,8 +106,13 @@ export const rockets = [
 const BUS_DE = 'Der Körper des Satelliten. Er trägt die Instrumente und gibt ihnen Strom, Funk und einen Computer.';
 const DE = {
   cubesat: { name: 'Studenten-CubeSat', goal: 'Bring einen kleinen CubeSat mit Kamera in eine niedrige Erdumlaufbahn.' },
-  weather: { name: 'Wettersatellit', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' },
-  'weather-tight': { name: 'Wettersatellit, knappes Budget', goal: 'Derselbe Wettersatellit mit einem Drittel weniger Geld.' },
+  weather: { name: 'Wettersatellit', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe, um Wolken und Gewitter zu beobachten.' },
+  'panel-body': { name: 'Solarzellen am Gehäuse', info: 'Solarzellen direkt auf den Seiten des CubeSats. Leicht und billig, aber wenig Strom.' },
+  'panel-deploy': { name: 'Klapp-Panels für CubeSats', info: 'Kleine Flügel, die sich im Orbit aufklappen. Viermal so viel Strom wie Zellen am Gehäuse.' },
+  'panel-s': { name: 'Kleiner Solarflügel', info: 'Ein kleiner Flügel. Reicht für eine Kamera und einen Blitzkartierer.' },
+  'panel-m': { name: 'Mittlere Solarflügel', info: 'Zwei Flügel. Reicht für die meisten Wetter-Instrumente.' },
+  'panel-l': { name: 'Große Solarflügel', info: 'Zwei große Flügel für Instrumente mit viel Strombedarf wie ein Radar.' },
+  ocean: { name: 'Ozean-Satellit', goal: 'Miss die Meereshöhe aus einem Orbit in 800 km Höhe. Das Radar braucht viel Strom.' },
   free: { name: 'Freies Spiel', goal: 'Kein Budget und kein Wissenschaftsziel. Probier jede Kombination aus.' },
   'cube-camera': { name: 'CubeSat-Kamera', info: 'Eine kleine Kamera, die in einen CubeSat passt. Sie fotografiert die Erde.' },
   'cube-radiometer': { name: 'CubeSat-Radiometer', info: 'Ein kleiner Sensor, der misst, wie warm die Luft ist.' },
@@ -116,4 +132,4 @@ const DE = {
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
-for (const list of [missions, instruments, buses, rockets]) for (const x of list) x.de = DE[x.id];
+for (const list of [missions, instruments, buses, panels, rockets]) for (const x of list) x.de = DE[x.id];
