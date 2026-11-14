@@ -86,7 +86,7 @@ setInterval(() => {
   a.progress = Math.min(1, a.progress + (dt / project.seconds) * (a.fast ? 2 : 1));
   if (a.progress >= 1) { research.done[a.id] = true; research.active = null; }
   saveResearch();
-  if (state.phase !== 'research') return;
+  if (state.phase !== 'research' && state.phase !== 'start') return; // Labor und Level-Auswahl zeigen den Fortschritt
   if (!research.active) { render(); return; }
   const pct = document.querySelector('.research-pct'), bar = document.querySelector('.research-meter .bar span');
   if (pct) pct.textContent = `${t('team')} · ${Math.round(a.progress * 100)} %`;
@@ -175,21 +175,59 @@ function renderHome() {
   if (!$('sat').firstChild) $('sat').append(satelliteSvg());
 
   $('side-buttons').replaceChildren(...(choosing
-    ? [el('button', { class: 'hexbtn', type: 'button', onclick: () => { state.returnTo = 'start'; go('research'); } }, `${t('research')} · ${research.rp} ${t('rpShort')}`),
-      el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings')),
-      el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('menu'))]
-    : [el('button', { class: 'hexbtn', type: 'button', onclick: () => go('start') }, t('play')),
-      el('button', { class: 'hexbtn', type: 'button', onclick: () => go('company') }, t('campaign')),
+    // gleiche Reihenfolge in beiden Ansichten, Einstellungen immer unten (Fund Josias 14.11.)
+    ? [el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('menu')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]
+    : [el('button', { class: 'hexbtn', type: 'button', onclick: () => { state.levelPick = null; go('start'); } }, t('play')),
+      el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]));
 
-  $('hexes').replaceChildren(el('h2', { class: 'hex-title' }, t('chooseDifficulty')), ...missions.map((m) => {
-    const best = loadBest(m);
-    return el('button', { class: `hex ${LEVEL_CLASS[m.level]}`, type: 'button', onclick: () => startMission(m), title: tr(m, 'goal') },
-      !m.free && best ? el('span', { class: 'done', 'aria-label': t('completed') }, '✓') : '',
-      el('span', { class: 'lvl' }, t(`lvl${m.level}`)),
-      el('span', { class: 'meta' }, m.free ? t('noLimit') : `${t('budget')} ${money(m.budget)}`),
-      !m.free && best ? el('span', { class: 'meta' }, `${t('best')}: ${best.toFixed(1)}`) : '');
-  }));
+  $('hexes').replaceChildren(choosing ? renderLevelSelect() : '');
+}
+
+// ---------- Level-Auswahl: Karussell über die vier Orte (Linus 14.11.) ----------
+// Gesperrte Level grau mit Schloss. Neu freigeschaltet: Schloss springt auf, einmalig (gemerkt in localStorage).
+const LEVEL_DIFF = ['lvlEasy', 'lvlIntermediate', 'lvlHard', 'lvlUltra'];
+const seenLevel = () => { try { return Number(localStorage.getItem('seen-level')) || 1; } catch { return 1; } };
+const moveLevel = (d) => { state.levelPick = Math.min(LEVELS.length, Math.max(1, (state.levelPick || 1) + d)); state.slideLevel = d; render(); };
+function levelProgress(n) {
+  const inLevel = contracts.filter((x) => x.level === n);
+  return { done: inLevel.filter((x) => contracts.indexOf(x) < company.index).length, total: inLevel.length };
+}
+function renderLevelSelect() {
+  const reached = reachedLevel();
+  if (state.levelPick == null) state.levelPick = reached;
+  const i = state.levelPick;
+  const unlocking = reached > seenLevel() && i === reached && !company.over;
+  if (unlocking) setTimeout(() => { try { localStorage.setItem('seen-level', String(reached)); } catch { /* ohne Speicher */ } }, 2500);
+  const slide = state.slideLevel; state.slideLevel = null;
+  const card = (n, role) => {
+    if (n < 1 || n > LEVELS.length) return el('div', { class: `lvl-card ${role} empty` });
+    const l = LEVELS[n - 1], open = n <= reached, pr = levelProgress(n);
+    return el('figure', { class: `lvl-card ${role}${open ? '' : ' locked'}${role === 'mid' && unlocking ? ' unlocking' : ''}`, onclick: role === 'mid' ? null : () => moveLevel(n - i) },
+      el('div', { class: 'lvl-scene', 'aria-hidden': 'true' }, placeSvg(n, null, pr.done)),
+      !open || (role === 'mid' && unlocking) ? el('span', { class: 'lock', 'aria-label': t('locked') }, '🔒') : '',
+      el('figcaption', {}, el('strong', {}, `${t('level')} ${n} · ${tr(l, 'name')}`), el('span', { class: `diff d${n}` }, t(LEVEL_DIFF[n - 1]))));
+  };
+  const l = LEVELS[i - 1], open = i <= reached, pr = levelProgress(i);
+  const started = company.index > contracts.findIndex((x) => x.level === i);
+  return el('div', { class: 'level-select' },
+    el('h2', { class: 'hex-title' }, t('levelSelect')),
+    el('div', { class: 'lvl-stage' },
+      el('button', { class: 'arrow', type: 'button', 'aria-label': t('prevLevel'), disabled: i <= 1 ? '' : null, onclick: () => moveLevel(-1) }, '‹'),
+      el('div', { class: `lvl-cards${slide ? (slide > 0 ? ' slide-next' : ' slide-prev') : ''}` }, card(i - 1, 'side'), card(i, 'mid'), card(i + 1, 'side')),
+      el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextLevel'), disabled: i >= LEVELS.length ? '' : null, onclick: () => moveLevel(1) }, '›')),
+    unlocking ? el('p', { class: 'unlock-msg' }, t('levelUnlocked', { n: i })) : '',
+    el('p', { class: 'lvl-goal' }, t(`levelGoal${i}`)),
+    open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
+    el('button', { class: 'primary start-big', type: 'button', disabled: open ? null : '',
+      onclick: () => { if (!open) return; state.levelView = i; go('company'); } },
+    open ? (started && pr.done < pr.total ? t('continueLevel') : t('startLevel')) : `🔒 ${t('locked')}`),
+    // Forschung dieses Ortes in der Mitte: man plant fürs nächste Level
+    open ? el('section', { class: 'lvl-research' },
+      el('h3', {}, `${t('labOf', { x: t(PLACE_NAME[l.place]) })} · ${research.rp} ${t('rpShort')}`),
+      el('div', { class: 'projects' }, PROJECTS.filter((p) => p.level === i).map((p) => projectCard(p, reached)))) : '');
 }
 
 function go(phase) {
@@ -877,7 +915,12 @@ function renderResearch() {
     el('h1', {}, t('labOf', { x: t(PLACE_NAME[place]) })),
     el('p', { class: 'lead' }, t('researchLead')),
     el('p', { class: 'big-number rp' }, `${research.rp} ${t('rpShort')} · ${money(company.cash)}`),
-    el('div', { class: 'projects' }, PROJECTS.filter((pr) => pr.level === view).map((pr) => {
+    el('div', { class: 'projects' }, PROJECTS.filter((pr) => pr.level === view).map((pr) => projectCard(pr, reached))));
+}
+
+// Eine Forschungs-Karte (im Labor und in der Level-Auswahl). Kostet Geld, Punkte und Zeit.
+function projectCard(pr, reached) {
+  const a = research.active;
       const done = !!research.done[pr.id];
       const locked = (pr.needs && !research.done[pr.needs]) || pr.level > reached;
       const running = a && a.id === pr.id;
@@ -885,7 +928,7 @@ function renderResearch() {
       return el('div', { class: `project card${done ? ' done-card' : ''}` },
         el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')} · ${money(pr.cost)}`)),
         el('p', { class: 'hint' }, t(pr.info)),
-        locked ? el('p', { class: 'hint' }, t('needs', { x: t(PROJECTS.find((x) => x.id === pr.needs).name) })) : '',
+        locked && pr.needs && !research.done[pr.needs] ? el('p', { class: 'hint' }, t('needs', { x: t(PROJECTS.find((x) => x.id === pr.needs).name) })) : '',
         done && pr.id === 'own-rocket' ? el('form', { class: 'name-form', onsubmit: (e) => {
           e.preventDefault();
           const v = e.target.elements.rname.value.trim().slice(0, 24);
@@ -910,7 +953,6 @@ function renderResearch() {
             research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); saveCompany(); render();
           } },
         research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : t('startResearch', { n: pr.rp, c: money(pr.cost) })) : '');
-    })));
 }
 
 // ---------- Kampagne: Basis von oben (Idee Josias 14.11.) ----------
@@ -1378,7 +1420,7 @@ $('next').addEventListener('click', () => {
 
 $('back').addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0 && !(state.mission && state.mission.module)) state.build -= 1;
-  else if (state.phase === 'company') state.phase = 'home';
+  else if (state.phase === 'company') state.phase = 'start';
   else if (state.phase === 'research') state.phase = state.returnTo || 'start';
   else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company';
   else state.phase = 'start';
@@ -1387,7 +1429,9 @@ $('back').addEventListener('click', () => {
 
 // Raketen-Schritt: Pfeiltasten blättern durchs Karussell, ohne es erst anzuklicken
 addEventListener('keydown', (e) => {
-  if (state.phase !== 'build' || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (state.phase === 'start') { e.preventDefault(); moveLevel(e.key === 'ArrowLeft' ? -1 : 1); return; }
+  if (state.phase !== 'build') return;
   if (e.target.closest && e.target.closest('input, textarea, select, .carousel')) return; // Karussell hat eigenen Handler
   const items = offered(catalogs.find((c) => c.kind === 'rocket').items);
   if (!items.length) return;
