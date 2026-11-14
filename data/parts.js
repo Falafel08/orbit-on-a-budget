@@ -13,14 +13,14 @@ export const missions = [
   {
     id: 'weather', level: 'Medium', name: 'Weather satellite',
     goal: 'Put a weather satellite into an 800 km orbit.',
-    budget: 60, minScience: 55,
+    budget: 120, minScience: 55,
     requiredDv: 9500, // zu belegen
     verified: false,
   },
   {
     id: 'weather-tight', level: 'Hard', name: 'Weather satellite, tight budget',
-    goal: 'The same weather satellite with less than half the money.',
-    budget: 25, minScience: 55,
+    goal: 'The same weather satellite with a third less money.',
+    budget: 80, minScience: 55,
     requiredDv: 9500, // zu belegen
     verified: false,
   },
@@ -62,7 +62,9 @@ export const buses = [
   { id: 'bus-l', name: 'Large bus', mass: 1500, capacity: 900, power: 3000, cost: 45, verified: false, info: BUS_INFO },
 ];
 
-// Stufen von unten nach oben. Mitfluggelegenheit: nur Massengrenze, kein eigenes Delta-v.
+// Gekaufte Raketen: Nutzlast in einen 800-km-Sonnensynchron-Orbit laut NASA Launch Services Program
+// (elvperf.ksc.nasa.gov, Abfrage 14.11.2026, Start Vandenberg). Preis = NASA-Gesamtkosten aus Vertragsmeldungen,
+// inklusive Leistungen rund um den Start. Mitfluggelegenheit: NASA CubeSat 101.
 export const rockets = [
   {
     id: 'rideshare', name: 'CubeSat rideshare', cost: 0.3, rideshare: true,
@@ -71,18 +73,13 @@ export const rockets = [
     info: 'Your CubeSat flies along on someone else\'s rocket. It is cheap, but it only takes CubeSats up to 3U.',
   },
   {
-    id: 'small', name: 'Small launcher', cost: 7.5, verified: false,
-    info: 'A rocket of your own. Two stages, made for small satellites.',
-    stages: [{ dryMass: 950, propMass: 9250, isp: 311 }, { dryMass: 250, propMass: 2050, isp: 343 }],
+    id: 'pegasus', name: 'Pegasus XL', cost: 56.3, maxPayload: 190,
+    verified: true, // 190 kg: NASA LSP; 56,3 Mio. $: NASA, Launch-Vertrag ICON
+    info: 'A small rocket launched from under a plane. NASA lists 190 kg to an 800 km orbit.',
   },
   {
-    id: 'medium', name: 'Medium launcher', cost: 30, verified: false,
-    info: 'A rocket of your own for satellites of a few tonnes.',
-    stages: [{ dryMass: 9000, propMass: 120000, isp: 300 }, { dryMass: 1500, propMass: 22000, isp: 345 }],
-  },
-  {
-    id: 'heavy', name: 'Heavy launcher', cost: 70, verified: false,
-    info: 'A big rocket for heavy satellites. It is strong but expensive.',
-    stages: [{ dryMass: 25000, propMass: 410000, isp: 300 }, { dryMass: 4000, propMass: 105000, isp: 348 }],
+    id: 'falcon9', name: 'Falcon 9', cost: 69, maxPayload: 10670,
+    verified: true, // 10.670 kg (Booster landet auf Drohnenschiff): NASA LSP; 69 Mio. $: NASA, Launch-Vertrag COSI
+    info: 'A large rocket whose first stage lands again and flies once more. NASA lists 10,670 kg to an 800 km orbit.',
   },
 ];

@@ -74,7 +74,7 @@ test('a rideshare launch reaches orbit if the satellite is light enough', () => 
 test('a rideshare launch fails if the satellite is too heavy', () => {
   const r = missionResult({ ...base, rocket: { cost: 0.3, rideshare: true, maxPayload: 4 } });
   assert.equal(r.reachedOrbit, false);
-  assert.ok(r.problems.includes('rideshare-mass'));
+  assert.ok(r.problems.includes('rocket-mass'));
 });
 
 // Schwierigkeit: eine Mission kann Mindest-Wissenschaft verlangen
@@ -83,4 +83,16 @@ test('a mission fails if it brings less science than required', () => {
   assert.equal(r.reachedOrbit, true);
   assert.equal(r.success, false);
   assert.ok(r.problems.includes('science'));
+});
+
+// Gekaufte Rakete mit NASA-Nutzlast für den Ziel-Orbit: nur Massengrenze, kein eigenes Delta-v
+test('a bought rocket reaches orbit if the satellite is within its NASA capacity', () => {
+  const r = missionResult({ ...base, rocket: { cost: 20, maxPayload: 190 } });
+  assert.equal(r.reachedOrbit, true);
+});
+
+test('a bought rocket fails if the satellite is heavier than its capacity', () => {
+  const r = missionResult({ ...base, rocket: { cost: 20, maxPayload: 50 } });
+  assert.equal(r.reachedOrbit, false);
+  assert.ok(r.problems.includes('rocket-mass'));
 });

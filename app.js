@@ -7,7 +7,11 @@ const BUILD = ['Instruments', 'Satellite', 'Rocket'];
 const state = { phase: 'start', build: 0, mission: null, instruments: [], bus: null, rocket: null, result: null, info: null };
 
 const $ = (id) => document.getElementById(id);
-const money = (m) => (m < 1 ? `$${Math.round(m * 1000)}k` : `$${m.toFixed(1)}M`);
+// Geld: unter 1 Mio. in Tausend, Minus vor dem Dollarzeichen
+const money = (m) => {
+  const a = Math.abs(m), sign = m < 0 ? '-' : '';
+  return a < 1 ? `${sign}$${Math.round(a * 1000)}k` : `${sign}$${a.toFixed(1)}M`;
+};
 const kg = (m) => (m < 10 ? `${m.toFixed(1)} kg` : `${Math.round(m)} kg`);
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -50,9 +54,9 @@ const catalogs = [
     rows: (i) => [['Science', i.science], ['Mass', kg(i.mass)], ['Power', `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
   { kind: 'bus', items: buses, hint: 'The bus carries your instruments and gives them power. Drag one onto the rocket.',
     rows: (b) => [['Carries', kg(b.capacity)], ['Power', `${b.power} W`], ['Own mass', kg(b.mass)]], picked: (b) => state.bus === b },
-  { kind: 'rocket', items: rockets, hint: 'Book a launch. A rocket needs enough delta-v. A rideshare only takes small CubeSats.',
-    rows: (r) => (r.rideshare
-      ? [['Max satellite', kg(r.maxPayload)]]
+  { kind: 'rocket', items: rockets, hint: 'Book a launch. Your satellite must not be heavier than what the rocket carries to orbit. Figures are from NASA.',
+    rows: (r) => (r.maxPayload !== undefined
+      ? [['Carries to orbit', kg(r.maxPayload)], ['Your satellite', kg(payload())]]
       : [['Delta-v with your satellite', `${Math.round(deltaV(r.stages, payload()))} m/s`]]), picked: (r) => state.rocket === r },
 ];
 
@@ -106,7 +110,7 @@ function renderRight() {
     meters.push(meter('Power draw', instPower(), state.bus.power, `${instPower()} / ${state.bus.power} W`));
   }
   if (state.rocket && state.bus) {
-    if (state.rocket.rideshare) meters.push(meter('Satellite mass', payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`));
+    if (state.rocket.maxPayload !== undefined) meters.push(meter('Satellite mass', payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`));
     else {
       const dv = deltaV(state.rocket.stages, payload());
       // Balken zeigt Bedarf gegen Vorhandenes: voll und grün, wenn genug da ist
@@ -275,7 +279,7 @@ function renderResult() {
     power: 'Your instruments need more power than the bus gives.',
     capacity: 'Your instruments are too heavy for the bus.',
     'delta-v': 'The rocket does not have enough delta-v for this satellite.',
-    'rideshare-mass': 'Your satellite is too heavy for a CubeSat rideshare.',
+    'rocket-mass': 'Your satellite is heavier than the rocket can carry to this orbit.',
     science: `You reached orbit, but the mission needs ${state.mission.minScience} science.`,
   };
   const best = loadBest(state.mission);
