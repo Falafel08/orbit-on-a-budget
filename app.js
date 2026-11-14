@@ -1,5 +1,6 @@
 // Oberfläche: Home, Schwierigkeit (Waben), dann drei Spalten (Teile, Rakete, Status), dann Start und Ergebnis
 import { facts } from './data/facts.js';
+import { nasaSources, otherSources } from './data/sources.js';
 import { missions, instruments, buses, panels, rockets, starship, contracts, LEVELS, CAMPAIGN_START } from './data/parts.js';
 import { settleContract, isBankrupt, cheapestMission, moduleBus } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
@@ -199,7 +200,13 @@ function openCredits() {
   const panel = $('panel');
   panel.replaceChildren(
     el('h2', {}, t('credits')),
-    ...['creditsIdea', 'creditsTeam', 'creditsCode', 'creditsData', 'creditsEvent'].map((k) => el('p', {}, t(k))),
+    ...['creditsIdea', 'creditsTeam', 'creditsCode', 'creditsEvent'].map((k) => el('p', {}, t(k))),
+    // Quellen mit Links (Jury: Validität). NASA-Daten zuerst, dann weitere Quellen, dann Spiel-Annahmen.
+    ...[['srcNasa', nasaSources], ['srcOther', otherSources]].flatMap(([head, list]) => [
+      el('h3', {}, t(head)),
+      el('ul', { class: 'sources' }, list.map((x) => el('li', {}, el('a', { href: x.url, target: '_blank', rel: 'noopener' }, x[getLang()]))))]),
+    el('h3', {}, t('srcAssumed')),
+    el('p', { class: 'hint' }, t('srcAssumedText')),
     el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
   panel.showModal();
 }
