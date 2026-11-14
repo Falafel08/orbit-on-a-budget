@@ -58,3 +58,21 @@ test('a mission over budget cannot launch', () => {
   assert.equal(r.reachedOrbit, false);
   assert.ok(r.problems.includes('budget'));
 });
+
+// Mitfluggelegenheit: kein eigenes Delta-v, nur eine Massengrenze für die Nutzlast
+test('a rideshare launch reaches orbit if the satellite is light enough', () => {
+  const ride = { cost: 0.3, rideshare: true, maxPayload: 4 };
+  const r = missionResult({
+    ...base,
+    instruments: [{ cost: 0.5, mass: 1, power: 5, science: 10 }],
+    bus: { cost: 1, mass: 2, power: 10, capacity: 2 },
+    rocket: ride,
+  });
+  assert.equal(r.reachedOrbit, true);
+});
+
+test('a rideshare launch fails if the satellite is too heavy', () => {
+  const r = missionResult({ ...base, rocket: { cost: 0.3, rideshare: true, maxPayload: 4 } });
+  assert.equal(r.reachedOrbit, false);
+  assert.ok(r.problems.includes('rideshare-mass'));
+});

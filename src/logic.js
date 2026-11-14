@@ -27,13 +27,15 @@ export function missionResult({ mission, instruments, bus, rocket }) {
   const instPower = instruments.reduce((p, i) => p + i.power, 0);
   const science = instruments.reduce((s, i) => s + i.science, 0);
   const payload = bus.mass + instMass;
-  const dv = deltaV(rocket.stages, payload);
+  // Mitfluggelegenheit: Rakete gehört anderen, es zählt nur die Massengrenze
+  const dv = rocket.rideshare ? null : deltaV(rocket.stages, payload);
 
   const problems = [];
   if (left < 0) problems.push('budget');
   if (instPower > bus.power) problems.push('power');
   if (instMass > bus.capacity) problems.push('capacity');
-  if (dv < mission.requiredDv) problems.push('delta-v');
+  if (rocket.rideshare && payload > rocket.maxPayload) problems.push('rideshare-mass');
+  if (!rocket.rideshare && dv < mission.requiredDv) problems.push('delta-v');
 
   const reachedOrbit = problems.length === 0;
   return {

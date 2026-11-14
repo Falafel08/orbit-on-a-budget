@@ -6,7 +6,8 @@ const STEPS = ['Mission', 'Instruments', 'Satellite', 'Rocket', 'Launch', 'Resul
 const state = { step: 0, mission: missions[0], instruments: [], bus: null, rocket: null, result: null };
 
 const $ = (id) => document.getElementById(id);
-const money = (m) => `$${m.toFixed(1)}M`;
+const money = (m) => (m < 1 ? `$${Math.round(m * 1000)}k` : `$${m.toFixed(1)}M`);
+const kg = (m) => (m < 10 ? `${m.toFixed(1)} kg` : `${Math.round(m)} kg`);
 
 // Kleiner Helfer für DOM-Elemente
 function el(tag, props = {}, ...children) {
@@ -44,31 +45,33 @@ function card({ title, rows, pressed, onclick }) {
     el('h2', {}, title), stats(rows));
 }
 
-function meter(label, value, max, unit) {
+function meter(label, value, max, unit, digits = 0) {
   const pct = Math.min(100, max ? (value / max) * 100 : 100);
   const fill = el('span');
   fill.style.width = `${pct}%`; // über CSSOM, erlaubt unter style-src 'self'
   return el('div', { class: 'meter' },
-    el('div', { class: 'meter-label' }, el('span', {}, label), el('span', {}, `${Math.round(value)} / ${Math.round(max)} ${unit}`)),
+    el('div', { class: 'meter-label' }, el('span', {}, label), el('span', {}, `${value.toFixed(digits)} / ${max.toFixed(digits)} ${unit}`)),
     el('div', { class: `bar${value > max ? ' over' : ''}` }, fill));
 }
 
 // Bildschirme
 const screens = [
   () => el('section', {},
-    el('h1', {}, state.mission.name),
-    el('p', { class: 'lead' }, 'Your mission for this round.'),
-    el('div', { class: 'mission' },
-      el('p', {}, state.mission.goal),
-      el('p', {}, `Budget: ${money(state.mission.budget)}`),
-      el('p', {}, 'Reach orbit and spend as little as you can. Your best score is saved.'))),
+    el('h1', {}, 'Choose your mission'),
+    el('p', { class: 'lead' }, 'Reach orbit and spend as little as you can. Your best score is saved.'),
+    el('div', { class: 'grid' }, missions.map((m) => card({
+      title: m.name,
+      rows: [['Goal', m.goal], ['Budget', money(m.budget)]],
+      pressed: state.mission === m,
+      onclick: () => { state.mission = m; render(); },
+    })))),
 
   () => el('section', {},
     el('h1', {}, 'Choose instruments'),
     el('p', { class: 'lead' }, 'Each instrument adds science. It also adds mass, power draw and cost.'),
     el('div', { class: 'grid' }, instruments.map((i) => card({
       title: i.name,
-      rows: [['Science', i.science], ['Mass', `${i.mass} kg`], ['Power', `${i.power} W`], ['Cost', money(i.cost)]],
+      rows: [['Science', i.science], ['Mass', kg(i.mass)], ['Power', `${i.power} W`], ['Cost', money(i.cost)]],
       pressed: state.instruments.includes(i),
       onclick: () => {
         state.instruments = state.instruments.includes(i)
@@ -82,23 +85,25 @@ const screens = [
     el('p', { class: 'lead' }, 'The bus carries your instruments and gives them power.'),
     el('div', { class: 'grid' }, buses.map((b) => card({
       title: b.name,
-      rows: [['Carries', `${b.capacity} kg`], ['Power', `${b.power} W`], ['Own mass', `${b.mass} kg`], ['Cost', money(b.cost)]],
+      rows: [['Carries', kg(b.capacity)], ['Power', `${b.power} W`], ['Own mass', kg(b.mass)], ['Cost', money(b.cost)]],
       pressed: state.bus === b,
       onclick: () => { state.bus = b; render(); },
     }))),
     state.bus ? el('div', { class: 'meters' },
-      meter('Instrument mass', instMass(), state.bus.capacity, 'kg'),
+      meter('Instrument mass', instMass(), state.bus.capacity, 'kg', 1),
       meter('Power draw', instPower(), state.bus.power, 'W')) : ''),
 
   () => {
     const payload = (state.bus ? state.bus.mass : 0) + instMass();
     return el('section', {},
       el('h1', {}, 'Book a rocket'),
-      el('p', { class: 'lead' }, `Your satellite weighs ${payload} kg. The rocket needs enough delta-v to reach orbit.`),
+      el('p', { class: 'lead' }, `Your satellite weighs ${kg(payload)}. A rocket needs enough delta-v to reach orbit. A rideshare only takes small CubeSats.`),
       el('div', { class: 'grid' }, rockets.map((r) => card({
         title: r.name,
-        rows: [['Delta-v with your satellite', `${Math.round(deltaV(r.stages, payload))} m/s`],
-          ['Needed', `${state.mission.requiredDv} m/s`], ['Cost', money(r.cost)]],
+        rows: r.rideshare
+          ? [['Max satellite mass', kg(r.maxPayload)], ['Your satellite', kg(payload)], ['Cost', money(r.cost)]]
+          : [['Delta-v with your satellite', `${Math.round(deltaV(r.stages, payload))} m/s`],
+            ['Needed', `${state.mission.requiredDv} m/s`], ['Cost', money(r.cost)]],
         pressed: state.rocket === r,
         onclick: () => { state.rocket = r; render(); },
       }))));
@@ -118,6 +123,7 @@ const screens = [
       power: 'Your instruments need more power than the bus gives.',
       capacity: 'Your instruments are too heavy for the bus.',
       'delta-v': 'The rocket does not have enough delta-v for this satellite.',
+      'rideshare-mass': 'Your satellite is too heavy for a CubeSat rideshare.',
     };
     return el('section', { class: 'result' },
       el('p', { class: `big ${r.reachedOrbit ? 'ok' : 'fail'}` }, r.reachedOrbit ? 'Orbit reached' : 'Mission failed'),
