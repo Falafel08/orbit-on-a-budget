@@ -236,6 +236,84 @@ const catalogs = [
     ...(r.claim ? [[t('dataSource'), t('spacexClaim')]] : [])], picked: (r) => !!state.rocket && state.rocket.id === r.id },
 ];
 
+// Bilder auf den Karten (Linus 14.11.): jedes Teil räumlich gezeichnet wie die Raketen, dreht sich langsam.
+// Kleine Iso-Helfer mit Maßstab 22 px pro Einheit, Ursprung in der Bildmitte.
+const pIso = (x, y) => [(x - y) * 22, (x + y) * 11];
+function pBox(cx, cy, w, d, h, [top, left, right], lines = 0) {
+  const g = svg('g');
+  const at = (x, y) => { const [a, b] = pIso(x, y); return [a + cx, b + cy]; };
+  const a = at(-w / 2, -d / 2), b = at(w / 2, -d / 2), c = at(w / 2, d / 2), e = at(-w / 2, d / 2);
+  const up = ([x, y], k = h) => [x, y - k];
+  g.append(svg('polygon', { points: pts([e, c, up(c), up(e)]), fill: left }));
+  g.append(svg('polygon', { points: pts([c, b, up(b), up(c)]), fill: right }));
+  g.append(svg('polygon', { points: pts([up(a), up(b), up(c), up(e)]), fill: top }));
+  // Fugen zwischen CubeSat-Einheiten oder Falten der Folie
+  for (let i = 1; i < lines; i++) {
+    const k = (h * i) / lines;
+    g.append(svg('path', { d: `M${up(e, k).join(' ')} L${up(c, k).join(' ')} L${up(b, k).join(' ')}`, stroke: 'rgba(0,0,0,0.35)', 'stroke-width': 0.8, fill: 'none' }));
+  }
+  return g;
+}
+
+// Solarflügel als schräge Fläche entlang der x-Richtung, mit Zellen
+function pWing(cx, cy, x0, len, y0, y1) {
+  const g = svg('g');
+  const at = (x) => { const [a, b] = pIso(x, 0); return [a + cx, b + cy]; };
+  const p0 = at(x0), p1 = at(x0 + len);
+  g.append(svg('polygon', { points: pts([[p0[0], p0[1] - y0], [p1[0], p1[1] - y0], [p1[0], p1[1] - y1], [p0[0], p0[1] - y1]]), fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.8 }));
+  const cells = Math.max(2, Math.round(Math.abs(len) * 3));
+  for (let i = 1; i < cells; i++) {
+    const q = at(x0 + (len * i) / cells);
+    g.append(svg('line', { x1: q[0], y1: q[1] - y0, x2: q[0], y2: q[1] - y1, stroke: '#9fb3e8', 'stroke-width': 0.5 }));
+  }
+  const m0 = (y0 + y1) / 2;
+  g.append(svg('line', { x1: p0[0], y1: p0[1] - m0, x2: p1[0], y2: p1[1] - m0, stroke: '#9fb3e8', 'stroke-width': 0.5 }));
+  return g;
+}
+
+const GOLD = ['#e8cc7a', '#9a7a30', '#b8963e'];
+const ALU = ['#e4ded4', '#8a857c', '#b8b0a4'];
+const CELL = ['#3d5196', '#1f2b52', '#2b3a6b'];
+
+function partPicture(kind, item) {
+  const s = svg('svg', { viewBox: '-55 -58 110 98', class: 'part-pic', 'aria-hidden': 'true' });
+  s.append(svg('ellipse', { cx: 0, cy: 34, rx: 34, ry: 8, fill: 'rgba(0,0,0,0.35)' })); // Schatten
+  const id = item.id;
+  if (kind === 'bus') {
+    if (id.startsWith('cube-')) {
+      const n = parseInt(id.slice(5), 10);                         // 1, 3, 6, 12 Einheiten
+      const [w, d, h, lines] = { 1: [0.8, 0.8, 22, 1], 3: [0.8, 0.8, 54, 3], 6: [1.5, 0.8, 54, 3], 12: [1.5, 1.5, 54, 3] }[n];
+      s.append(pBox(0, 30, w, d, h, ALU, lines));
+    } else {
+      const k = { 'bus-s': 0.8, 'bus-m': 1.1, 'bus-l': 1.45 }[id] || 1;
+      s.append(pBox(0, 30, k * 1.2, k * 1.2, k * 36, GOLD, 3));
+      if (id !== 'bus-s') {                                        // Antenne auf größeren Bussen
+        const top = 30 - k * 36;
+        s.append(svg('line', { x1: 0, y1: top, x2: 0, y2: top - 10, stroke: '#d9d2c7', 'stroke-width': 1.5 }));
+        s.append(svg('path', { d: `M-9 ${top - 14} Q0 ${top - 4} 9 ${top - 14} Z`, fill: '#F5EFE6' }));
+      }
+    }
+  } else if (kind === 'panel') {
+    if (id === 'panel-body') {
+      s.append(pBox(0, 30, 0.9, 0.9, 30, CELL, 0));               // Zellen direkt auf dem Gehäuse
+    } else {
+      const cube = id === 'panel-deploy';
+      const bw = cube ? 0.6 : 0.8, bh = cube ? 26 : 30;
+      const len = { 'panel-deploy': 0.9, 'panel-s': 1.3, 'panel-m': 1.3, 'panel-l': 1.9 }[id];
+      const two = id !== 'panel-s';
+      const y0 = bh * 0.25, y1 = bh * (id === 'panel-l' ? 0.95 : 0.8);
+      if (two) s.append(pWing(0, 30, -bw / 2, -len, y0, y1));       // hinterer Flügel zuerst
+      s.append(pBox(0, 30, bw, bw, bh, cube ? ALU : GOLD, cube ? 1 : 2));
+      s.append(pWing(0, 30, bw / 2, len, y0, y1));
+    }
+  } else {
+    const g = svg('g', { transform: 'translate(0 30) scale(52)' });
+    for (const p of instrumentShape(id)) g.append(p);
+    s.append(g);
+  }
+  return s;
+}
+
 function card(cat, item) {
   const node = el('div', {
     class: 'card', role: 'button', tabindex: '0', draggable: 'true', 'aria-pressed': String(cat.picked(item)),
@@ -245,8 +323,11 @@ function card(cat, item) {
     ondragstart: (e) => { e.dataTransfer.setData('text/plain', `${cat.kind}:${item.id}`); node.classList.add('dragging'); },
     ondragend: () => node.classList.remove('dragging'),
   },
-  el('h2', {}, el('span', {}, tr(item, 'name')), el('span', { class: 'price' }, money(item.cost))),
-  el('dl', {}, cat.rows(item).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])));
+  partPicture(cat.kind, item),
+  el('div', { class: 'card-body' },
+    el('h2', {}, el('span', {}, tr(item, 'name')), el('span', { class: 'price' }, money(item.cost))),
+    el('dl', {}, cat.rows(item).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))]))));
+  node.classList.add('with-pic');
   return node;
 }
 

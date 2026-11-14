@@ -401,3 +401,10 @@ button, [role="button"] { cursor: url("assets/cursor.svg") 3 3, pointer; }
 .level { font: inherit; font-size: 0.85rem; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--linie); background: var(--karte); color: var(--text); }
 .level.on { background: var(--akzent); border-color: var(--akzent); color: #fff; }
 .level:disabled { opacity: 0.45; }
+
+/* Teile-Karten mit Bild, das sich langsam dreht (Linus 14.11.) */
+.card.with-pic { display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+.part-pic { width: 76px; height: 70px; animation: turn 7s ease-in-out infinite; transform-origin: 50% 60%; }
+.card:nth-child(2n) .part-pic { animation-delay: -3.5s; }
+@keyframes turn { 0%, 100% { transform: perspective(240px) rotateY(-22deg); } 50% { transform: perspective(240px) rotateY(22deg); } }
+@media (prefers-reduced-motion: reduce) { .part-pic { animation: none; } }
