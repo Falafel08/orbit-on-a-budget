@@ -625,3 +625,10 @@ button.primary.action { flex: none; min-width: 280px; min-height: 56px; padding:
 .fact-source { color: var(--akzent-text); font-size: 0.85rem; }
 .panel .dots { margin-top: 12px; }
 .panel:has(.facts-view) { width: min(680px, 92vw); max-width: 680px; }
+
+/* 15.11. (Linus): Hauptknopf unten rechts in der Ecke der Mitte, Rakete rückt hoch, damit nichts scrollt */
+.action-bar { position: fixed; right: calc(280px + 24px); bottom: 24px; width: auto; z-index: 2; }
+.action-bar button.primary.action { min-width: 220px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 4px 0 #3f3159, 0 12px 28px rgba(0,0,0,0.55); }
+.slot.mid .rocket-pic, .slot.mid .tower-pic, .slot.mid .tower-front { height: max(240px, calc(100vh - 460px)); } /* Rest der Mitte (Zahlen, Versicherung, Platz für den Knopf) braucht etwa 460 px */
+.slot.side .rocket-pic { height: max(160px, calc((100vh - 460px) * 0.66)); }
+.carousel { gap: 10px; padding-bottom: 80px; } /* unten Platz, damit der Knopf die Versicherung nicht verdeckt */
