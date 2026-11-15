@@ -387,7 +387,7 @@ function openInfo(item) {
   panel.replaceChildren(
     el('h2', { id: 'panel-title' }, tr(item, 'name')),
     el('p', {}, tr(item, 'info') || ''),
-    item.verified === false ? el('p', { class: 'hint' }, t('assumedValues')) : item.verified === 'mass' ? el('p', { class: 'hint' }, t('massFromNasa')) : '',
+    item.verified === false ? el('p', { class: 'hint' }, t('assumedValues')) : item.verified === 'mass' ? el('p', { class: 'hint' }, t('massFromNasa')) : item.verified === 'cubesat' ? el('p', { class: 'hint' }, t('massCubesat')) : '',
     el('div', { class: 'actions' }, el('button', { type: 'button', onclick: () => panel.close() }, t('close'))));
   panel.showModal();
 }
@@ -960,7 +960,7 @@ function meter(label, value, max, text, atLeast = false, ic = null) {
 // Info rechts (Linus und Freund 15.11.: Hover statt ?-Knöpfe): Name, Text, Herkunft der Zahlen. Leuchtet kurz auf.
 function infoContent(item) {
   if (!item) return [el('span', { class: 'info-head' }, icon('info'), t('infoTitle')), el('p', {}, t('pointAt'))];
-  const origin = item.verified === false ? t('assumedValues') : item.verified === 'mass' ? t('massFromNasa') : item.claim ? t('spacexClaim') : '';
+  const origin = item.verified === false ? t('assumedValues') : item.verified === 'mass' ? t('massFromNasa') : item.verified === 'cubesat' ? t('massCubesat') : item.claim ? t('spacexClaim') : '';
   return [el('span', { class: 'info-head' }, icon('info'), tr(item, 'name')), el('p', {}, tr(item, 'info') || ''), origin ? el('p', { class: 'hint' }, origin) : ''];
 }
 function showInfo(item) {
@@ -2168,7 +2168,9 @@ function render() {
   const m = state.mission;
   $('mission-label').textContent = m.contract ? `${t('level')} ${m.contract.level}: ${tr(m, 'name')}` : `${t(`lvl${m.level}`)}: ${tr(m, 'name')}`;
   const left = budgetLeft(m.budget, chosen());
-  setHud(m.free ? t('noLimit') : money(left), !m.free && left < 0); // im Bau: Geld nach den gewählten Teilen
+  // im Bau: Geld nach den gewählten Teilen; im Ergebnis: Firmengeld nach der Abrechnung (Prüfbericht H1)
+  if (state.phase === 'result' && m.contract) setHud(money(company.cash), company.cash < 0);
+  else setHud(m.free ? t('noLimit') : money(left), !m.free && left < 0);
 
   if (state.phase === 'build') {
     // Fokus in der Mitte merken und nach dem Neuzeichnen zurückgeben (Tastatur-Nutzer)

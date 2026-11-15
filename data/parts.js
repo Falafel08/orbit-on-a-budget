@@ -53,13 +53,13 @@ export const instruments = [
 const U = 1.33;
 const BUS_INFO = 'The body of the satellite. It holds the instruments and gives them power, a radio and a computer.';
 export const buses = [
-  { id: 'cube-1u', name: '1U CubeSat', mass: U / 2, capacity: U / 2, power: 0, cost: 0.05, verified: 'mass',
+  { id: 'cube-1u', name: '1U CubeSat', mass: U / 2, capacity: U / 2, power: 0, cost: 0.05, verified: 'cubesat',
     info: 'A 10 cm cube. ' + BUS_INFO },
-  { id: 'cube-3u', name: '3U CubeSat', mass: 3 * U / 2, capacity: 3 * U / 2, power: 0, cost: 0.15, verified: 'mass',
+  { id: 'cube-3u', name: '3U CubeSat', mass: 3 * U / 2, capacity: 3 * U / 2, power: 0, cost: 0.15, verified: 'cubesat',
     info: 'Three 10 cm cubes in a row. ' + BUS_INFO },
-  { id: 'cube-6u', name: '6U CubeSat', mass: 6 * U / 2, capacity: 6 * U / 2, power: 0, cost: 0.4, verified: 'mass',
+  { id: 'cube-6u', name: '6U CubeSat', mass: 6 * U / 2, capacity: 6 * U / 2, power: 0, cost: 0.4, verified: 'cubesat',
     info: 'Six 10 cm cubes. ' + BUS_INFO },
-  { id: 'cube-12u', name: '12U CubeSat', mass: 12 * U / 2, capacity: 12 * U / 2, power: 0, cost: 0.9, verified: 'mass',
+  { id: 'cube-12u', name: '12U CubeSat', mass: 12 * U / 2, capacity: 12 * U / 2, power: 0, cost: 0.9, verified: 'cubesat',
     info: 'Twelve 10 cm cubes. ' + BUS_INFO },
   // Masse und Nutzlast nach echten Bussen im NASA-Katalog RSDO Rapid IV (Datenblätter Ball BCP Small, BCP Large).
   // Klein: Bus 114 kg, Nutzlast 44 kg. Mittel: Bus 170 kg, Nutzlast 170 kg. Groß: 2.190 kg minus 610 kg Nutzlast = 1.580 kg, Nutzlast 610 kg.
