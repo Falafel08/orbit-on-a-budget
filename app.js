@@ -1911,15 +1911,15 @@ function renderStationPlanner() {
   }
   const st = company.station;
   if (!st.modules.length) state.flight = { kind: 'module', type: 'core', x: 2, y: 2 }; // erster Flug: der Kern
-  if (!state.flight) state.flight = { kind: 'module', type: 'lab' };
+  if (!state.flight) { const k = BUILDABLE.find((x) => freeSlots(st, x).length); state.flight = k ? { kind: 'module', type: k } : { kind: 'supplies', kg: 250 }; }
   const f = state.flight, v = stationStats(st);
   const setF = (nf) => { state.flight = nf; render(); };
   const tab = (k) => el('button', { type: 'button', class: f.kind === k ? 'tab on' : 'tab', 'aria-pressed': String(f.kind === k), disabled: st.modules.length ? null : '',
-    onclick: () => setF(k === 'module' ? { kind: 'module', type: 'lab' } : k === 'supplies' ? { kind: 'supplies', kg: Math.min(500, Math.max(100, v.storage - st.supplies)) } : k === 'crew' ? { kind: 'crew', crew: 1 } : { kind: 'robot', robot: 'canadarm' }) }, t(`stKind_${k}`));
+    onclick: () => setF(k === 'module' ? { kind: 'module', type: BUILDABLE.find((x) => freeSlots(st, x).length) || 'lab' } : k === 'supplies' ? { kind: 'supplies', kg: Math.min(500, Math.max(100, v.storage - st.supplies)) } : k === 'crew' ? { kind: 'crew', crew: 1 } : { kind: 'robot', robot: 'canadarm' }) }, t(`stKind_${k}`));
   const choice = (on, label, meta, pick, info) => el('button', { type: 'button', class: on ? 'st-choice on' : 'st-choice', 'aria-pressed': String(on), onclick: pick,
     onmouseenter: info ? () => showInfo(info) : null }, el('strong', {}, label), el('span', { class: 'side-meta' }, meta));
   let options = '';
-  if (f.kind === 'module' && st.modules.length) options = el('div', { class: 'st-choices' }, BUILDABLE.map((k) => { const m = MODULES[k];
+  if (f.kind === 'module' && st.modules.length) options = el('div', { class: 'st-choices' }, BUILDABLE.filter((k) => freeSlots(st, k).length).map((k) => { const m = MODULES[k];
     return choice(f.type === k, tr(m, 'name'), `${money(m.cost)} · ${kg(m.mass)} · ${m.power > 0 ? '+' : ''}${m.power} kW`, () => setF({ kind: 'module', type: k }), { name: tr(m, 'name'), info: tr(m, 'info') }); }));
   if (f.kind === 'supplies') options = el('div', { class: 'st-choices' }, [100, 250, 500, 1000, 2000].map((n) =>
     choice(f.kg === n, kg(n), `${money(payloadOf({ kind: 'supplies', kg: n }).cost)}`, () => setF({ kind: 'supplies', kg: n }))));
@@ -1930,21 +1930,68 @@ function renderStationPlanner() {
       { name: tr(r, 'name'), info: `${tr(r, 'info')} (${r.source})` })));
   // Prüfen ohne Rakete (die Sicherheitsgrenzen prüft der Bau-Schritt mit der gewählten Rakete)
   const needsCell = f.kind === 'module';
-  const check = needsCell && f.x === undefined ? { ok: false, reason: null } : flightCheck(st, f, { reliability: 1 });
+  const noSlot = needsCell && f.x === undefined && st.modules.length && !freeSlots(st, f.type).some((sl) => canPlace(st, sl.x, sl.y, f.type).ok);
+  const check = needsCell && f.x === undefined ? { ok: false, reason: noSlot ? 'noPort' : null } : flightCheck(st, f, { reliability: 1 });
   const fee = stationFee(f);
   const robot = f.kind === 'robot' && ROBOTS.find((r) => r.id === f.robot);
   const info = f.kind === 'crew' ? t('stCapsule') : f.kind === 'supplies' ? t('stFoodInfo') : robot ? `${tr(robot, 'info')} (${robot.source})`
-    : !st.modules.length ? t('stCoreHint') : `${tr(MODULES[f.type], 'info')} ${t('stPickCell')}`;
+    : !st.modules.length ? t('stCoreHint') : `${tr(MODULES[f.type], 'info')} ${t('stPickSlot')}`;
   const goRocket = () => { if (check.ok) startMission(contractMission(c)); };
   return el('section', { class: 'station-plan enter' },
     el('div', { class: 'st-left' }, el('h1', {}, st.name), stationChips(st),
       el('div', { class: 'st-tabs', role: 'group' }, ['module', 'supplies', 'crew', 'robot'].map(tab)),
       options, info ? infobox(info, f.kind === 'crew' ? 'sat' : 'info') : '',
       el('p', { class: 'hint' }, st.crew ? t('stRound', { kg: kg(foodPerRound(st.crew)) }) : t('stRoundEmpty'))),
-    el('div', { class: 'st-right' }, station3dBox(st, needsCell ? { ...f, check: (x, y) => canPlace(st, x, y, f.type).ok } : null), stationGridSvg(st, needsCell ? f : null),
+    el('div', { class: 'st-right' }, stationOutlineSvg(st, needsCell ? f : null), // 3D erst nach dem Flug (weniger pro Bildschirm)
       el('p', { class: check.ok || !check.reason ? 'hint' : 'launch-warn' }, check.reason ? `⚠ ${t(`st_${check.reason}`)}` : fee ? t('stFee', { c: money(fee) }) : t('stNoFee')),
       el('button', { class: check.ok ? 'primary go' : 'primary', type: 'button', disabled: check.ok ? null : '', onclick: goRocket }, icon('rocket'), el('span', {}, t('stToRocket')))));
 }
+
+
+// Umriss der Station mit festen Plätzen (Linus 15.11.: lieber Umriss als Raster). Jeder Platz entspricht einem Rasterfeld,
+// die Anschlussregeln aus src/station.js gelten weiter. bx/by = Mitte im Bild, w/h = Größe des Platzes.
+const SLOTS = [
+  { x: 2, y: 2, type: 'core', bx: 0, by: 40, w: 84, h: 40 },
+  { x: 1, y: 2, type: 'habitat', bx: -88, by: 40, w: 76, h: 34 },
+  { x: 3, y: 2, type: 'lab', bx: 88, by: 40, w: 76, h: 34 },
+  { x: 4, y: 2, type: 'storage', bx: 166, by: 40, w: 60, h: 30 },
+  { x: 0, y: 2, type: 'solar', bx: -190, by: 40, w: 90, h: 150 },
+  { x: 2, y: 1, type: 'node', bx: 0, by: -22, w: 40, h: 40 },
+  { x: 2, y: 0, type: 'solar', bx: 0, by: -90, w: 170, h: 46 },
+];
+function stationOutlineSvg(st, pick = null) {
+  const s = svg('svg', { viewBox: '-270 -130 540 300', class: 'station-outline', role: 'group', 'aria-label': st.name });
+  starsInto(s, 40);
+  const at = (x, y) => st.modules.find((m) => m.x === x && m.y === y);
+  s.append(svg('rect', { x: -235, y: 37, width: 430, height: 6, fill: at(0, 2) ? '#8a8f96' : 'rgba(245,239,230,0.25)' })); // Träger
+  for (const sl of SLOTS) {
+    const built = !!at(sl.x, sl.y), left = sl.bx - sl.w / 2, top = sl.by - sl.h / 2;
+    const g = svg('g');
+    if (sl.type === 'solar') {
+      const vertical = sl.h > sl.w, panel = { fill: built ? grad(s, 'linearGradient', [['0', '#3d5196'], ['1', '#1f2b52']]) : 'none', stroke: built ? '#9fb3e8' : 'rgba(245,239,230,0.4)', 'stroke-dasharray': built ? null : '4 3' };
+      if (vertical) for (const dx of [-24, 24]) g.append(svg('rect', { x: sl.bx + dx - 18, y: top, width: 36, height: sl.h, ...panel }));
+      else for (const dx of [-45, 45]) g.append(svg('rect', { x: sl.bx + dx - 38, y: top, width: 76, height: sl.h, ...panel }));
+    } else if (sl.type === 'node') {
+      g.append(svg('circle', { cx: sl.bx, cy: sl.by, r: sl.w / 2, fill: built ? grad(s, 'radialGradient', [['0', '#e9e4dc'], ['1', '#8a8f96']], { cx: '0.35', cy: '0.35' }) : 'none', stroke: built ? 'none' : 'rgba(245,239,230,0.45)', 'stroke-dasharray': '4 3' }));
+    } else {
+      const c = { core: ['#f5efe6', '#a9a49b'], habitat: ['#f1e3b8', '#a68f52'], lab: ['#e3f1f4', '#7fa9b0'], storage: ['#d9c3a0', '#8a7552'] }[sl.type];
+      g.append(cylinder(s, left, sl.by, sl.w, sl.h / 2, c[0], c[1], built));
+    }
+    g.append(svg('title', {}, tr(MODULES[sl.type], 'name')));
+    s.append(g);
+    if (!built && pick && pick.type === sl.type) { // passender Platz: grün mit Anschluss, rot ohne
+      const ok = canPlace(st, sl.x, sl.y, sl.type).ok, chosen = pick.x === sl.x && pick.y === sl.y;
+      const hl = svg('rect', { x: left - 6, y: top - 6, width: sl.w + 12, height: sl.h + 12, rx: 10, class: `st-slot${ok ? ' ok' : ' bad'}${chosen ? ' chosen' : ''}`,
+        tabindex: ok ? '0' : null, role: ok ? 'button' : null, 'aria-label': `${tr(MODULES[sl.type], 'name')}${ok ? '' : ` – ${t('st_noPort')}`}` });
+      if (ok) { const choose = () => { state.flight = { ...state.flight, x: sl.x, y: sl.y }; render(); }; hl.addEventListener('click', choose); hl.addEventListener('keydown', press(choose)); }
+      s.append(hl);
+    }
+  }
+  for (let i = 0; i < (st.crew || 0); i++) s.append(svg('circle', { cx: -14 + i * 14, cy: 10, r: 4, fill: '#F5EFE6' })); // Crew
+  return s;
+}
+// Freie Plätze für einen Modultyp im Umriss
+const freeSlots = (st, type) => SLOTS.filter((sl) => sl.type === type && !st.modules.some((m) => m.x === sl.x && m.y === sl.y));
 
 // Ergebnis eines Stationsflugs: was die Runde gebracht hat
 function stationRoundBox(r) {

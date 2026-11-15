@@ -935,3 +935,12 @@ body[data-drag] .zone-side { opacity: 0.6; }
 .st-3d canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
 .st-3d + .station-grid { width: min(100%, 200px); }
 .station-round .st-3d { height: 260px; width: min(100%, 520px); }
+.station-outline { width: 100%; max-width: 680px; height: auto; background: radial-gradient(ellipse at 50% 140%, #14304f 0%, #0B0A12 65%); border-radius: 14px; }
+.st-slot { fill: rgba(76, 175, 106, 0.08); stroke-width: 2.5; stroke-dasharray: 6 4; }
+.st-slot.ok { stroke: #4CAF6A; cursor: pointer; animation: slot-glow 1.6s ease-in-out infinite; }
+.st-slot.ok:hover, .st-slot.ok:focus { fill: rgba(76, 175, 106, 0.3); outline: none; }
+.st-slot.bad { stroke: #E0605A; fill: rgba(224, 96, 90, 0.12); }
+.st-slot.chosen { fill: rgba(76, 175, 106, 0.4); stroke-dasharray: none; animation: none; }
+@keyframes slot-glow { 50% { fill: rgba(76, 175, 106, 0.22); } }
+@media (prefers-reduced-motion: reduce) { .st-slot.ok { animation: none; } }
+.station-plan .st-right .st-3d { height: 220px; }
