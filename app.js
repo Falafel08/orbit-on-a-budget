@@ -2416,6 +2416,14 @@ function render() {
   const stage = $('stage');
   stage.classList.toggle('full', ['result', 'research', 'company', 'station'].includes(state.phase));
   stage.classList.toggle('launching', state.phase === 'launch');
+  // 3D-Welt des Levels als Hintergrund (Linus 15.11.: alles im Stil der Landschaft). Basis zeigt sie selbst, der Start hat eigene Bilder.
+  const ambient = hasWebGL() && !['company', 'launch'].includes(state.phase);
+  document.body.classList.toggle('ambient-3d', ambient);
+  if (ambient) {
+    const lvl = state.phase === 'station' ? 2 : state.phase === 'research' ? (state.researchView || reachedLevel())
+      : state.mission && state.mission.contract ? state.mission.contract.level : 1;
+    queueMicrotask(() => showWorld($('world-bg'), { level: lvl, station: company.station, widgets: [], ambient: true }));
+  }
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');
     setHudCash(company.cash, company.over);

@@ -215,7 +215,8 @@ function frame(t) {
   if (!W.renderer.domElement.isConnected) { W.loop = 0; return; }
   const box = W.renderer.domElement.parentElement, w = box.clientWidth, h = box.clientHeight;
   if (W.w !== w || W.h !== h) { W.renderer.setSize(w, h, false); W.camera.aspect = w / Math.max(1, h); W.camera.updateProjectionMatrix(); W.w = w; W.h = h; }
-  if (W.flying) { W.controls.enabled = false; if (!W.flying.step(t)) { W.flying = null; W.controls.enabled = true; } W.camera.lookAt(0, 0, 0); }
+  if (W.ambient && !W.flying) { W.ambientAngle = (W.ambientAngle || 0.85) + (reduced() ? 0 : 0.0006); W.camera.position.copy(orbitPos(W.info, W.ambientAngle, 1.7)); W.camera.position.y *= 0.55; W.camera.lookAt(0, 0, 0); }
+  else if (W.flying) { W.controls.enabled = false; if (!W.flying.step(t)) { W.flying = null; W.controls.enabled = true; } W.camera.lookAt(0, 0, 0); }
   else W.controls.update();
   for (const a of W.anims) a(t);
   W.renderer.render(W.scene, W.camera);
@@ -250,6 +251,7 @@ export async function showWorld(container, opts) {
   const fade = Object.assign(document.createElement('div'), { className: 'world-fade' });
   container.replaceChildren(w.renderer.domElement, fade, ...opts.widgets.map((x) => x.el));
   w.onBuilding = opts.onBuilding;
+  w.ambient = !!opts.ambient; w.controls.enabled = !opts.ambient;
   const key = `${opts.level}|${opts.station ? opts.station.modules.length + ':' + opts.station.crew : ''}`;
   const attach = (built) => {
     w.scene = built.scene; w.anims = built.anims; w.info = built; w.key = key;
