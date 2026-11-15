@@ -899,3 +899,4 @@ html.big-text .fact-label { font-size: 13px; }
 #left .card.side-job strong { display: block; font-size: 0.84rem; line-height: 1.2; }
 .side-meta { font-size: 0.76rem; color: var(--nebentext); }
 #left .card.side-job strong { overflow-wrap: anywhere; }
+body[data-drag] .zone-side { opacity: 0.6; }

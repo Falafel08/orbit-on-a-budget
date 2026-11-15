@@ -641,6 +641,21 @@ function payloadIn(g, cx, bottom, maxW, maxH) {
     chip.addEventListener('keydown', press(() => choose('instrument', inst)));
     zi.append(chip);
   }
+  // Nebenaufträge: kleine Satelliten anderer Kunden über den Instrumenten (Größe nach Masse)
+  const riders = sideJobs.filter((j) => (state.side || []).includes(j.id));
+  if (riders.length) {
+    const zs = zone('zone-side');
+    const rowsUsed = Math.ceil(places / 3), sy = top - 2 - rowsUsed * (size + 1);
+    const ws = riders.map((j) => 4 + Math.log10(j.mass) * 2.4), total = ws.reduce((a, b) => a + b, 0) + (ws.length - 1) * 1.5;
+    let x = cx - total / 2;
+    riders.forEach((j, k) => {
+      const w = ws[k], h = w * 0.7;
+      zs.append(svg('rect', { x, y: sy - h, width: w, height: h, rx: 0.8, fill: '#cfd4da', stroke: '#8a9098', 'stroke-width': 0.3 }));
+      zs.append(svg('rect', { x: x + w * 0.15, y: sy - h * 0.62, width: w * 0.7, height: h * 0.24, fill: '#2b3a6b' })); // Solarzellen
+      zs.append(svg('title', {}, tr(j, 'name')));
+      x += w + 1.5;
+    });
+  }
 }
 
 // Startturm wie bei SpaceX (Linus und Freund 14.11.): massiver Gitterturm, schräg gesehen (Vorder- und Seitenfläche),
@@ -903,7 +918,7 @@ function renderLeft() {
       el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
     ...(state.build === 1 && sideOffered().length ? [
       el('h3', { class: 'group' }, t('groupSide')),
-      el('div', { class: 'catalog' }, sideOffered().map((j) => el('div', {
+      el('div', { class: 'catalog side-catalog' }, sideOffered().map((j) => el('div', {
         class: 'card side-job', role: 'button', tabindex: '0', 'aria-pressed': String(state.side.includes(j.id)),
         onclick: () => toggleSide(j), onkeydown: press(() => toggleSide(j)),
         onmouseenter: () => showInfo({ name: tr(j, 'name'), info: t('sideInfo', { kg: kg(j.mass), c: money(j.fee) }) }),
@@ -2017,6 +2032,7 @@ const TUT = [
   { sel: '#left', key: 'tut2', done: () => state.instruments.length > 0 || state.build > 0 },
   { sel: '#next', key: 'tut3', done: () => state.build > 0 },
   { sel: '#left', key: 'tut4', done: () => !!state.bus && (!!state.panel || state.bus.power > 0) },
+  { sel: '.side-catalog', key: 'tutSide', next: true }, // fehlt der Bereich (Mond, Mars), wird der Schritt übersprungen
   { sel: '.carousel-stage', key: 'tut5', next: true },
   { sel: '.insure', key: 'tut6', next: true },
   { sel: '#next', key: 'tut7', done: () => state.phase !== 'build' },
