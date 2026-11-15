@@ -1380,12 +1380,18 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
 
     ctx.clearRect(0, 0, W, H); fctx.clearRect(0, 0, W, H);
     // dunkler Himmel blendet während des Countdowns ein: kein harter Bildwechsel, aber dichter (Josias 14.11.)
-    const skyA = 0.94 * ease(clamp((tc + intro) / 2200));
+    const skyA = 0.8 * ease(clamp((tc + intro) / 2200));
     if (skyA > 0) {
       const sg = ctx.createLinearGradient(0, 0, 0, H);
       sg.addColorStop(0, `rgba(5,4,10,${skyA})`); sg.addColorStop(0.8, `rgba(16,20,38,${skyA})`); sg.addColorStop(1, `rgba(30,36,60,${skyA})`);
       ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
       for (const [x, y, b] of stars) if (cam === 0) { ctx.fillStyle = `rgba(245,239,230,${(0.2 + b * 0.5) * skyA})`; ctx.fillRect(x, y, 1.4, 1.4); }
+    }
+    if (cam < H) { // Boden unter der Startrampe, zieht beim Abheben nach unten weg (Spielgefühl: kein Schweben im Nichts)
+      const gy = H - 14 + cam * 0.8, gg = ctx.createLinearGradient(0, gy, 0, gy + 60);
+      gg.addColorStop(0, '#4a4640'); gg.addColorStop(0.15, '#2e2b27'); gg.addColorStop(1, '#141210');
+      ctx.fillStyle = gg; ctx.fillRect(0, gy, W, 80);
+      ctx.fillStyle = 'rgba(232,197,71,0.5)'; for (let x = 0; x < W; x += 46) ctx.fillRect(x, gy + 3, 22, 2); // Markierung am Rand der Rampe
     }
     if (cam > 0) for (const [x, y, b] of stars) {                     // Sterne ziehen vorbei, schräg zur Neigung
       ctx.fillStyle = `rgba(245,239,230,${0.25 + b * 0.6})`;
@@ -1845,7 +1851,7 @@ function renderCompany() {
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
       row('antenna', t('bldgControl'), c && c.level === view ? (c.station ? `${company.station ? company.station.name : tr(c, 'client')}: ${tr(c, 'goal')}` : `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.`) : t('levelDone'), ''),
       row('flask', t('bldgLab'), t('labRowText'), el('button', { class: need ? 'primary small go' : 'primary small', type: 'button', onclick: toLab }, icon('flask'), el('span', {}, t('openLab')))),
-      row(firstHall ? 'hangar' : 'rocket', t(firstHall ? 'bldgHall' : view === 2 ? 'bldgDock' : 'bldgLanding'), t('hallText'),
+      row(firstHall ? 'hangar' : 'rocket', t(firstHall ? 'bldgHall' : view === 2 ? 'bldgDock' : 'bldgLanding'), view === 2 ? t('stHallText') : t('hallText'),
         el('button', { class: canFly ? 'primary small go' : 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild },
           icon('rocket'), el('span', {}, need ? t('researchFirst', { x: t(need.name) }) : c && c.station && c.level === view ? t('stPlan') : t('toHall')))),
       el('ol', { class: 'contracts' }, inLevel.map((x) => {
@@ -2187,7 +2193,7 @@ function renderResult() {
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
     r.success && r.minCost && Number.isFinite(r.minCost) ? el('div', { class: 'stars-box' },
-      el('p', { class: 'stars', 'aria-label': t('starsLabel', { n: stars(r) }) }, '★'.repeat(stars(r)) + '☆'.repeat(3 - stars(r))),
+      el('p', { class: 'stars', 'aria-label': t('starsLabel', { n: stars(r) }) }, ...[0, 1, 2].map((i) => el('span', { class: i < stars(r) ? 'star-on' : 'star-off', 'aria-hidden': 'true' }, i < stars(r) ? '★' : '☆'))), // Sterne ploppen nacheinander auf
       el('p', { class: 'hint' }, t('cheapestWay', { c: money(r.minCost) }))) : '',
     r.round ? stationRoundBox(r) : '',
     r.success && state.mission.contract ? el('p', { class: 'why' }, icon('star'), el('span', {}, el('strong', {}, t('whyTitle')), ' ', t(`why_${whyKind(state.mission.contract)}`), ' '),
@@ -2337,7 +2343,13 @@ function hud(moneyText, low = false) {
 }
 const setHud = (moneyText, low) => $('budget').replaceChildren(...hud(moneyText, low));
 
+let lastPhase = null; // weicher Übergang, wenn der Bildschirm wechselt (Spielgefühl: keine harten Schnitte)
 function render() {
+  if (state.phase !== lastPhase) {
+    const c = document.getElementById('center');
+    if (c && lastPhase !== null) { c.classList.remove('phase-in'); void c.offsetWidth; c.classList.add('phase-in'); }
+    lastPhase = state.phase;
+  }
   queueMicrotask(tutorial); // Einführung nach dem Neuzeichnen an die neuen Stellen setzen
   setTimeout(tutorial, 520); // und noch einmal, wenn die Seitenleisten fertig hereingeglitten sind
   const inMenu = state.phase === 'home' || state.phase === 'start';

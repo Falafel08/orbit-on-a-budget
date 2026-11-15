@@ -944,3 +944,36 @@ body[data-drag] .zone-side { opacity: 0.6; }
 @keyframes slot-glow { 50% { fill: rgba(76, 175, 106, 0.22); } }
 @media (prefers-reduced-motion: reduce) { .st-slot.ok { animation: none; } }
 .station-plan .st-right .st-3d { height: 220px; }
+
+/* Spielgefühl (Prüfung 15.11. abends): Weltraum hinter jedem Bildschirm statt dunkler Fläche, weiche Übergänge */
+.app { background: linear-gradient(180deg, rgba(11, 10, 18, 0.55) 0%, rgba(11, 10, 18, 0.35) 40%, rgba(11, 10, 18, 0.6) 100%); }
+.side { background: rgba(23, 21, 20, 0.72); backdrop-filter: blur(6px); }
+.company-panel, .result, .research, .station-plan .st-left { background: rgba(23, 21, 20, 0.7); backdrop-filter: blur(8px); border-radius: 18px; padding: 18px 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35); }
+.phase-in { animation: phase-in 260ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes phase-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
+.app:not(.hidden-app) { animation: fade 300ms ease both; }
+@media (prefers-reduced-motion: reduce) { .phase-in, .app:not(.hidden-app) { animation: none; } }
+.stage.launching .launch-wrap { border-radius: 0; }
+.stage.launching .center { padding: 0; }
+/* Niedrige Bildschirme (Laptop 1280 × 720): nichts scrollen (Prüfung 15.11.) */
+@media (max-height: 780px) {
+  .result { font-size: 0.98rem; gap: 8px; padding: 12px 16px; }
+  .result h2, .result .result-msg { margin: 0; }
+  .result .fact-pic { max-height: 130px; }
+  .result .big-fact { padding: 10px; }
+  .company-panel { padding: 12px 16px; }
+  .company-panel h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .company-panel .bldg-row { padding: 8px 10px; }
+  .company-panel .lvl-desc { margin: 0 0 6px; }
+  .station-plan { padding: 12px 16px; gap: 16px; }
+  .station-plan h1 { font-size: 1.25rem; margin-bottom: 6px; }
+  .station-outline { max-height: 360px; }
+  .research { padding: 12px 16px; }
+  .research h1, .research h2 { margin-top: 0; }
+}
+.stars span { display: inline-block; }
+.stars .star-on { animation: star-pop 420ms cubic-bezier(.3, 1.6, .5, 1) both; }
+.stars .star-on:nth-child(2) { animation-delay: 220ms; }
+.stars .star-on:nth-child(3) { animation-delay: 440ms; }
+@keyframes star-pop { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .stars .star-on { animation: none; } }
