@@ -1987,6 +1987,13 @@ function stationOutlineSvg(st, pick = null) {
       s.append(hl);
     }
   }
+  // Module ohne passenden Platz (gebaut, als es noch das Raster gab) an ihrer Rasterstelle zeichnen
+  for (const m of st.modules) {
+    if (SLOTS.some((sl) => sl.x === m.x && sl.y === m.y && sl.type === m.type)) continue;
+    const bx = (m.x - 2) * 86, by = 40 + (m.y - 2) * 64;
+    const c = { core: ['#f5efe6', '#a9a49b'], habitat: ['#f1e3b8', '#a68f52'], lab: ['#e3f1f4', '#7fa9b0'], storage: ['#d9c3a0', '#8a7552'], node: ['#e9e4dc', '#8a8f96'], solar: ['#3d5196', '#1f2b52'] }[m.type];
+    const g = svg('g'); g.append(cylinder(s, bx - 34, by, 68, 15, c[0], c[1], true)); g.append(svg('title', {}, tr(MODULES[m.type], 'name'))); s.append(g);
+  }
   for (let i = 0; i < (st.crew || 0); i++) s.append(svg('circle', { cx: -14 + i * 14, cy: 10, r: 4, fill: '#F5EFE6' })); // Crew
   return s;
 }
