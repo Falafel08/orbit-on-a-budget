@@ -135,3 +135,13 @@ test('insurance costs money from the budget', () => {
   const r = missionResult({ ...base, insurance: 1.6 });
   assert.equal(r.budgetLeft, 23.4);
 });
+
+// Busse liefern Strom laut NASA-Katalog RSDO (Ball BCP-Small 100 W bzw. 90 W, BCP-Large 600 W), Linus 15.11.
+test('big buses bring their own power, so a satellite without extra panels can work', async () => {
+  const { buses, instruments } = await import('../data/parts.js');
+  const power = Object.fromEntries(buses.map((b) => [b.id, b.power]));
+  assert.deepEqual([power['bus-s'], power['bus-m'], power['bus-l']], [100, 90, 600]);
+  const camera = instruments.find((i) => i.id === 'camera');
+  const r = missionResult({ mission: { budget: 1000, minScience: 0 }, instruments: [camera], bus: buses.find((b) => b.id === 'bus-s'), panel: null, rocket: { cost: 69, maxPayload: 10670 } });
+  assert.ok(!r.problems.includes('power'));
+});

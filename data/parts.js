@@ -63,10 +63,11 @@ export const buses = [
     info: 'Twelve 10 cm cubes. ' + BUS_INFO },
   // Masse und Nutzlast nach echten Bussen im NASA-Katalog RSDO Rapid IV (Datenblätter Ball BCP Small, BCP Large).
   // Klein: Bus 114 kg, Nutzlast 44 kg. Mittel: Bus 170 kg, Nutzlast 170 kg. Groß: 2.190 kg minus 610 kg Nutzlast = 1.580 kg, Nutzlast 610 kg.
-  // Preise bleiben Spiel-Annahme (RSDO nennt keine Preise öffentlich).
-  { id: 'bus-s', name: 'Small bus', mass: 114, capacity: 44, power: 0, cost: 4, verified: 'mass', info: BUS_INFO + ' Mass and payload like the Ball BCP-Small bus in NASA\'s RSDO catalog.' },
-  { id: 'bus-m', name: 'Medium bus', mass: 170, capacity: 170, power: 0, cost: 15, verified: 'mass', info: BUS_INFO + ' Mass and payload like the larger Ball BCP-Small version in NASA\'s RSDO catalog.' },
-  { id: 'bus-l', name: 'Large bus', mass: 1580, capacity: 610, power: 0, cost: 45, verified: 'mass', info: BUS_INFO + ' Mass and payload like the Ball BCP-Large bus in NASA\'s RSDO catalog.' },
+  // Strom für die Nutzlast ebenfalls laut RSDO (BCP-Small 100 W bzw. 90 W, BCP-Large 600 W im Mittel), die Solarflügel des Busses
+  // sind in seiner Masse schon enthalten (Faktencheck 15.11., Linus: echte Leistung). Preise bleiben Spiel-Annahme (RSDO nennt keine Preise).
+  { id: 'bus-s', name: 'Small bus', mass: 114, capacity: 44, power: 100, cost: 4, verified: 'mass', info: BUS_INFO + ' Mass, payload and power like the Ball BCP-Small bus in NASA\'s RSDO catalog. Its own solar wings are included.' },
+  { id: 'bus-m', name: 'Medium bus', mass: 170, capacity: 170, power: 90, cost: 15, verified: 'mass', info: BUS_INFO + ' Mass, payload and power like the larger Ball BCP-Small version in NASA\'s RSDO catalog. Its own solar wings are included.' },
+  { id: 'bus-l', name: 'Large bus', mass: 1580, capacity: 610, power: 600, cost: 45, verified: 'mass', info: BUS_INFO + ' Mass, payload and power like the Ball BCP-Large bus in NASA\'s RSDO catalog. Its own solar wings are included.' },
 ];
 
 // Solarpanels: Strom für die Instrumente. Werte sind Spiel-Annahmen (verified: false).
@@ -76,11 +77,11 @@ export const panels = [
   { id: 'panel-deploy', name: 'Fold-out CubeSat panels', mass: 0.3, power: 8, cost: 0.06, verified: false,
     info: 'Small wings that fold out in orbit. Four times the power of body cells.' },
   { id: 'panel-s', name: 'Small solar wing', mass: 8, power: 150, cost: 1, verified: false,
-    info: 'One small wing. Enough for a camera and a lightning mapper.' },
+    info: 'One extra small wing on top of the bus\'s own power.' },
   { id: 'panel-m', name: 'Medium solar wings', mass: 25, power: 500, cost: 3, verified: false,
-    info: 'Two wings. Enough for most weather instruments.' },
+    info: 'Two extra wings on top of the bus\'s own power. Enough for most weather instruments.' },
   { id: 'panel-l', name: 'Large solar wings', mass: 70, power: 1500, cost: 8, verified: false,
-    info: 'Two big wings for power-hungry instruments like a radar.' },
+    info: 'Two big extra wings for power-hungry instruments like a radar.' },
 ];
 
 // Gekaufte Raketen: Nutzlast in einen 800-km-Sonnensynchron-Orbit laut NASA Launch Services Program
@@ -152,9 +153,9 @@ const DE = {
   weather: { name: 'Wettersatellit', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe, um Wolken und Gewitter zu beobachten.' },
   'panel-body': { name: 'Solarzellen am Gehäuse', info: 'Solarzellen direkt auf den Seiten des CubeSats. Leicht und billig, aber wenig Strom.' },
   'panel-deploy': { name: 'Klapp-Panels für CubeSats', info: 'Kleine Flügel, die sich im Orbit aufklappen. Viermal so viel Strom wie Zellen am Gehäuse.' },
-  'panel-s': { name: 'Kleiner Solarflügel', info: 'Ein kleiner Flügel. Reicht für eine Kamera und einen Blitzkartierer.' },
-  'panel-m': { name: 'Mittlere Solarflügel', info: 'Zwei Flügel. Reicht für die meisten Wetter-Instrumente.' },
-  'panel-l': { name: 'Große Solarflügel', info: 'Zwei große Flügel für Instrumente mit viel Strombedarf wie ein Radar.' },
+  'panel-s': { name: 'Kleiner Solarflügel', info: 'Ein zusätzlicher kleiner Flügel zum eigenen Strom des Busses.' },
+  'panel-m': { name: 'Mittlere Solarflügel', info: 'Zwei zusätzliche Flügel zum eigenen Strom des Busses. Reicht für die meisten Wetter-Instrumente.' },
+  'panel-l': { name: 'Große Solarflügel', info: 'Zwei große zusätzliche Flügel für Instrumente mit viel Strombedarf wie ein Radar.' },
   ocean: { name: 'Ozean-Satellit', goal: 'Miss die Meereshöhe aus einem Orbit in 800 km Höhe. Das Radar braucht viel Strom.' },
   free: { name: 'Freies Spiel', goal: 'Kein Budget und kein Wissenschaftsziel. Probier jede Kombination aus.' },
   'cube-camera': { name: 'CubeSat-Kamera', info: 'Eine kleine Kamera, die in einen CubeSat passt. Sie fotografiert die Erde.' },
@@ -168,9 +169,9 @@ const DE = {
   'cube-3u': { name: '3U-CubeSat', info: 'Drei 10-cm-Würfel in einer Reihe. ' + BUS_DE },
   'cube-6u': { name: '6U-CubeSat', info: 'Sechs 10-cm-Würfel. ' + BUS_DE },
   'cube-12u': { name: '12U-CubeSat', info: 'Zwölf 10-cm-Würfel. ' + BUS_DE },
-  'bus-s': { name: 'Kleiner Bus', info: BUS_DE + ' Masse und Nutzlast wie der Bus Ball BCP-Small im NASA-Katalog RSDO.' },
-  'bus-m': { name: 'Mittlerer Bus', info: BUS_DE + ' Masse und Nutzlast wie die größere Ausführung von Ball BCP-Small im NASA-Katalog RSDO.' },
-  'bus-l': { name: 'Großer Bus', info: BUS_DE + ' Masse und Nutzlast wie der Bus Ball BCP-Large im NASA-Katalog RSDO.' },
+  'bus-s': { name: 'Kleiner Bus', info: BUS_DE + ' Masse, Nutzlast und Strom wie der Bus Ball BCP-Small im NASA-Katalog RSDO. Seine eigenen Solarflügel sind schon dabei.' },
+  'bus-m': { name: 'Mittlerer Bus', info: BUS_DE + ' Masse, Nutzlast und Strom wie die größere Ausführung von Ball BCP-Small im NASA-Katalog RSDO. Seine eigenen Solarflügel sind schon dabei.' },
+  'bus-l': { name: 'Großer Bus', info: BUS_DE + ' Masse, Nutzlast und Strom wie der Bus Ball BCP-Large im NASA-Katalog RSDO. Seine eigenen Solarflügel sind schon dabei.' },
   rideshare: { name: 'CubeSat-Mitflug', info: 'Dein CubeSat fliegt auf der Rakete von jemand anderem mit. Das ist billig, aber nur für CubeSats bis 3U.' },
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
   falconHeavy: { info: 'Drei Falcon-9-Stufen nebeneinander. Die NASA zahlte etwa 178 Mio. $ für den Start von Europa Clipper damit. Schickt bis zu 16,8 t Richtung Mars, dann sind alle drei Stufen verloren (Angabe von SpaceX). Das Spiel nutzt beide Zahlen zusammen, eine Vereinfachung.' },

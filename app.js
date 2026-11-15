@@ -406,7 +406,7 @@ const catalogs = [
   { kind: 'instrument', items: instruments, hint: 'hintInstrument',
     rows: (i) => [[t('science'), i.science], [t('mass'), kg(i.mass)], [t('power'), `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
   { kind: 'bus', items: buses, hint: 'hintBus', group: 'groupBus',
-    rows: (b) => [[t('carries'), kg(b.capacity)], [t('ownMass'), kg(b.mass)]], picked: (b) => state.bus === b },
+    rows: (b) => [[t('carries'), kg(b.capacity)], [t('ownMass'), kg(b.mass)], ...(b.power ? [[t('power'), `${b.power} W`]] : [])], picked: (b) => state.bus === b },
   { kind: 'panel', items: panels, group: 'groupPanel',
     rows: (pn) => [[t('power'), `${pn.power} W`], [t('mass'), kg(pn.mass)]], picked: (pn) => state.panel === pn },
   { kind: 'rocket', get items() { return rocketList(); }, hint: 'hintRocket',
@@ -572,10 +572,11 @@ function payloadIn(g, cx, bottom, maxW, maxH) {
   const zone = (cls) => { const z = svg('g', { class: `zone ${cls}` }); g.append(z); return z; };
   // Solarflügel: eingeklappt als Stapel an den Seiten (Zellen am Gehäuse: blaue Vorderseite statt Flügel)
   const zp = zone('zone-panel');
+  const own = !panel && bus && bus.power > 0; // eigene Flügel des Busses (RSDO), schon in seiner Masse
   const sides = !panel ? [-1, 1] : panel.id === 'panel-body' ? [] : panel.id === 'panel-s' ? [1] : [-1, 1];
   for (const side of sides) {
     const x = side < 0 ? left - 6 : left + bw + 1.5;
-    if (!panel) { zp.append(dash('slot-panel', x, top + 1, 4.5, bh - 1)); continue; }
+    if (!panel && !own) { zp.append(dash('slot-panel', x, top + 1, 4.5, bh - 1)); continue; }
     for (let k = 0; k < 3; k++) zp.append(svg('rect', { x: x + k * 1.5, y: top + 1 + k * 0.6, width: 1.3, height: bh - 2 - k * 0.6, fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.3 }));
   }
   // Bus: Quader in Schrägansicht (Vorderseite, Deckel, Seite). CubeSat aus Aluminium, große Busse mit Goldfolie.
@@ -1123,7 +1124,8 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
         if (state.rocket.id === 'starship') ctx.translate(t * 34 * U, (G.bodyTop - G.fh * 0.4 - 312 - t * 4) * U); // seitlich aus der Ladeklappe
         else ctx.translate(t * 8 * U, (G.bodyTop - G.fh * 0.3 - 312 - t * 34) * U);
         ctx.rotate(-angle * clamp(t / 1.5));
-        const wingSides = !state.panel || state.panel.id === 'panel-body' ? [] : state.panel.id === 'panel-s' ? [1] : [-1, 1];
+        const ownWings = !state.panel && state.bus && state.bus.power > 0;
+        const wingSides = ownWings ? [-1, 1] : !state.panel || state.panel.id === 'panel-body' ? [] : state.panel.id === 'panel-s' ? [1] : [-1, 1];
         for (const side of wingSides) {
           const L = Math.max(3 * U, k * 2.6 * open), x0 = side * (k / 2 + U);
           ctx.fillStyle = '#2b3a6b'; ctx.fillRect(Math.min(x0, x0 + side * L), -k * 0.35, L, k * 0.7);
@@ -1858,7 +1860,7 @@ const TUT = [
   { sel: '.contract-box', key: 'tut1', next: true },
   { sel: '#left', key: 'tut2', done: () => state.instruments.length > 0 || state.build > 0 },
   { sel: '#next', key: 'tut3', done: () => state.build > 0 },
-  { sel: '#left', key: 'tut4', done: () => !!state.bus && !!state.panel },
+  { sel: '#left', key: 'tut4', done: () => !!state.bus && (!!state.panel || state.bus.power > 0) },
   { sel: '.carousel-stage', key: 'tut5', next: true },
   { sel: '.insure', key: 'tut6', next: true },
   { sel: '#next', key: 'tut7', done: () => state.phase !== 'build' },
@@ -1908,7 +1910,7 @@ function footer() {
   if (state.phase === 'build') {
     setBack(state.build === 0 || state.mission.module ? t('changeDifficulty') : t('back'));
     const affordable = !state.mission.contract || budgetLeft(state.mission.budget, chosen()) >= 0; // Firma kann nicht mehr ausgeben, als sie hat
-    const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build]);
+    const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && (!!state.panel || state.bus.power > 0) && !!state.rocket][state.build]); // große Busse bringen eigenen Strom mit
     if (state.build === 1) setNext(t('launch'), 'rocket'); else setNext(t('next'), 'next', true);
     next.disabled = !ready;
     next.classList.toggle('go', ready);

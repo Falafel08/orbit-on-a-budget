@@ -61,3 +61,11 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | What | Source | License | Status |
 |---|---|---|---|
 | Isometric buildings, domes, dishes, rover, craters, rocks, astronaut (20 images, cropped and scaled) | Kenney Space Kit 2.0, https://kenney.nl/assets/space-kit | CC0 1.0 (public domain, credit optional), license file in `assets/kenney/License.txt` | Used (`assets/kenney/`) |
+
+## Bus power (changed 15 Nov 2026)
+
+| What | Source | License | Status |
+|---|---|---|---|
+| Payload power: small bus 100 W, medium bus 90 W (Ball BCP-Small configurations), large bus 600 W orbit average (Ball BCP-Large). Bus masses already include their solar arrays, so extra wings are optional | NASA RSDO Rapid IV catalog, Ball BCP Small and BCP Large data sheets (URLs above) | NASA content, facts only | Used |
+| Extra solar wings (mass, power, price) | Game assumption | — | Game assumption |
+
