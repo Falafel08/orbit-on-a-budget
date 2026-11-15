@@ -145,6 +145,8 @@ const ICONS = {
   info: 'M12 2.8 A9.2 9.2 0 1 0 12.01 2.8 Z M12 11 L12 17 M12 7.4 L12 7.6',
   star: 'M12 3 L14.6 9 L21 9.4 L16 13.5 L17.7 20 L12 16.4 L6.3 20 L8 13.5 L3 9.4 L9.4 9 Z',
   retry: 'M4.5 12 A7.5 7.5 0 1 0 7 6.4 M4 3.5 L4.5 7.5 L8.5 7',
+  shield: 'M12 3 L19 6 L19 11.5 C19 16 15.8 19.5 12 21 C8.2 19.5 5 16 5 11.5 L5 6 Z M9 12 L11.2 14.2 L15.5 9.8',
+  lock: 'M7 11 L17 11 L17 20 L7 20 Z M9 11 L9 8 A3 3 0 0 1 15 8 L15 11',
 };
 function icon(name) {
   const s = svg('svg', { viewBox: '0 0 24 24', class: 'icon', 'aria-hidden': 'true' });
@@ -214,7 +216,7 @@ function renderHome() {
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => openFacts(0) }, t('spaceFacts')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]
-    : [el('button', { class: 'hexbtn', type: 'button', onclick: () => { state.levelPick = null; go('start'); } }, t('play')),
+    : [el('button', { class: 'hexbtn go', type: 'button', onclick: () => { state.levelPick = null; go('start'); } }, t('play')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => openFacts(0) }, t('spaceFacts')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]));
@@ -265,20 +267,23 @@ function renderLevelSelect() {
       el('div', { class: `lvl-cards${slide ? (slide > 0 ? ' slide-next' : ' slide-prev') : ''}` }, card(i - 1, 'side'), card(i, 'mid'), card(i + 1, 'side')),
       el('button', { class: 'arrow', type: 'button', 'aria-label': t('nextLevel'), disabled: i >= LEVELS.length ? '' : null, onclick: () => moveLevel(1) }, '›')),
     unlocking ? el('p', { class: 'unlock-msg' }, t('levelUnlocked', { n: i })) : '',
-    el('p', { class: 'lvl-goal' }, t(`levelGoal${i}`)),
-    open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
-    playable ? el('p', { class: 'hint' }, `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
-    el('button', { class: 'primary start-big', type: 'button', disabled: playable ? null : '',
-      onclick: () => { if (!playable) return; if (needs) { toResearch(); return; } startMission(contractMission(next)); } }, ...label),
-    // Forschung dieses Ortes in der Mitte: man plant fürs nächste Level
-    open ? el('section', { class: 'lvl-research' },
-      el('h3', {}, `${t('labOf', { x: t(PLACE_NAME[l.place]) })} · ${research.rp} ${t('rpShort')}`),
-      el('div', { class: 'projects' }, PROJECTS.filter((p) => p.level === i).map((p) => projectCard(p, reached)))) : '',
-    // Neue Firma: braucht man nach Fehlern, darum hier vor der Wahl (Linus 14.11.). Zweiter Klick bestätigt.
-    el('button', { class: state.confirmRestart ? 'secondary danger-text new-company' : 'secondary new-company', type: 'button', onclick: () => {
-      if (!state.confirmRestart) { state.confirmRestart = true; render(); return; }
-      state.confirmRestart = false; company = freshCompany(); saveCompany(); state.levelPick = 1; render();
-    } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany')));
+    // Unten zwei Spalten, damit nichts scrollt (Linus 15.11.): links Ziel und Start, rechts die Forschung als kurze Zeilen
+    el('div', { class: 'lvl-bottom' },
+      el('div', { class: 'lvl-main' },
+        el('p', { class: 'lvl-goal' }, t(`levelGoal${i}`)),
+        open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
+        playable ? el('p', { class: 'hint' }, `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
+        el('button', { class: playable ? 'primary start-big go' : 'primary start-big', type: 'button', disabled: playable ? null : '',
+          onclick: () => { if (!playable) return; if (needs) { toResearch(); return; } startMission(contractMission(next)); } }, ...label),
+        // Neue Firma: braucht man nach Fehlern, darum hier vor der Wahl (Linus 14.11.). Zweiter Klick bestätigt.
+        el('button', { class: state.confirmRestart ? 'link-btn danger-text new-company' : 'link-btn new-company', type: 'button', onclick: () => {
+          if (!state.confirmRestart) { state.confirmRestart = true; render(); return; }
+          state.confirmRestart = false; company = freshCompany(); saveCompany(); state.levelPick = 1; render();
+        } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany'))),
+      // Forschung dieses Ortes: man plant fürs nächste Level
+      open ? el('section', { class: 'lvl-research' },
+        el('h3', {}, icon('flask'), ` ${t('labOf', { x: t(PLACE_NAME[l.place]) })} · ${research.rp} ${t('rpShort')}`),
+        el('div', { class: 'project-rows' }, PROJECTS.filter((p) => p.level === i).map((p) => projectRow(p, reached)))) : ''));
 }
 
 function go(phase) {
@@ -497,8 +502,13 @@ function card(cat, item) {
     onclick: () => choose(cat.kind, item),
     onkeydown: press(() => choose(cat.kind, item)),
     onmouseenter: () => showInfo(item), onfocus: () => showInfo(item),
-    ondragstart: (e) => { e.dataTransfer.setData('text/plain', `${cat.kind}:${item.id}`); node.classList.add('dragging'); },
-    ondragend: () => node.classList.remove('dragging'),
+    ondragstart: (e) => {
+      e.dataTransfer.setData('text/plain', `${cat.kind}:${item.id}`); node.classList.add('dragging');
+      const pic = node.querySelector('.part-pic');
+      if (pic && e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(pic, 38, 35);
+      document.body.dataset.drag = cat.kind;
+    },
+    ondragend: () => { node.classList.remove('dragging'); delete document.body.dataset.drag; },
   },
   partPicture(cat.kind, item),
   el('div', { class: 'card-body' },
@@ -517,13 +527,17 @@ const STEP_CATS = [['instrument'], ['bus', 'panel']];
 // Die Rakete vorne ist die gewählte und trägt den Satelliten sichtbar in der Spitze.
 let gradSeq = 0;
 const ROCKET_LOOK = {
+  // Höhen nach den echten Verhältnissen (Starship 121 m, SLS 98 m, Falcon 9 und Heavy 70 m, Pegasus 17 m), leicht gestaucht,
+  // damit kleine Raketen sichtbar bleiben (Faktencheck 15.11.). Falcon-Kerne gleich breit, SLS-Booster bis etwa 58 % der Höhe.
   rideshare: { H: 170, w: 16, body: ['#ece6dc', '#b8b0a4'] },
-  pegasus: { H: 165, w: 16, body: ['#f5efe6', '#bdb5a9'] },
-  own: { H: 230, w: 20, body: ['#c9b6ec', '#7d68a6'] },
-  falcon9: { H: 285, w: 20, body: ['#ffffff', '#c9c2b8'] },
-  starship: { H: 305, w: 32, body: ['#d6dbe1', '#8d949c'] },
-  falconHeavy: { H: 285, w: 18, body: ['#ffffff', '#c9c2b8'], boosters: { w: 16, color: ['#ffffff', '#bdb5a9'], h: 0.62 } },
-  sls: { H: 305, w: 24, body: ['#f0a052', '#b8642a'], boosters: { w: 9, color: ['#ffffff', '#c9c2b8'], h: 0.72 } },
+  electron: { H: 110, w: 11, body: ['#3a3a40', '#16161a'] },   // 18 m, schwarze Kohlefaser
+  alpha: { H: 125, w: 13, body: ['#3b3836', '#1c1a19'] },      // 29 m, schwarz
+  pegasus: { H: 125, w: 14, body: ['#f5efe6', '#bdb5a9'] },
+  own: { H: 220, w: 18, body: ['#c9b6ec', '#7d68a6'] },
+  falcon9: { H: 245, w: 15, body: ['#ffffff', '#c9c2b8'] },
+  starship: { H: 308, w: 30, body: ['#d6dbe1', '#8d949c'] },
+  falconHeavy: { H: 245, w: 15, body: ['#ffffff', '#c9c2b8'], boosters: { w: 15, color: ['#ffffff', '#c9c2b8'], h: 0.78 } },
+  sls: { H: 280, w: 22, body: ['#f0a052', '#b8642a'], boosters: { w: 9, color: ['#ffffff', '#c9c2b8'], h: 0.58 } },
 };
 
 // Satellit in der Spitze: Körper, eingeklappte Solarflügel, Instrumente obendrauf (Klick entfernt sie)
@@ -548,31 +562,51 @@ function modulePicture(g, id, cx, bottom, maxW, maxH) {
 
 function payloadIn(g, cx, bottom, maxW, maxH) {
   if (state.mission && state.mission.module && state.mission.contract) { modulePicture(g, state.mission.contract.id, cx, bottom, maxW, maxH); return; }
-  if (!state.bus && !state.instruments.length) {
-    g.append(svg('text', { x: cx, y: bottom - maxH / 2, 'text-anchor': 'middle', class: 'svg-muted', 'font-size': 6 }, t('satelliteBus')));
-    return;
+  // Feste Plätze (Linus und Freund 15.11.): unten der Bus, links und rechts die eingeklappten Solarflügel, oben die Instrumente.
+  // Leere Plätze gestrichelt. Beim Ziehen leuchtet der passende Platz (CSS über body[data-drag]).
+  const bus = state.bus, panel = state.panel, cube = bus && bus.id.startsWith('cube-');
+  const bw = bus ? Math.min(maxW - 14, 12 + Math.sqrt(bus.capacity) * 1.1) : Math.min(22, maxW - 14);
+  const bh = bus ? Math.min(maxH * 0.42, bw * 0.8) : bw * 0.75;
+  const top = bottom - 2 - bh, left = cx - bw / 2, d = bw * 0.2;  // d = Tiefe der Schrägansicht
+  const dash = (cls, x, y, w, h) => svg('rect', { x, y, width: w, height: h, rx: 1, class: `slot-empty ${cls}` });
+  const zone = (cls) => { const z = svg('g', { class: `zone ${cls}` }); g.append(z); return z; };
+  // Solarflügel: eingeklappt als Stapel an den Seiten (Zellen am Gehäuse: blaue Vorderseite statt Flügel)
+  const zp = zone('zone-panel');
+  const sides = !panel ? [-1, 1] : panel.id === 'panel-body' ? [] : panel.id === 'panel-s' ? [1] : [-1, 1];
+  for (const side of sides) {
+    const x = side < 0 ? left - 6 : left + bw + 1.5;
+    if (!panel) { zp.append(dash('slot-panel', x, top + 1, 4.5, bh - 1)); continue; }
+    for (let k = 0; k < 3; k++) zp.append(svg('rect', { x: x + k * 1.5, y: top + 1 + k * 0.6, width: 1.3, height: bh - 2 - k * 0.6, fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.3 }));
   }
-  const bw = state.bus ? Math.min(maxW - 10, 12 + Math.sqrt(state.bus.capacity) * 1.1) : 0;
-  const bh = state.bus ? Math.min(maxH * 0.45, bw * 0.8) : 0;
-  const top = bottom - 2 - bh;
-  if (state.bus) {
-    if (state.panel) for (const x of [cx - bw / 2 - 4, cx + bw / 2 + 1]) g.append(svg('rect', { x, y: top, width: 3, height: bh, fill: '#2b3a6b', stroke: '#9fb3e8', 'stroke-width': 0.4 }));
-    g.append(svg('rect', { x: cx - bw / 2, y: top, width: bw, height: bh, rx: 1, fill: '#b08d3c', stroke: '#e0c070', 'stroke-width': 0.5 }));
+  // Bus: Quader in Schrägansicht (Vorderseite, Deckel, Seite). CubeSat aus Aluminium, große Busse mit Goldfolie.
+  const zb = zone('zone-bus');
+  if (!bus) zb.append(dash('slot-bus', left, top, bw, bh));
+  else {
+    const [front, lid, side] = cube ? ['#c9c4bb', '#e6e1d8', '#9c968c'] : ['#b08d3c', '#e0c070', '#86692a'];
+    const fx = left, fw2 = bw - d, fy = top + d * 0.6;
+    zb.append(svg('polygon', { points: `${fx},${fy} ${fx + d},${top} ${fx + bw},${top} ${fx + fw2},${fy}`, fill: lid }));
+    zb.append(svg('polygon', { points: `${fx + fw2},${fy} ${fx + bw},${top} ${fx + bw},${bottom - 2 - d * 0.6} ${fx + fw2},${bottom - 2}`, fill: side }));
+    zb.append(svg('rect', { x: fx, y: fy, width: fw2, height: bottom - 2 - fy, fill: panel && panel.id === 'panel-body' ? '#2b3a6b' : front, stroke: panel && panel.id === 'panel-body' ? '#9fb3e8' : 'none', 'stroke-width': 0.3 }));
+    if (cube) for (let k = 1; k < 3; k++) zb.append(svg('line', { x1: fx, y1: fy + ((bottom - 2 - fy) * k) / 3, x2: fx + fw2, y2: fy + ((bottom - 2 - fy) * k) / 3, stroke: '#8a857c', 'stroke-width': 0.3 }));
   }
-  const n = state.instruments.length;
-  state.instruments.forEach((inst, i) => {
-    const size = Math.min(12, (maxW - 6) / Math.min(3, n) - 1.5);
-    const row = Math.floor(i / 3), inRow = Math.min(3, n - row * 3), col = i % 3;
+  // Instrumente auf dem Deckel, mindestens drei Plätze sichtbar
+  const zi = zone('zone-instrument');
+  const n = state.instruments.length, places = Math.max(3, n);
+  const size = Math.min(12, (maxW - 6) / 3 - 1.5);
+  for (let i = 0; i < places; i++) {
+    const row = Math.floor(i / 3), inRow = Math.min(3, places - row * 3), col = i % 3;
     const x = cx + (col - (inRow - 1) / 2) * (size + 1.5);
-    const y = (state.bus ? top : bottom - 2) - 0.5 - row * (size + 1);
+    const y = top - 0.5 - row * (size + 1);
+    if (i >= n) { zi.append(dash('slot-inst', x - size * 0.4, y - size * 0.6, size * 0.8, size * 0.6)); continue; }
+    const inst = state.instruments[i];
     const name = tr(inst, 'name');
     const chip = svg('g', { class: 'chip', tabindex: '0', role: 'button', 'aria-label': `${t('remove')} ${name}`, transform: `translate(${x} ${y}) scale(${size})` });
     chip.append(svg('title', {}, name));
     for (const p of instrumentShape(inst.id)) chip.append(p);
     chip.addEventListener('click', (e) => { e.stopPropagation(); choose('instrument', inst); });
     chip.addEventListener('keydown', press(() => choose('instrument', inst)));
-    g.append(chip);
-  });
+    zi.append(chip);
+  }
 }
 
 // Startturm wie bei SpaceX (Linus und Freund 14.11.): massiver Gitterturm, schräg gesehen (Vorder- und Seitenfläche),
@@ -581,7 +615,7 @@ function payloadIn(g, cx, bottom, maxW, maxH) {
 // Maße in Bild-Einheiten, Ursprung wie im Raketenbild: Mitte x = 50, Rampe y = 312.
 const TOWER = { x0: 10, x1: 24, depth: 6, h: 272, catchY: 150 };
 const halfWidth = (look) => look.w / 2 + (look.boosters ? look.boosters.w : 0);
-const armHeight = (look) => Math.min(TOWER.catchY, (look.H - 84) * 0.75); // unterhalb der Spitze, auch bei kleinen Raketen
+const armHeight = (look) => Math.min(TOWER.catchY, (look.H - Math.min(84, Math.round(look.H * 0.36))) * 0.75); // unterhalb der Spitze, auch bei kleinen Raketen
 // Arm als Pfad: von der Turmkante bis knapp hinter die Rakete. open 0..1 schwenkt ihn weg (vorn nach unten, hinten nach oben).
 function armPath(reach, y, open, side) {
   const a = open * 1.25, L = reach - TOWER.x1, ex = TOWER.x1 + L * Math.cos(a), ey = y + side * L * Math.sin(a) * 0.32;
@@ -625,8 +659,8 @@ function towerPicture(r, front = false) {
 // Maße einer Rakete im Bild (viewBox 8 0 84 320, Rampe y = 312): Spitze, Rumpfbeginn, Trennstelle der Stufen
 function rocketGeom(r, withPayload) {
   const look = ROCKET_LOOK[r.id] || ROCKET_LOOK.own, starship = r.id === 'starship';
-  const top = 312 - look.H, fh = starship ? 50 : 84, bodyTop = top + fh;
-  const fw = starship ? look.w : withPayload ? Math.max(look.w + 22, 46) : Math.max(look.w + 10, 30); // vorne breiter, damit der Satellit gut zu sehen ist
+  const top = 312 - look.H, fh = starship ? 50 : Math.min(84, Math.round(look.H * 0.36)), bodyTop = top + fh;
+  const fw = starship ? look.w : withPayload ? Math.max(look.w + 18, Math.min(46, look.w * 3)) : Math.max(look.w + 8, Math.min(30, look.w * 2)); // vorne breiter, damit der Satellit gut zu sehen ist
   return { top, fh, fw, bodyTop, splitY: bodyTop + (304 - bodyTop) * 0.32 }; // Oberstufe = oberes Drittel des Rumpfs
 }
 
@@ -643,7 +677,7 @@ function rocketPicture(r, withPayload = false) {
   defs.append(grad); s.append(defs);
   const fill = `url(#${id})`;
   const starship = r.id === 'starship';
-  const { fh, fw, bodyTop } = rocketGeom(r, withPayload);
+  const { fh, fw, bodyTop, splitY } = rocketGeom(r, withPayload);
 
   // Seitliche Booster (Falcon Heavy: zwei Falcon-9-Stufen, SLS: zwei Feststoff-Booster)
   if (look.boosters) {
@@ -661,36 +695,61 @@ function rocketPicture(r, withPayload = false) {
   // Triebwerk und Körper
   s.append(svg('path', { d: `M${cx - w * 0.35} ${ground - 8} L${cx - w * 0.5} ${ground} L${cx + w * 0.5} ${ground} L${cx + w * 0.35} ${ground - 8} Z`, fill: '#4a4550' }));
   s.append(svg('rect', { x, y: bodyTop, width: w, height: ground - 8 - bodyTop, fill }));
+  if (r.id === 'falcon9' || r.id === 'falconHeavy') {
+    s.append(svg('rect', { x, y: splitY, width: w, height: 6, fill: '#1c1918' }));
+    for (const gx of [x - 3, x + w]) s.append(svg('rect', { x: gx, y: splitY + 7, width: 3, height: 4, fill: '#3a3540' })); // Gitterflossen
+  }
   if (r.id === 'falcon9') {
-    s.append(svg('rect', { x, y: bodyTop + (ground - bodyTop) * 0.24, width: w, height: 5, fill: '#1c1918' }));
     for (const sx of [-1, 1]) s.append(svg('line', { x1: cx + sx * w * 0.42, y1: ground - 60, x2: cx + sx * w * 0.42, y2: ground - 10, stroke: '#3a3540', 'stroke-width': 1.2 }));
   }
   if (r.id === 'pegasus') {
     s.append(svg('path', { d: `M${x} ${ground - 70} L${x - 22} ${ground - 50} L${x + w + 22} ${ground - 50} L${x + w} ${ground - 70} Z`, fill: '#bdb5a9' }));
   }
   if (starship) {
-    for (const sy of [bodyTop + 6, ground - 40]) {
+    s.append(svg('rect', { x, y: splitY, width: w, height: 3, fill: '#5a6068' })); // Ring zwischen Schiff und Booster
+    for (const gx of [x - 4, x + w]) s.append(svg('rect', { x: gx, y: splitY + 5, width: 4, height: 5, fill: '#5a6068' })); // Gitterflossen
+    for (const sy of [bodyTop + 6, splitY - 24]) {
       const fl = sy > bodyTop + 10 ? 9 : 6;
       s.append(svg('path', { d: `M${x} ${sy} L${x - fl} ${sy + fl * 1.6} L${x} ${sy + fl * 2.4} Z M${x + w} ${sy} L${x + w + fl} ${sy + fl * 1.6} L${x + w} ${sy + fl * 2.4} Z`, fill: '#6f767e' }));
     }
-  } else if (r.id !== 'falcon9') {
+  } else if (!['falcon9', 'falconHeavy', 'sls', 'electron', 'alpha'].includes(r.id)) {
     s.append(svg('path', { d: `M${x} ${ground - 28} L${x - 9} ${ground - 4} L${x} ${ground - 8} Z M${x + w} ${ground - 28} L${x + w + 9} ${ground - 4} L${x + w} ${ground - 8} Z`, fill: '#745F9A' }));
   }
   if (r.id === 'own' || r.rideshare) s.append(svg('rect', { x, y: bodyTop + 30, width: w, height: 4, fill: '#745F9A' }));
   if (r.id === 'own') s.append(svg('text', { x: cx, y: bodyTop + 80, class: 'rocket-name', transform: `rotate(-90 ${cx} ${bodyTop + 80})`, 'text-anchor': 'end', 'dominant-baseline': 'middle' }, String(r.name).slice(0, 18)));
 
   // Spitze: bei der Rakete vorne durchsichtig, mit dem Satelliten darin
-  const nose = `M${cx - fw / 2} ${bodyTop} L${cx - fw / 2} ${top + fh * 0.45} Q${cx - fw / 2} ${top} ${cx} ${top - 4} Q${cx + fw / 2} ${top} ${cx + fw / 2} ${top + fh * 0.45} L${cx + fw / 2} ${bodyTop} Z`;
+  // Spitze: oben rund, unten runde Ecken, die zum Rumpf einlaufen
+  const tap = Math.min(7, (fw - w) / 2 + 2);
+  const nose = `M${cx - w / 2} ${bodyTop} Q${cx - fw / 2} ${bodyTop} ${cx - fw / 2} ${bodyTop - tap} L${cx - fw / 2} ${top + fh * 0.45} Q${cx - fw / 2} ${top} ${cx} ${top - 4} Q${cx + fw / 2} ${top} ${cx + fw / 2} ${top + fh * 0.45} L${cx + fw / 2} ${bodyTop - tap} Q${cx + fw / 2} ${bodyTop} ${cx + w / 2} ${bodyTop} Z`;
   if (withPayload) {
-    s.append(svg('path', { d: nose, fill: 'rgba(245,239,230,0.08)', stroke: 'rgba(245,239,230,0.7)', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5', class: 'nose-outline' }));
+    if (!starship) s.append(svg('path', { d: nose, fill: 'rgba(245,239,230,0.08)', stroke: 'rgba(245,239,230,0.7)', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5', class: 'nose-outline' }));
     const pg = svg('g', { class: 'payload' }); s.append(pg); // eigene Gruppe: wird im All ausgesetzt
     payloadIn(pg, cx, bodyTop, fw, fh * 0.75);
     // Hitzeschild: zwei Hälften, die sich beim Countdown schließen (CSS-Klasse .closed)
-    const half = (side) => `M${cx + side * fw / 2} ${bodyTop} L${cx + side * fw / 2} ${top + fh * 0.45} Q${cx + side * fw / 2} ${top} ${cx} ${top - 4} L${cx} ${bodyTop} Z`;
-    s.append(svg('path', { d: half(-1), fill, class: 'shield shield-l' }), svg('path', { d: half(1), fill, class: 'shield shield-r' }));
+    const half = (side) => `M${cx + side * w / 2} ${bodyTop} Q${cx + side * fw / 2} ${bodyTop} ${cx + side * fw / 2} ${bodyTop - tap} L${cx + side * fw / 2} ${top + fh * 0.45} Q${cx + side * fw / 2} ${top} ${cx} ${top - 4} L${cx} ${bodyTop} Z`;
+    if (starship) {
+      // Starship hat kein Hitzeschild zum Abwerfen: Stahl-Spitze mit Ladeklappe. Klappe zu beim Countdown, im All öffnet sie sich.
+      s.append(svg('path', { d: nose, fill, class: 'ship-nose' }));
+      s.append(svg('rect', { x: cx - fw / 2 + 3, y: bodyTop - fh * 0.82, width: fw - 6, height: fh * 0.8, rx: 1.5, fill: '#16181c' })); // Ladebucht
+      s.append(pg); // Satellit in der Bucht sichtbar
+      s.append(svg('rect', { x: cx - fw / 2 + 3, y: bodyTop - fh * 0.82, width: fw - 6, height: fh * 0.8, rx: 1.5, fill, stroke: '#6f767e', 'stroke-width': 0.5, class: 'door' }));
+    } else s.append(svg('path', { d: half(-1), fill, class: 'shield shield-l' }), svg('path', { d: half(1), fill, class: 'shield shield-r' }));
   } else {
     s.append(svg('path', { d: nose, fill }));
   }
+  return s;
+}
+
+// Platzhalter für die eigene Rakete: nur der gestrichelte Umriss
+function placeholderRocket() {
+  const s = svg('svg', { viewBox: '8 0 84 320', class: 'rocket-pic placeholder', role: 'img', 'aria-label': t('ownLater') });
+  const top = 312 - ROCKET_LOOK.own.H, x = 40;
+  s.append(svg('path', { d: `M${x} 304 L${x} ${top + 84} L${x - 5} ${top + 84} L${x - 5} ${top + 38} Q${x - 5} ${top} 50 ${top - 4} Q${x + 25} ${top} ${x + 25} ${top + 38} L${x + 25} ${top + 84} L${x + 20} ${top + 84} L${x + 20} 304 Z`,
+    fill: 'rgba(168,143,214,0.06)', stroke: '#A88FD6', 'stroke-width': 1, 'stroke-dasharray': '3 2' }));
+  const lock = svg('g', { transform: `translate(38 ${top + 120}) scale(1)` });
+  lock.append(svg('path', { d: ICONS.lock, fill: 'none', stroke: '#A88FD6', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+  s.append(lock);
   return s;
 }
 
@@ -708,22 +767,29 @@ function moveRocket(items, d) {
   render();
 }
 
+// Raketen im Karussell, dazu der Platzhalter für die eigene Rakete, solange sie nicht erforscht ist
+function carouselItems() {
+  const m = state.mission;
+  const ownLater = !research.done['own-rocket'] && !m.module && (m.dest || 'leo') === 'leo' && !m.allowed;
+  return [...offered(catalogs.find((c) => c.kind === 'rocket').items), ...(ownLater ? [{ id: 'own', placeholder: true, name: t('ownRocketName'), cost: 0 }] : [])];
+}
+
 function rocketCarouselCenter() {
   const cat = catalogs.find((c) => c.kind === 'rocket');
-  const items = offered(cat.items);
+  const items = carouselItems();
   const n = items.length;
   if (!n) return el('div');
   const i = rocketView(items);
-  state.rocket = items[i]; // immer das aktuelle Objekt, sonst bleiben alte Preise hängen (eigene Rakete)
+  state.rocket = items[i].placeholder ? null : items[i]; // Platzhalter ist keine Wahl; sonst immer das aktuelle Objekt (alte Preise)
   const slide = state.slide; state.slide = null;
   const slot = (k, role) => {
     const r = items[(i + k + n) % n];
     return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}`, onclick: () => (k ? moveRocket(items, k) : null) },
       role === 'mid' ? towerPicture(r) : '',
-      rocketPicture(r, role === 'mid'),
-      role === 'mid' ? towerPicture(r, true) : '',
+      r.placeholder ? placeholderRocket() : rocketPicture(r, role === 'mid'),
+      role === 'mid' && !r.placeholder ? towerPicture(r, true) : '',
       el('figcaption', { class: 'banner' }, tr(r, 'name')),
-      el('span', { class: 'slot-price' }, r.maxPayload ? `${money(r.cost)} · ${kg(r.maxPayload)}` : money(r.cost)));
+      r.placeholder ? el('span', { class: 'slot-price' }, t('researchFirstShort')) : el('span', { class: 'slot-price' }, r.maxPayload ? `${money(r.cost)} · ${kg(r.maxPayload)}` : money(r.cost)));
   };
   const mid = items[i];
   return el('div', {
@@ -738,7 +804,9 @@ function rocketCarouselCenter() {
     // endlos: ab zwei Raketen stehen immer links und rechts Nachbarn (bei zwei ist es dieselbe)
     el('div', { class: `slots${slide ? (slide > 0 ? ' slide-next' : ' slide-prev') : ''}` }, n > 1 ? slot(-1, 'side') : '', slot(0, 'mid'), n > 1 ? slot(1, 'side') : ''),
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'data-dir': 'next', 'aria-label': t('nextRocket'), onclick: () => moveRocket(items, 1) }, '›') : el('span')),
-  el('dl', { class: 'rocket-facts' }, el('dt', {}, t('price')), el('dd', {}, money(mid.cost)), cat.rows(mid).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
+  mid.placeholder ? el('div', { class: 'own-later' }, el('p', {}, t('ownLater')),
+    el('button', { class: 'primary go', type: 'button', onclick: () => { state.returnTo = 'build'; state.researchView = 1; go('research'); } }, icon('flask'), el('span', {}, t('toResearch'))))
+    : el('dl', { class: 'rocket-facts' }, el('dt', {}, t('price')), el('dd', {}, money(mid.cost)), cat.rows(mid).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
   n > 1 ? el('p', { class: 'dots', 'aria-hidden': 'true' }, items.map((x, k) => el('span', { class: k === i ? 'dot on' : 'dot' }))) : '',
   insuranceBox());
 }
@@ -749,6 +817,7 @@ function insuranceBox() {
   if (state.rocket.uninsurable) return el('p', { class: 'hint' }, t('noInsurance'));
   return el('label', { class: 'insure card' },
     el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
+    el('span', { class: 'insure-icon' }, icon('shield')),
     el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) })));
 }
 
@@ -1050,15 +1119,18 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     if (sf >= SEP.deploy && !state.mission.module) { // Satellit löst sich, richtet sich auf, klappt die Solarflügel aus
       const t = sf - SEP.deploy, open = ease(clamp((t - 0.4) / 1.2)), k = Math.max(14, G.fw * 0.6) * U; // etwas größer als in der Spitze, damit man das Ausklappen sieht
       at(() => {
-        ctx.translate(t * 8 * U, (G.bodyTop - G.fh * 0.3 - 312 - t * 34) * U); ctx.rotate(-angle * clamp(t / 1.5));
-        if (state.panel) for (const side of [-1, 1]) {
+        if (state.rocket.id === 'starship') ctx.translate(t * 34 * U, (G.bodyTop - G.fh * 0.4 - 312 - t * 4) * U); // seitlich aus der Ladeklappe
+        else ctx.translate(t * 8 * U, (G.bodyTop - G.fh * 0.3 - 312 - t * 34) * U);
+        ctx.rotate(-angle * clamp(t / 1.5));
+        const wingSides = !state.panel || state.panel.id === 'panel-body' ? [] : state.panel.id === 'panel-s' ? [1] : [-1, 1];
+        for (const side of wingSides) {
           const L = Math.max(3 * U, k * 2.6 * open), x0 = side * (k / 2 + U);
           ctx.fillStyle = '#2b3a6b'; ctx.fillRect(Math.min(x0, x0 + side * L), -k * 0.35, L, k * 0.7);
           ctx.strokeStyle = '#9fb3e8'; ctx.lineWidth = Math.max(0.6, 0.5 * U); ctx.beginPath();
           for (let j = 1; j < 3; j++) { const xx = x0 + side * (L * j) / 3; ctx.moveTo(xx, -k * 0.35); ctx.lineTo(xx, k * 0.35); }
           ctx.strokeRect(Math.min(x0, x0 + side * L), -k * 0.35, L, k * 0.7); ctx.stroke();
         }
-        ctx.fillStyle = '#b08d3c'; ctx.fillRect(-k / 2, -k / 2, k, k);
+        ctx.fillStyle = state.panel && state.panel.id === 'panel-body' ? '#2b3a6b' : state.bus && state.bus.id.startsWith('cube-') ? '#c9c4bb' : '#b08d3c'; ctx.fillRect(-k / 2, -k / 2, k, k);
         ctx.strokeStyle = '#e0c070'; ctx.lineWidth = Math.max(0.6, 0.5 * U); ctx.strokeRect(-k / 2, -k / 2, k, k);
         if (state.instruments.length) { ctx.fillStyle = '#3a3245'; ctx.fillRect(-k * 0.25, -k * 0.85, k * 0.5, k * 0.35); }
       });
@@ -1252,7 +1324,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     const goal = t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit');
     if (stagey && !returning && !arriving) {
       if (sf >= SEP.stage && sf < SEP.fairing) caption(t('capStage'));
-      else if (sf >= SEP.fairing && sf < SEP.deploy) caption(t('capFairing'));
+      else if (sf >= SEP.fairing && sf < SEP.deploy) caption(t(state.rocket.id === 'starship' ? 'capDoor' : 'capFairing'));
       else if (sf >= SEP.deploy) caption(state.mission.module ? goal : t('capDeploy'));
     } else if (mode === 'ok' && s > 3.5 && !returning && !arriving) caption(goal);
     if (landed) caption(t('capLanded'));
@@ -1302,14 +1374,41 @@ function renderResearch() {
 }
 
 // Eine Forschungs-Karte (im Labor und in der Level-Auswahl). Kostet Geld, Punkte und Zeit.
+// Zustand eines Forschungsprojekts, gemeinsam für Karte (Labor) und Zeile (Levelauswahl)
+function projectState(pr, reached) {
+  const a = research.active;
+  const done = !!research.done[pr.id];
+  const locked = (pr.needs && !research.done[pr.needs]) || pr.level > reached;
+  const running = !!a && a.id === pr.id;
+  // nicht in die Pleite forschen: nach dem Kauf muss der billigste Weg zum nächsten Auftrag bezahlbar bleiben
+  const ruins = !done && company.index < contracts.length && company.cash - pr.cost < minCostFor(company.index, { ...research.done, [pr.id]: true });
+  const canStart = !done && !locked && !a && research.rp >= pr.rp && company.cash >= pr.cost && !ruins;
+  const why = research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : ruins ? t('wouldBankrupt') : a ? t('researchBusy') : '';
+  const start = () => {
+    if (!canStart) return;
+    research.rp -= pr.rp; company.cash = Math.round((company.cash - pr.cost) * 1000) / 1000; // Forschung kostet Firmengeld
+    research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); saveCompany(); render();
+  };
+  return { done, locked, running, ruins, canStart, why, start };
+}
+
+// Kurze Zeile für die Levelauswahl: Name, Preis, Knopf. Der Erklärtext steht hinter dem ?-Knopf, damit nichts scrollt.
+function projectRow(pr, reached) {
+  const st = projectState(pr, reached), a = research.active;
+  const needs = pr.needs && !research.done[pr.needs] ? t('needs', { x: t(PROJECTS.find((x) => x.id === pr.needs).name) }) : '';
+  return el('div', { class: `project-row${st.done ? ' is-done' : ''}${st.locked ? ' is-locked' : ''}` },
+    el('div', { class: 'pr-name' }, el('strong', {}, t(pr.name)),
+      el('button', { class: 'qmark', type: 'button', 'aria-label': `${t('whatIsThis')} ${t(pr.name)}`, onclick: () => openInfo({ name: t(pr.name), info: `${t(pr.info)} ${needs}`.trim() }) }, '?')),
+    el('span', { class: 'price' }, st.done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')} · ${money(pr.cost)}`),
+    st.running ? el('div', { class: 'research-meter' }, el('span', { class: 'hint research-pct' }, `${t('team')} · ${Math.round(a.progress * 100)} %`), meter('', a.progress, 1, ''))
+      : st.done ? el('span') : st.locked ? el('span', { class: 'hint' }, needs || t('locked'))
+        : el('button', { class: st.canStart ? 'primary small go' : 'primary small', type: 'button', disabled: st.canStart ? null : '', title: st.why, onclick: st.start },
+          icon('flask'), el('span', {}, st.canStart ? t('researchBtn') : st.why)));
+}
+
 function projectCard(pr, reached) {
   const a = research.active;
-      const done = !!research.done[pr.id];
-      const locked = (pr.needs && !research.done[pr.needs]) || pr.level > reached;
-      const running = a && a.id === pr.id;
-      // nicht in die Pleite forschen: nach dem Kauf muss der billigste Weg zum nächsten Auftrag bezahlbar bleiben
-      const ruins = !done && company.index < contracts.length && company.cash - pr.cost < minCostFor(company.index, { ...research.done, [pr.id]: true });
-      const canStart = !done && !locked && !a && research.rp >= pr.rp && company.cash >= pr.cost && !ruins;
+  const { done, locked, running, ruins, canStart } = projectState(pr, reached);
       return el('div', { class: `project card${done ? ' done-card' : ''}` },
         el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')} · ${money(pr.cost)}`)),
         el('p', { class: 'hint' }, t(pr.info)),
@@ -1332,11 +1431,7 @@ function projectCard(pr, reached) {
               onclick: () => { if (research.rp < SKIP_RP) return; research.rp -= SKIP_RP; research.done[a.id] = true; research.active = null; saveResearch(); render(); } },
             t('skip', { n: SKIP_RP })))] : '',
         !done && !running && !locked ? el('button', { class: 'primary', type: 'button', disabled: canStart ? null : '',
-          onclick: () => {
-            if (!canStart) return;
-            research.rp -= pr.rp; company.cash = Math.round((company.cash - pr.cost) * 1000) / 1000; // Forschung kostet Firmengeld
-            research.active = { id: pr.id, progress: 0, fast: false }; saveResearch(); saveCompany(); render();
-          } },
+          onclick: projectState(pr, reached).start },
         canStart ? icon('flask') : '', el('span', {}, research.rp < pr.rp ? t('notEnoughRp') : company.cash < pr.cost ? t('notEnoughCash') : ruins ? t('wouldBankrupt') : t('startResearch', { n: pr.rp, c: money(pr.cost) }))) : '');
 }
 
@@ -1755,6 +1850,54 @@ function resetBest() {
   try { for (const m of missions) localStorage.removeItem(`best-${m.id}`); } catch { /* ohne Speicher */ }
 }
 
+// ---------- Einführung beim ersten Auftrag (Linus und Freund 15.11.) ----------
+// Rest abgedunkelt, ein Bereich hell, daneben ein kurzer Tipp. Schritte mit done() gehen von selbst weiter,
+// sobald der Spieler das Verlangte tut. Nur einmal (localStorage), jederzeit überspringbar.
+const TUT = [
+  { sel: '.contract-box', key: 'tut1', next: true },
+  { sel: '#left', key: 'tut2', done: () => state.instruments.length > 0 || state.build > 0 },
+  { sel: '#next', key: 'tut3', done: () => state.build > 0 },
+  { sel: '#left', key: 'tut4', done: () => !!state.bus && !!state.panel },
+  { sel: '.carousel-stage', key: 'tut5', next: true },
+  { sel: '.insure', key: 'tut6', next: true },
+  { sel: '#next', key: 'tut7', done: () => state.phase !== 'build' },
+];
+const tutSeen = () => { try { return localStorage.getItem('tutorial-done') === '1'; } catch { return true; } };
+const tutFinish = () => { try { localStorage.setItem('tutorial-done', '1'); } catch { /* ohne Speicher */ } state.tut = null; tutorial(); };
+let tutSpot = null, tutTip = null;
+function tutorial() {
+  if (!tutSpot) {
+    tutSpot = el('div', { class: 'tut-spot', 'aria-hidden': 'true' });
+    tutTip = el('div', { class: 'tut-tip', role: 'status' });
+    document.body.append(tutSpot, tutTip);
+  }
+  const active = state.phase === 'build' && state.mission && state.mission.contract && company.index === 0 && !tutSeen();
+  if (!active && state.tut != null && state.phase === 'launch') tutFinish(); // erster Start: Einführung geschafft
+  if (active && state.tut == null) state.tut = 0;
+  if (active) while (state.tut < TUT.length && TUT[state.tut].done && TUT[state.tut].done()) state.tut += 1;
+  if (active && state.tut >= TUT.length) { tutFinish(); return; }
+  const step = active ? TUT[state.tut] : null;
+  const target = step && document.querySelector(step.sel);
+  if (step && !target && step.next) { state.tut += 1; tutorial(); return; } // Bereich fehlt (z. B. nicht versicherbar): überspringen
+  tutSpot.classList.toggle('on', !!target); tutTip.classList.toggle('on', !!target);
+  if (!target) return;
+  const r = target.getBoundingClientRect(), pad = 6, tw = 300;
+  Object.assign(tutSpot.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + 2 * pad}px`, height: `${Math.min(r.height, innerHeight - r.top) + 2 * pad}px` });
+  tutTip.replaceChildren(
+    el('span', { class: 'tut-count' }, `${state.tut + 1} / ${TUT.length}`),
+    el('p', {}, t(step.key)),
+    el('div', { class: 'tut-actions' },
+      el('button', { class: 'link-btn', type: 'button', onclick: tutFinish }, t('tutSkip')),
+      step.next ? el('button', { class: 'primary go', type: 'button', onclick: () => { state.tut += 1; tutorial(); } }, t('tutNext')) : ''));
+  // Tipp rechts neben das Ziel, sonst links, sonst darunter
+  let x = r.right + 18, y = r.top;
+  if (x + tw > innerWidth - 12) x = r.left - tw - 18;
+  if (x < 12) { x = Math.min(Math.max(12, r.left), innerWidth - tw - 12); y = r.bottom + 18; }
+  y = Math.min(Math.max(12, y), innerHeight - 200);
+  Object.assign(tutTip.style, { left: `${x}px`, top: `${y}px`, width: `${tw}px` });
+}
+addEventListener('resize', () => tutorial());
+
 // ---------- Knöpfe unten und Gesamtaufbau ----------
 
 function footer() {
@@ -1767,6 +1910,7 @@ function footer() {
     const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && !!state.panel && !!state.rocket][state.build]);
     if (state.build === 1) setNext(t('launch'), 'rocket'); else setNext(t('next'), 'next', true);
     next.disabled = !ready;
+    next.classList.toggle('go', ready);
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch
   } else if (state.phase === 'research' || state.phase === 'company') {
@@ -1776,11 +1920,13 @@ function footer() {
     setBack(t('changeDifficulty'));
     back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Levelauswahl
     if (state.mission.contract) setNext(t('changeDifficulty'), 'next', true); else setNext(t('tryAgain'), 'retry');
+    next.classList.add('go');
     next.disabled = false;
   }
 }
 
 function render() {
+  queueMicrotask(tutorial); // Einführung nach dem Neuzeichnen an die neuen Stellen setzen
   const inMenu = state.phase === 'home' || state.phase === 'start';
   $('app').classList.toggle('hidden-app', inMenu);
   document.body.classList.toggle('playing', !inMenu);
@@ -1888,7 +2034,7 @@ addEventListener('keydown', (e) => {
   if (state.phase === 'start') { e.preventDefault(); moveLevel(e.key === 'ArrowLeft' ? -1 : 1); return; }
   if (state.phase !== 'build') return;
   if (e.target.closest && e.target.closest('input, textarea, select, .carousel')) return; // Karussell hat eigenen Handler
-  const items = offered(catalogs.find((c) => c.kind === 'rocket').items);
+  const items = carouselItems();
   if (!items.length) return;
   e.preventDefault();
   moveRocket(items, e.key === 'ArrowLeft' ? -1 : 1);

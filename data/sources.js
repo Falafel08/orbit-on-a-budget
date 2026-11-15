@@ -4,13 +4,15 @@ import { facts } from './facts.js';
 const FACT_PAGES = {
   iss: { en: 'Space fact: International Space Station facts and figures', de: 'Weltraum-Fakt: Zahlen zur Internationalen Raumstation' },
   webb: { en: 'Space fact: James Webb Space Telescope', de: 'Weltraum-Fakt: James-Webb-Teleskop' },
-  moon: { en: 'Space fact: Moon facts', de: 'Weltraum-Fakt: Mond' },
+  moon: { en: 'Space fact: lunar laser ranging (NASA JPL)', de: 'Weltraum-Fakt: Laser-Entfernungsmessung zum Mond (NASA JPL)' },
   sun: { en: 'Space fact: Sun facts', de: 'Weltraum-Fakt: Sonne' },
   voyager: { en: 'Space fact: Voyager 1', de: 'Weltraum-Fakt: Voyager 1' },
   debris: { en: 'Space fact: space debris', de: 'Weltraum-Fakt: Weltraumschrott' },
 };
 
 export const nasaSources = [
+  { en: 'Electron price ($6.9M, 2015): NASA Venture Class Launch Services contracts', de: 'Preis Electron (6,9 Mio. $, 2015): NASA-Verträge Venture Class Launch Services',
+    url: 'https://www.nasa.gov/news-release/nasa-awards-venture-class-launch-services-contracts-for-cubesat-satellites/' },
   { en: 'Rocket payload to an 800 km orbit (Pegasus XL, Falcon 9): NASA Launch Services Program, Launch Vehicle Performance Website',
     de: 'Nutzlast der Raketen für 800 km (Pegasus XL, Falcon 9): NASA Launch Services Program, Launch Vehicle Performance Website',
     url: 'https://elvperf.ksc.nasa.gov' },
@@ -35,6 +37,14 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: 'Electron payload (200 kg to 500 km SSO): Rocket Lab', de: 'Nutzlast Electron (200 kg auf 500 km SSO): Rocket Lab',
+    url: 'https://rocketlabcorp.com/updates/rocket-lab-increases-electron-payload-capacity-enabling-interplanetary-missions-and-reusability/' },
+  { en: 'Firefly Alpha payload (630 kg to 500 km SSO) and price ($15M): Firefly Payload User\'s Guide', de: 'Nutzlast Firefly Alpha (630 kg auf 500 km SSO) und Preis (15 Mio. $): Firefly Payload User\'s Guide',
+    url: 'https://fireflyspace.com/alpha/' },
+  { en: 'Success rates Electron, Firefly Alpha, Falcon 9, Pegasus XL: keeptrack.space launch statistics', de: 'Erfolgsquoten Electron, Firefly Alpha, Falcon 9, Pegasus XL: keeptrack.space',
+    url: 'https://keeptrack.space/launches/vehicles/electron' },
+  { en: 'Moon moving away 3.8 cm per year: NASA JPL lunar laser ranging', de: 'Mond entfernt sich 3,8 cm pro Jahr: NASA JPL, Laser-Entfernungsmessung',
+    url: 'https://funphysics.jpl.nasa.gov/technical/grp/lunar-laser.html' },
   { en: 'Buildings, domes, rovers and rocks: Kenney Space Kit (CC0), www.kenney.nl', de: 'Gebäude, Kuppeln, Rover und Felsen: Kenney Space Kit (CC0), www.kenney.nl',
     url: 'https://kenney.nl/assets/space-kit' },
   { en: 'Background image: Cosmic Cliffs, NASA, ESA, CSA, and STScI (ESA/Webb, CC BY 4.0)', de: 'Hintergrundbild: Cosmic Cliffs, NASA, ESA, CSA, and STScI (ESA/Webb, CC BY 4.0)',

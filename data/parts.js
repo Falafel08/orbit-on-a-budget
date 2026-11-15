@@ -93,13 +93,25 @@ export const rockets = [
     verified: true,
     info: 'Your CubeSat flies along on someone else\'s rocket. It is cheap, but it only takes CubeSats up to 3U.',
   },
+  // Neue Raketen (Linus 15.11.: mehr Raketen). Nutzlast für 500 km Sonnensynchron laut Hersteller, nicht aus der NASA-Abfrage,
+  // darum im Infotext mit Bahn und Quelle. Erfolgsquote nach keeptrack.space, Stand 15.11.2026.
+  {
+    id: 'electron', name: 'Electron', cost: 6.9, maxPayload: 200, reliability: 0.956, // 86 von 90 Flügen erfolgreich
+    verified: true, // 6,9 Mio. $: NASA Venture Class Launch Services (2015); 200 kg auf 500 km SSO: Rocket Lab
+    info: 'A small carbon-fibre rocket from Rocket Lab with battery-driven engine pumps. About 200 kg to a 500 km sun-synchronous orbit (Rocket Lab figure, lower than the 800 km of the NASA numbers). NASA paid $6.9M for a dedicated launch in 2015. 86 of 90 flights worked.',
+  },
+  {
+    id: 'alpha', name: 'Firefly Alpha', cost: 15, maxPayload: 630, reliability: 0.57, // 4 von 7 Flügen erfolgreich
+    verified: true, // 630 kg auf 500 km SSO und 15 Mio. $ Listenpreis: Firefly Payload User's Guide
+    info: 'A two-stage carbon-fibre rocket from Firefly in Texas. 630 kg to a 500 km sun-synchronous orbit and a list price of $15M (Firefly figures). Only 4 of 7 flights worked so far.',
+  },
   {
     id: 'pegasus', name: 'Pegasus XL', cost: 56.3, maxPayload: 190, reliability: 0.9, // 27 von 30 Starts erfolgreich
     verified: true, // 190 kg: NASA LSP; 56,3 Mio. $: NASA, Launch-Vertrag ICON
     info: 'A small rocket launched from under a plane. NASA lists 190 kg to an 800 km orbit.',
   },
   {
-    id: 'falcon9', name: 'Falcon 9', cost: 69, maxPayload: 10670, reliability: 0.996, // etwa 2 Fehlstarts in über 600 Flügen
+    id: 'falcon9', name: 'Falcon 9', cost: 69, maxPayload: 10670, reliability: 0.997, // 700 von 702 Flügen erfolgreich (keeptrack.space, 15.11.2026)
     verified: true, // 10.670 kg (Booster landet auf Drohnenschiff): NASA LSP; 69 Mio. $: NASA, Launch-Vertrag COSI
     info: 'A large rocket whose first stage lands again and flies once more. NASA lists 10,670 kg to an 800 km orbit.',
   },
@@ -112,7 +124,7 @@ export const starship = {
   id: 'starship', name: 'Starship', cost: 100, maxPayload: 100000, reliability: 0.67, // 100 Mio. $ ohne Forschung, bis 10 Mio. $ mit (starshipCost)
   capacity: { moon: 100000, mars: 100000 }, needsRefuel: true, // über den Erdorbit hinaus nur mit Betankung im Orbit
   claim: true, uninsurable: true,
-  info: 'SpaceX\'s giant rocket, still in test flights. Payload is SpaceX\'s own figure, not NASA data. A flight costs about $100M today and gets cheaper with the research Starship reuse. 10 of 15 test flights worked. No insurer covers it.',
+  info: 'SpaceX\'s giant rocket, still in test flights. 100 t to low orbit is SpaceX\'s own figure and not shown yet. The price of $100M per flight is a game estimate; it gets cheaper with the research Starship reuse. 10 of 15 test flights worked. In the game no insurer covers it (assumption).',
 };
 
 // Eigene Rakete (Spiel-Entwurf, Raketengleichung). Orbiter-1 trägt etwa 1,6 t, Orbiter-2 nach Forschung etwa 10 t in den Erdorbit.
@@ -124,13 +136,13 @@ export const OWN_STAGES_2 = [{ dryMass: 20000, propMass: 300000, isp: 300 }, { d
 // für den Mond gilt im Spiel derselbe Wert, das ist vorsichtig, denn zum Mond trägt sie mehr.
 export const falconHeavy = {
   id: 'falconHeavy', name: 'Falcon Heavy', cost: 178, reliability: 0.99, capacity: { moon: 16800, mars: 16800 },
-  info: 'Three Falcon 9 cores side by side. NASA paid about $178M to launch Europa Clipper with it. Carries 16.8 t to Mars (SpaceX figure).',
+  info: 'Three Falcon 9 cores side by side. NASA paid about $178M to launch Europa Clipper with it. Sends up to 16.8 t toward Mars, then all three cores are lost (SpaceX figure). The game uses both numbers together, a simplification.',
 };
 // SLS: über 27 t zum Mond (NASA, SLS Lift Capabilities). 2,2 Mrd. $ pro Rakete (NASA Inspector General, IG-22-003).
 // Erfolgsquote: Spiel-Annahme.
 export const sls = {
   id: 'sls', name: 'SLS', cost: 2200, reliability: 0.95, capacity: { moon: 27000 },
-  info: 'NASA\'s Moon rocket. It carries more than 27 t to the Moon. NASA\'s Inspector General puts one rocket at about $2.2 billion.',
+  info: 'NASA\'s Moon rocket. It sends more than 27 t toward the Moon, together with the Orion crew capsule. NASA\'s Inspector General puts building one rocket at about $2.2 billion.',
 };
 
 // Deutsche Namen und Texte, an jeden Datensatz gehängt (tr() in src/i18n.js liest sie)
@@ -161,9 +173,11 @@ const DE = {
   'bus-l': { name: 'Großer Bus', info: BUS_DE + ' Masse und Nutzlast wie der Bus Ball BCP-Large im NASA-Katalog RSDO.' },
   rideshare: { name: 'CubeSat-Mitflug', info: 'Dein CubeSat fliegt auf der Rakete von jemand anderem mit. Das ist billig, aber nur für CubeSats bis 3U.' },
   pegasus: { info: 'Eine kleine Rakete, die unter einem Flugzeug startet. Laut NASA trägt sie 190 kg in einen Orbit in 800 km Höhe.' },
-  falconHeavy: { info: 'Drei Falcon-9-Stufen nebeneinander. Die NASA zahlte etwa 178 Mio. $ für den Start von Europa Clipper damit. Trägt 16,8 t zum Mars (Angabe von SpaceX).' },
-  sls: { info: 'Die Mondrakete der NASA. Sie trägt mehr als 27 t zum Mond. Laut NASA-Prüfbericht kostet eine Rakete etwa 2,2 Mrd. $.' },
-  starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. Die Nutzlast ist eine Angabe von SpaceX, keine NASA-Zahl. Ein Flug kostet heute etwa 100 Mio. $ und wird mit der Forschung Starship-Wiederverwendung billiger. 10 von 15 Testflügen haben geklappt. Kein Versicherer deckt sie.' },
+  falconHeavy: { info: 'Drei Falcon-9-Stufen nebeneinander. Die NASA zahlte etwa 178 Mio. $ für den Start von Europa Clipper damit. Schickt bis zu 16,8 t Richtung Mars, dann sind alle drei Stufen verloren (Angabe von SpaceX). Das Spiel nutzt beide Zahlen zusammen, eine Vereinfachung.' },
+  sls: { info: 'Die Mondrakete der NASA. Sie schickt mehr als 27 t Richtung Mond, zusammen mit der Crew-Kapsel Orion. Laut NASA-Prüfbericht kostet der Bau einer Rakete etwa 2,2 Mrd. $.' },
+  starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. 100 t in einen niedrigen Orbit ist eine Angabe von SpaceX und noch nicht gezeigt. Der Preis von 100 Mio. $ pro Flug ist eine Schätzung des Spiels; mit der Forschung Starship-Wiederverwendung wird er billiger. 10 von 15 Testflügen haben geklappt. Im Spiel versichert sie niemand (Annahme).' },
+  electron: { info: 'Kleine Rakete aus Kohlefaser von Rocket Lab, die Pumpen der Triebwerke laufen mit Akkus. Etwa 200 kg in einen Sonnensynchron-Orbit in 500 km Höhe (Angabe Rocket Lab, niedriger als die 800 km der NASA-Zahlen). Die NASA zahlte 2015 6,9 Mio. $ für einen eigenen Start. 86 von 90 Flügen haben geklappt.' },
+  alpha: { info: 'Zweistufige Rakete aus Kohlefaser von Firefly aus Texas. 630 kg in einen Sonnensynchron-Orbit in 500 km Höhe und 15 Mio. $ Listenpreis (Angaben von Firefly). Bisher haben nur 4 von 7 Flügen geklappt.' },
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
 for (const list of [missions, instruments, buses, panels, rockets, [starship, falconHeavy, sls]]) for (const x of list) x.de = DE[x.id];
