@@ -14,6 +14,7 @@ import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } f
 import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlight, endRound, isComplete, foodPerRound, stationFee, GRID } from './src/station.js';
 import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS } from './data/station.js';
 import { showStation3D } from './src/station3d.js';
+import { showWorld, hasWebGL } from './src/world3d.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -1844,6 +1845,7 @@ function renderCompany() {
   const row = (ic, name, text, btn) => el('div', { class: 'bldg-row' }, el('span', { class: 'bldg-icon' }, icon(ic)),
     el('div', { class: 'bldg-text' }, el('strong', {}, name), el('p', { class: 'hint' }, text)), btn);
   const firstHall = view === 1; // Montagehalle steht auf der Erde, an den anderen Orten startet man vom Lande- bzw. Andockplatz
+  if (hasWebGL()) return renderWorldBase({ view, c, inLevel, need, canFly, toLab, toBuild, firstHall });
   return el('section', { class: 'company base-screen enter' },
     el('div', { class: 'base-wrap' }, placeSvg(view, canFly ? c : null, delivered), el('p', { class: 'hint' }, t('baseHint2'))),
     el('div', { class: 'company-panel' },
@@ -2032,6 +2034,36 @@ function station3dBox(st, pick, dock = null, gridFallback = false) {
     if (!ok) box.replaceWith(gridFallback ? stationGridSvg(st) : ''); // ohne WebGL: 2D-Raster
   });
   return box;
+}
+
+// ---------- Basis als 3D-Welt (Linus 15.11.): Kamerafahrt, schwebende Widgets statt fester Karte ----------
+let worldLevel = null; // zuletzt gezeigtes Level, für die Fahrt beim Levelwechsel
+const worldSeen = (n) => { try { return localStorage.getItem(`world-seen-${n}`) === '1'; } catch { return true; } };
+function renderWorldBase({ view, c, inLevel, need, canFly, toLab, toBuild, firstHall }) {
+  const here = c && c.level === view;
+  const widget = (building, ic, name, body, open = false) => el('div', { class: `world-widget off${open ? ' open' : ''}`, tabindex: '0', role: 'group', 'aria-label': name },
+    el('div', { class: 'ww-pill' }, icon(ic), el('span', {}, name)), el('div', { class: 'ww-body' }, ...body));
+  const controlText = here ? (c.station ? `${company.station ? company.station.name : tr(c, 'client')}: ${tr(c, 'goal')}` : `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.`) : t('levelDone');
+  const list = el('ol', { class: 'contracts' }, inLevel.map((x) => { const i = contracts.indexOf(x);
+    return el('li', { class: i < company.index ? 'is-done' : i === company.index ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')}${x.station ? '' : ` · ${money(x.fee)}`}`); }));
+  const goLabel = need ? t('researchFirst', { x: t(need.name) }) : c && c.station && here ? t('stPlan') : t('toHall');
+  const widgets = [
+    { building: 'control', el: widget('control', 'antenna', t('bldgControl'), [el('p', {}, controlText), list]) },
+    { building: 'lab', el: widget('lab', 'flask', t('bldgLab'), [el('p', { class: 'hint' }, t('labRowText')),
+      el('button', { class: need ? 'primary small go' : 'primary small', type: 'button', onclick: toLab }, icon('flask'), el('span', {}, t('openLab')))]) },
+    { building: firstHall ? 'hall' : 'pad', el: widget('hall', firstHall ? 'hangar' : 'rocket', t(firstHall ? 'bldgHall' : view === 2 ? 'bldgDock' : 'bldgLanding'),
+      [el('button', { class: canFly ? 'primary go' : 'primary', type: 'button', disabled: canFly ? null : '', onclick: toBuild }, icon('rocket'), el('span', {}, goLabel))], true) },
+  ];
+  const world = el('div', { class: 'world' });
+  const flight = worldLevel && worldLevel !== view ? { from: worldLevel } : !worldSeen(view) ? 'intro' : phaseChanged ? 'short' : null;
+  if (flight === 'intro') try { localStorage.setItem(`world-seen-${view}`, '1'); } catch { /* ohne Speicher */ }
+  worldLevel = view;
+  const actions = { control: () => widgets[0].el.focus(), lab: toLab, hall: toBuild, pad: toBuild };
+  queueMicrotask(() => showWorld(world, { level: view, station: company.station, widgets, onBuilding: (id) => actions[id] && actions[id](), flight }));
+  return el('section', { class: 'company world-screen' }, world,
+    el('div', { class: 'world-title' }, el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`), el('p', {}, t(`levelGoal${view}`)), needLine(),
+      company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : ''),
+    el('p', { class: 'world-hint' }, t('worldHint')));
 }
 
 // ---------- Ergebnis ----------
@@ -2364,8 +2396,9 @@ function setHudCash(value, low = false) {
   hudAnim = requestAnimationFrame(step);
 }
 
-let lastPhase = null; // weicher Übergang, wenn der Bildschirm wechselt (Spielgefühl: keine harten Schnitte)
+let lastPhase = null, phaseChanged = true; // weicher Übergang, wenn der Bildschirm wechselt (Spielgefühl: keine harten Schnitte)
 function render() {
+  phaseChanged = state.phase !== lastPhase;
   if (state.phase !== lastPhase) {
     const c = document.getElementById('center');
     if (c && lastPhase !== null) { c.classList.remove('phase-in'); void c.offsetWidth; c.classList.add('phase-in'); }

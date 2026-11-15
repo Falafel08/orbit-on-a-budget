@@ -979,3 +979,25 @@ body[data-drag] .zone-side { opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) { .stars .star-on { animation: none; } }
 .hud-item.up { color: #4CAF6A; box-shadow: 0 0 0 1px rgba(76,175,106,0.6), 0 0 18px rgba(76,175,106,0.45); transition: box-shadow 200ms; }
 .hud-item.down { color: #E0605A; box-shadow: 0 0 0 1px rgba(224,96,90,0.6), 0 0 18px rgba(224,96,90,0.4); transition: box-shadow 200ms; }
+
+/* 3D-Welt der Basen */
+.world-screen { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.world { position: absolute; inset: 0; }
+.world-canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.world-fade { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.world-title { position: absolute; left: 20px; top: 16px; max-width: 420px; padding: 14px 18px; border-radius: 16px; background: rgba(23, 21, 20, 0.62); backdrop-filter: blur(8px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35); pointer-events: auto; }
+.world-title h1 { margin: 0 0 4px; font-size: 1.35rem; }
+.world-title p { margin: 4px 0; font-size: 0.92rem; }
+.world-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; font-size: 0.82rem; color: var(--nebentext); background: rgba(11, 10, 18, 0.55); padding: 6px 12px; border-radius: 999px; pointer-events: none; }
+.world-widget { position: absolute; left: 0; top: 0; z-index: 2; transition: opacity 250ms ease; will-change: transform; }
+.world-widget.off { opacity: 0; pointer-events: none; }
+.ww-pill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; background: rgba(23, 21, 20, 0.78); backdrop-filter: blur(8px); border: 1px solid rgba(168, 143, 214, 0.55); font-weight: 600; font-size: 0.9rem; white-space: nowrap; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+.ww-pill .icon { width: 18px; height: 18px; color: var(--akzent-text); }
+.ww-body { display: none; margin-top: 6px; width: 280px; padding: 12px 14px; border-radius: 14px; background: rgba(23, 21, 20, 0.86); backdrop-filter: blur(10px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); font-size: 0.9rem; }
+.ww-body p { margin: 0 0 8px; }
+.ww-body .contracts { margin: 0; padding-left: 18px; font-size: 0.82rem; }
+.world-widget:hover .ww-body, .world-widget:focus-within .ww-body, .world-widget.open .ww-body { display: block; }
+.world-widget.open .ww-body { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; }
+.world-widget:hover, .world-widget:focus-within { z-index: 3; }
+.company.world-screen { display: block; max-width: none; margin: 0; padding: 0; gap: 0; overflow: hidden; height: 100%; max-height: none; }
+.center:has(.world-screen) { padding: 0; }

@@ -161,3 +161,11 @@ function dockAnimation(v, mesh) {
     return true;
   });
 }
+
+// Für die 3D-Welt (src/world3d.js): Three.js laden und die Station als Gruppe bauen
+export async function ensureThree() { await load(); return THREE; }
+export function stationModel(station) {
+  const g = new THREE.Group();
+  for (const m of station.modules) { const mesh = moduleMesh(m); mesh.position.set(...pos(m.x, m.y)); g.add(mesh); }
+  return g;
+}
