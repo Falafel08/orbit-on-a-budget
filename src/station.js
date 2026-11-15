@@ -9,6 +9,8 @@ const MID = 2;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const ALL_PORTS = new Set(['core', 'node']);
 
+// Neue Firma in Level 2: Station ohne Module, der erste Flug bringt den Kern
+export const emptyStation = (name) => ({ name, modules: [], crew: 0, robots: [], supplies: 0 });
 export function newStation(name) {
   return { name, modules: [{ x: MID, y: MID, type: 'core', axis: null }], crew: 0, robots: [], supplies: 0 };
 }
@@ -26,6 +28,7 @@ function hasPort(m, dx, dy) {
 export function canPlace(s, x, y, type) {
   if (x < 0 || y < 0 || x >= GRID || y >= GRID) return { ok: false, reason: 'outside' };
   if (at(s, x, y)) return { ok: false, reason: 'taken' };
+  if (!s.modules.length) return type === 'core' && x === MID && y === MID ? { ok: true, axis: null } : { ok: false, reason: type === 'core' ? 'coreCenter' : 'coreFirst' };
   if (type === 'core') return { ok: false, reason: 'oneCore' };
   const parent = DIRS.map(([dx, dy]) => ({ m: at(s, x - dx, y - dy), dx, dy })).find((p) => p.m && hasPort(p.m, p.dx, p.dy));
   return parent ? { ok: true, axis: parent.dx !== 0 ? 'h' : 'v' } : { ok: false, reason: 'noPort' };
@@ -106,3 +109,7 @@ export function isComplete(s) {
   const types = new Set(s.modules.map((m) => m.type));
   return NEEDED.every((t) => types.has(t)) && (s.crew || 0) >= 3 && stationStats(s).power >= 0 && (s.supplies || 0) >= foodPerRound(3);
 }
+
+// Partner-Agenturen zahlen für jedes angedockte Modul (Spiel-Annahme: Baupreis plus 220 Mio. $), andere Flüge bringen kein Geld
+export const PARTNER_PAY = 220;
+export const stationFee = (f) => (f.kind === 'module' ? MODULES[f.type].cost + PARTNER_PAY : 0);

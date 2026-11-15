@@ -9,6 +9,8 @@ import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
 import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush } from './src/audio.js';
 import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } from './src/research.js';
+import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlight, endRound, isComplete, foodPerRound, stationFee, GRID } from './src/station.js';
+import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS } from './data/station.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -47,16 +49,29 @@ function ownRocket() {
   };
 }
 // ---------- Kampagne: Stand im Browser ----------
-const freshCompany = () => ({ cash: CAMPAIGN_START, index: 0, over: false });
+const freshCompany = () => ({ cash: CAMPAIGN_START, index: 0, over: false, v: 2, station: null });
 let company = freshCompany();
 try { company = { ...company, ...JSON.parse(localStorage.getItem('company') || '{}') }; } catch { /* Neustart */ }
+// Alter Stand (vor 15.11. abends): Level 2 hatte fünf Modul-Aufträge. Wer mittendrin war, beginnt die neue Station neu.
+if (company.v !== 2) { if (company.index >= 9) company.index -= 4; else if (company.index >= 4) company.index = 4; company.v = 2; company.station = null; }
 // Neue Firma: Startzähler fürs Überspringen zurücksetzen (Linus 15.11.: sonst gibt es „Überspringen“ schon beim ersten Start)
 const newCompany = () => { try { localStorage.removeItem('launches'); } catch { /* ohne Speicher */ } return freshCompany(); };
 const saveCompany = () => { try { localStorage.setItem('company', JSON.stringify(company)); } catch { /* ohne Speicher */ } };
 const bestCompany = () => { try { return Number(localStorage.getItem('best-company')) || 0; } catch { return 0; } };
 
 // Auftrag als Mission: Teile der Basis-Mission, Budget = Firmengeld
+function flightName(f) {
+  if (f.kind === 'module') return tr(MODULES[f.type], 'name');
+  if (f.kind === 'robot') return tr(ROBOTS.find((r) => r.id === f.robot), 'name');
+  if (f.kind === 'crew') return t('stFlightCrew', { n: f.crew });
+  return t('stFlightSupplies', { kg: kg(f.kg) });
+}
 function contractMission(c) {
+  if (c.station) { // Level 2: ein Flug zur eigenen Station, die Nutzlast ersetzt den Satelliten
+    const f = state.flight || { kind: 'supplies', kg: 100 }, p = payloadOf(f), name = flightName(f);
+    return { id: 'campaign-station', level: 'Intermediate', name, goal: tr(c, 'goal'), budget: company.cash, minScience: 0, requiredDv: 9500,
+      module: { mass: p.mass, cost: p.cost, name, de: { name } }, contract: { ...c, fee: stationFee(f) }, dest: 'leo', station: true, flight: f, de: null };
+  }
   if (c.module) {
     return { id: `campaign-${c.id}`, level: 'Intermediate', name: tr(c, 'client'), goal: tr(c, 'goal'), budget: company.cash,
       minScience: 0, requiredDv: 9500, module: c.module, contract: c, dest: c.dest, requires: c.requires, de: null };
@@ -299,7 +314,7 @@ function renderLevelSelect() {
       el('div', { class: 'lvl-main' },
         el('p', { class: 'lvl-goal' }, t(`levelGoal${i}`)),
         open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
-        playable ? el('p', { class: 'hint' }, `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
+        playable ? el('p', { class: 'hint' }, next.station ? `${company.station ? company.station.name : tr(next, 'client')}: ${tr(next, 'goal')}` : `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
         el('button', { class: playable ? 'primary start-big go' : 'primary start-big', type: 'button', disabled: playable ? null : '',
           onclick: () => { if (!playable) return; state.levelView = i; go('company'); } }, ...label), // weiter zur Basis mit den Gebäuden
         // Neue Firma: braucht man nach Fehlern, darum hier vor der Wahl (Linus 14.11.). Zweiter Klick bestätigt.
@@ -1794,7 +1809,7 @@ function marsScene(c, delivered) {
 // Ort eines Levels zeichnen. delivered = gelieferte Module in diesem Level.
 function placeSvg(level, c, delivered) {
   const place = LEVELS[level - 1].place;
-  if (place === 'station') return stationScene(c, delivered);
+  if (place === 'station') return stationGridSvg(company.station || emptyStation('')); // Level 2: deine Station auf dem Raster (alte Szene stationScene ungenutzt)
   if (place === 'moon') return moonScene(c, delivered);
   if (place === 'mars') return marsScene(c, delivered);
   return baseSvg(c);
@@ -1811,7 +1826,7 @@ function renderCompany() {
   const need = locked ? PROJECTS.find((p) => p.id === c.requires) : null;
   const canFly = c && !company.over && !locked && c.level === view;
   const toLab = () => { state.returnTo = 'company'; state.researchView = view; go('research'); };
-  const toBuild = () => { if (canFly) startMission(contractMission(c)); };
+  const toBuild = () => { if (!canFly) return; if (c.station) { state.flight = null; go('station'); } else startMission(contractMission(c)); };
   const row = (ic, name, text, btn) => el('div', { class: 'bldg-row' }, el('span', { class: 'bldg-icon' }, icon(ic)),
     el('div', { class: 'bldg-text' }, el('strong', {}, name), el('p', { class: 'hint' }, text)), btn);
   const firstHall = view === 1; // Montagehalle steht auf der Erde, an den anderen Orten startet man vom Lande- bzw. Andockplatz
@@ -1822,15 +1837,123 @@ function renderCompany() {
       el('p', { class: 'lvl-desc' }, t(`levelGoal${view}`)), // mehr Platz für beschreibenden Text
       needLine(),
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
-      row('antenna', t('bldgControl'), c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'), ''),
+      row('antenna', t('bldgControl'), c && c.level === view ? (c.station ? `${company.station ? company.station.name : tr(c, 'client')}: ${tr(c, 'goal')}` : `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.`) : t('levelDone'), ''),
       row('flask', t('bldgLab'), t('labRowText'), el('button', { class: need ? 'primary small go' : 'primary small', type: 'button', onclick: toLab }, icon('flask'), el('span', {}, t('openLab')))),
       row(firstHall ? 'hangar' : 'rocket', t(firstHall ? 'bldgHall' : view === 2 ? 'bldgDock' : 'bldgLanding'), t('hallText'),
         el('button', { class: canFly ? 'primary small go' : 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild },
-          icon('rocket'), el('span', {}, need ? t('researchFirst', { x: t(need.name) }) : t('toHall')))),
+          icon('rocket'), el('span', {}, need ? t('researchFirst', { x: t(need.name) }) : c && c.station && c.level === view ? t('stPlan') : t('toHall')))),
       el('ol', { class: 'contracts' }, inLevel.map((x) => {
         const i = contracts.indexOf(x);
-        return el('li', { class: i < company.index ? 'is-done' : i === company.index ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
+        return el('li', { class: i < company.index ? 'is-done' : i === company.index ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')}${x.station ? '' : ` · ${money(x.fee)}`}`);
       }))));
+}
+
+// ---------- Level 2: eigene Raumstation planen (Spec docs/Level2_Station_Spec_v1.md) ----------
+const MODULE_COLORS = { core: '#f5efe6', node: '#B8AFA6', solar: '#3d5196', habitat: '#f1e3b8', lab: '#bfe3ea', storage: '#d9c3a0' };
+const BUILDABLE = ['node', 'solar', 'habitat', 'lab', 'storage'];
+
+// Raster der Station als SVG. Mit pick: freie Felder sind wählbar (grün = Anschluss frei, rot = gewählt, aber ohne Anschluss)
+function stationGridSvg(st, pick = null) {
+  const cell = 64, pad = 8, size = GRID * cell + pad * 2;
+  const s = svg('svg', { viewBox: `0 0 ${size} ${size}`, class: 'station-grid', role: 'group', 'aria-label': st.name });
+  const at = (x, y) => st.modules.find((m) => m.x === x && m.y === y);
+  for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+    const px = pad + x * cell, py = pad + y * cell, m = at(x, y);
+    if (m) {
+      const g = svg('g', { class: 'st-module' });
+      const long = m.axis === 'h' ? [px + 2, py + 14, cell - 4, cell - 28] : m.axis === 'v' ? [px + 14, py + 2, cell - 28, cell - 4] : [px + 8, py + 8, cell - 16, cell - 16];
+      if (m.type === 'solar') { // Flügel quer zur Achse
+        const across = m.axis === 'v' ? [px + 2, py + 20, cell - 4, cell - 40] : [px + 20, py + 2, cell - 40, cell - 4];
+        g.append(svg('rect', { x: across[0], y: across[1], width: across[2], height: across[3], fill: '#2b3a6b', stroke: '#9fb3e8' }));
+      } else g.append(svg('rect', { x: long[0], y: long[1], width: long[2], height: long[3], rx: 8, fill: MODULE_COLORS[m.type], stroke: '#0B0A12' }));
+      g.append(svg('title', {}, tr(MODULES[m.type], 'name')));
+      s.append(g);
+      continue;
+    }
+    if (!pick) { s.append(svg('rect', { x: px + 4, y: py + 4, width: cell - 8, height: cell - 8, rx: 6, class: 'st-empty' })); continue; }
+    const c = canPlace(st, x, y, pick.type), chosen = pick.x === x && pick.y === y;
+    const r = svg('rect', { x: px + 4, y: py + 4, width: cell - 8, height: cell - 8, rx: 6,
+      class: `st-cell${c.ok ? ' ok' : ''}${chosen ? (c.ok ? ' chosen' : ' bad') : ''}`, tabindex: c.ok ? '0' : null, role: c.ok ? 'button' : null,
+      'aria-label': `${x + 1}, ${y + 1}${c.ok ? '' : ` – ${t(`st_${c.reason}`)}`}` });
+    const choose = () => { state.flight = { ...state.flight, x, y }; render(); };
+    r.addEventListener('click', choose);
+    r.addEventListener('keydown', press(choose));
+    s.append(r);
+  }
+  return s;
+}
+
+function stationChips(st) {
+  const v = stationStats(st);
+  const chip = (ic, label, value, bad = false) => el('span', { class: `st-chip${bad ? ' bad' : ''}` }, icon(ic), el('span', {}, `${label} `), el('strong', {}, value));
+  return el('div', { class: 'st-chips' },
+    chip('bolt', t('stPower'), `${v.power > 0 ? '+' : ''}${v.power} kW`, v.power < 0),
+    chip('sat', t('stCrew'), `${st.crew} / ${v.beds}`),
+    chip('coin', t('stSupplies'), `${kg(st.supplies)} / ${kg(v.storage)}`, st.supplies < foodPerRound(st.crew)),
+    chip('weight', t('stMass'), `${Math.round(v.mass / 1000)} / ${STATION_MAX_MASS / 1000} t`),
+    st.robots.length ? chip('antenna', t('stKind_robot'), st.robots.map((id) => tr(ROBOTS.find((r) => r.id === id), 'name')).join(', ')) : '');
+}
+
+function renderStationPlanner() {
+  const c = contracts[company.index];
+  if (!company.station) { // erster Besuch: Station benennen
+    const input = el('input', { type: 'text', maxlength: '30', value: t('stDefault'), 'aria-label': t('stName') });
+    const found = () => { company.station = emptyStation(input.value.trim() || t('stDefault')); saveCompany(); state.flight = null; render(); };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') found(); });
+    return el('section', { class: 'station-plan enter' }, el('div', { class: 'st-name' }, el('h1', {}, t('stName')), input,
+      el('button', { class: 'primary go', type: 'button', onclick: found }, icon('next'), el('span', {}, t('stFound')))));
+  }
+  const st = company.station;
+  if (!st.modules.length) state.flight = { kind: 'module', type: 'core', x: 2, y: 2 }; // erster Flug: der Kern
+  if (!state.flight) state.flight = { kind: 'module', type: 'lab' };
+  const f = state.flight, v = stationStats(st);
+  const setF = (nf) => { state.flight = nf; render(); };
+  const tab = (k) => el('button', { type: 'button', class: f.kind === k ? 'tab on' : 'tab', 'aria-pressed': String(f.kind === k), disabled: st.modules.length ? null : '',
+    onclick: () => setF(k === 'module' ? { kind: 'module', type: 'lab' } : k === 'supplies' ? { kind: 'supplies', kg: Math.min(500, Math.max(100, v.storage - st.supplies)) } : k === 'crew' ? { kind: 'crew', crew: 1 } : { kind: 'robot', robot: 'canadarm' }) }, t(`stKind_${k}`));
+  const choice = (on, label, meta, pick, info) => el('button', { type: 'button', class: on ? 'st-choice on' : 'st-choice', 'aria-pressed': String(on), onclick: pick,
+    onmouseenter: info ? () => showInfo(info) : null }, el('strong', {}, label), el('span', { class: 'side-meta' }, meta));
+  let options = '';
+  if (f.kind === 'module' && st.modules.length) options = el('div', { class: 'st-choices' }, BUILDABLE.map((k) => { const m = MODULES[k];
+    return choice(f.type === k, tr(m, 'name'), `${money(m.cost)} · ${kg(m.mass)} · ${m.power > 0 ? '+' : ''}${m.power} kW`, () => setF({ kind: 'module', type: k }), { name: tr(m, 'name'), info: tr(m, 'info') }); }));
+  if (f.kind === 'supplies') options = el('div', { class: 'st-choices' }, [100, 250, 500, 1000, 2000].map((n) =>
+    choice(f.kg === n, kg(n), `${money(payloadOf({ kind: 'supplies', kg: n }).cost)}`, () => setF({ kind: 'supplies', kg: n }))));
+  if (f.kind === 'crew') options = el('div', { class: 'st-choices' }, [1, 2, 3].map((n) =>
+    choice(f.crew === n, t('stFlightCrew', { n }), `${kg(foodPerRound(n))} ${t('stPerRound')}`, () => setF({ kind: 'crew', crew: n }))));
+  if (f.kind === 'robot') options = el('div', { class: 'st-choices' }, ROBOTS.map((r) =>
+    choice(f.robot === r.id, tr(r, 'name'), `${money(r.cost)} · ${kg(r.mass)} · ${r.assemble ? t('stCanBuild') : t('stCannotBuild')}`, () => setF({ kind: 'robot', robot: r.id }),
+      { name: tr(r, 'name'), info: `${tr(r, 'info')} (${r.source})` })));
+  // Prüfen ohne Rakete (die Sicherheitsgrenzen prüft der Bau-Schritt mit der gewählten Rakete)
+  const needsCell = f.kind === 'module';
+  const check = needsCell && f.x === undefined ? { ok: false, reason: null } : flightCheck(st, f, { reliability: 1 });
+  const fee = stationFee(f);
+  const robot = f.kind === 'robot' && ROBOTS.find((r) => r.id === f.robot);
+  const info = f.kind === 'crew' ? t('stCapsule') : f.kind === 'supplies' ? t('stFoodInfo') : robot ? `${tr(robot, 'info')} (${robot.source})`
+    : !st.modules.length ? t('stCoreHint') : `${tr(MODULES[f.type], 'info')} ${t('stPickCell')}`;
+  const goRocket = () => { if (check.ok) startMission(contractMission(c)); };
+  return el('section', { class: 'station-plan enter' },
+    el('div', { class: 'st-left' }, el('h1', {}, st.name), stationChips(st),
+      el('div', { class: 'st-tabs', role: 'group' }, ['module', 'supplies', 'crew', 'robot'].map(tab)),
+      options, info ? infobox(info, f.kind === 'crew' ? 'sat' : 'info') : '',
+      el('p', { class: 'hint' }, st.crew ? t('stRound', { kg: kg(foodPerRound(st.crew)) }) : t('stRoundEmpty'))),
+    el('div', { class: 'st-right' }, stationGridSvg(st, needsCell ? f : null),
+      el('p', { class: check.ok || !check.reason ? 'hint' : 'launch-warn' }, check.reason ? `⚠ ${t(`st_${check.reason}`)}` : fee ? t('stFee', { c: money(fee) }) : t('stNoFee')),
+      el('button', { class: check.ok ? 'primary go' : 'primary', type: 'button', disabled: check.ok ? null : '', onclick: goRocket }, icon('rocket'), el('span', {}, t('stToRocket')))));
+}
+
+// Ergebnis eines Stationsflugs: was die Runde gebracht hat
+function stationRoundBox(r) {
+  const rd = r.round, st = company.station;
+  const missing = [];
+  if (!r.stationDone) {
+    if (st.crew < 3) missing.push(t('stNeedCrew'));
+    if (st.supplies < foodPerRound(3)) missing.push(t('stNeedFood'));
+    if (stationStats(st).power < 0) missing.push(t('stNeedPower'));
+  }
+  return el('div', { class: 'station-round' },
+    rd.rescue ? el('p', { class: 'result-msg fail' }, t('stRescue', { c: money(RESCUE_COST) })) : st.crew || rd.rp ? el('p', {}, t('stRoundResult', { kg: kg(foodPerRound(st.crew)), rp: rd.rp })) : '',
+    rd.noPower ? el('p', { class: 'launch-warn' }, `⚠ ${t('stNoPower')}`) : '',
+    r.stationDone ? el('p', { class: 'result-msg' }, t('stComplete', { name: st.name })) : missing.length ? el('p', { class: 'hint' }, t('stStillMissing', { x: missing.join(', ') })) : '',
+    stationGridSvg(st));
 }
 
 // ---------- Ergebnis ----------
@@ -1996,6 +2119,7 @@ function renderResult() {
     r.success && r.minCost && Number.isFinite(r.minCost) ? el('div', { class: 'stars-box' },
       el('p', { class: 'stars', 'aria-label': t('starsLabel', { n: stars(r) }) }, '★'.repeat(stars(r)) + '☆'.repeat(3 - stars(r))),
       el('p', { class: 'hint' }, t('cheapestWay', { c: money(r.minCost) }))) : '',
+    r.round ? stationRoundBox(r) : '',
     r.success && state.mission.contract ? el('p', { class: 'why' }, icon('star'), el('span', {}, el('strong', {}, t('whyTitle')), ' ', t(`why_${whyKind(state.mission.contract)}`), ' '),
       el('a', { href: WHY[whyKind(state.mission.contract)], target: '_blank', rel: 'noopener' }, t('whySource'))) : '',
     r.fact ? el('div', { class: 'fact big-fact' }, factPicture(r.fact), el('p', {}, el('strong', {}, t('funFact')), ' ', r.fact[getLang()])) : '',
@@ -2115,17 +2239,22 @@ function footer() {
       const heavyKey = state.side && state.side.length ? 'wHeavySide' : 'wHeavy';
       if (!(state.build === 1 && !affordable)) warn.textContent = plan.length ? `⚠ ${t({ 'rocket-mass': heavyKey, 'delta-v': weakKey, power: 'wPower', capacity: 'wCapacity', science: 'wScience' }[plan[0]])}` : '';
       if (plan.length) next.classList.remove('go');
+      if (state.mission.station && state.rocket && state.build === 1) { // Crew ab 99 %, Roboter ab 90 % (Spec Level 2)
+        const fc = flightCheck(company.station, state.mission.flight, state.rocket);
+        if (!fc.ok) { warn.hidden = false; warn.textContent = `⚠ ${t(`st_${fc.reason}`)}`; next.disabled = true; next.classList.remove('go'); }
+      }
       if (plan.length && state.tut != null) next.disabled = true; // in der Einführung kein Start, der sicher scheitert
     }
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch
-  } else if (state.phase === 'research' || state.phase === 'company') {
-    setBack(state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('toBase') : t('changeDifficulty'));
+  } else if (state.phase === 'research' || state.phase === 'company' || state.phase === 'station') {
+    setBack(state.phase === 'station' ? t('toBase') : state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('toBase') : t('changeDifficulty'));
     next.classList.add('hidden');
   } else if (state.phase === 'result') {
     setBack(t('changeDifficulty'));
     back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Levelauswahl
-    if (state.mission.contract) setNext(t('toBase'), 'next', true); else setNext(t('tryAgain'), 'retry');
+    if (state.mission.station && state.result && !state.result.stationDone && !company.over) setNext(t('stPlan'), 'next', true);
+    else if (state.mission.contract) setNext(t('toBase'), 'next', true); else setNext(t('tryAgain'), 'retry');
     next.classList.add('go');
     next.disabled = false;
   }
@@ -2149,12 +2278,19 @@ function render() {
   $('home').classList.remove('show');
 
   const stage = $('stage');
-  stage.classList.toggle('full', ['result', 'research', 'company'].includes(state.phase));
+  stage.classList.toggle('full', ['result', 'research', 'company', 'station'].includes(state.phase));
   stage.classList.toggle('launching', state.phase === 'launch');
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');
     setHud(money(company.cash), company.over);
     $('center').replaceChildren(renderCompany());
+    footer();
+    return;
+  }
+  if (state.phase === 'station') {
+    $('mission-label').textContent = company.station ? company.station.name : t('stationLabel');
+    setHud(money(company.cash), company.over);
+    $('center').replaceChildren(renderStationPlanner());
     footer();
     return;
   }
@@ -2205,16 +2341,25 @@ NEXT.addEventListener('click', () => {
     const previousBest = contract ? 0 : loadBest(state.mission);
     if (r.success && !contract) saveBest(state.mission, r.sciencePerMillion);
     // Stationsflüge und Basen bringen keine Wissenschaft, aber Erfahrung: feste Forschungspunkte
-    r.rp = contract && contract.module ? (r.success ? MODULE_RP : 0) : pointsForMission(r, state.mission, previousBest); // Module: feste Punkte, Satelliten: ihre Wissenschaft
+    r.rp = contract && contract.station ? (r.success && state.mission.flight.kind === 'module' ? MODULE_RP : 0)
+      : contract && contract.module ? (r.success ? MODULE_RP : 0) : pointsForMission(r, state.mission, previousBest); // Module: feste Punkte, Satelliten: ihre Wissenschaft
     if (contract) {
       // Forschungspunkte gibt es pro Auftrag nur beim ersten Erfolg, sonst ließen sie sich durch Neustarts sammeln
       const paid = research.paid || [];
-      if (paid.includes(contract.id)) r.rp = 0;
+      if (contract.station) { /* jedes Modul ist neu, Punkte gibt es pro Modul */ } else if (paid.includes(contract.id)) r.rp = 0;
       else if (r.success) research.paid = [...paid, contract.id];
       company.cash = settleContract(company.cash, r, contract.fee);
       r.sideFee = r.success ? sideFee() : 0; // Nebenaufträge zahlen nur, wenn der Start klappt
       company.cash = Math.round((company.cash + r.sideFee) * 1000) / 1000;
-      if (r.success) { company.index += 1; state.levelView = null; state.levelPick = null; } // Levelauswahl springt aufs aktuelle Level
+      if (contract.station) { // Jeder Flug ist eine Runde: erst ankommen, dann essen, forschen, Strom verrechnen
+        if (r.success) company.station = applyFlight(company.station, state.mission.flight);
+        const round = endRound(company.station);
+        company.station = round.station;
+        r.round = round; r.rp += round.rp;
+        if (round.rescue) company.cash = Math.round((company.cash - RESCUE_COST) * 1000) / 1000;
+        r.stationDone = isComplete(company.station);
+        if (r.stationDone) { company.index += 1; state.levelView = null; state.levelPick = null; }
+      } else if (r.success) { company.index += 1; state.levelView = null; state.levelPick = null; } // Levelauswahl springt aufs aktuelle Level
       const next = contracts[company.index];
       if (next && isBankrupt(company.cash, minCostFor(company.index))) company.over = true; // billigster Weg inklusive Forschung
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
@@ -2231,7 +2376,8 @@ NEXT.addEventListener('click', () => {
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
   else if (state.phase === 'result') {
-    if (state.mission.contract) { state.phase = 'company'; state.levelView = reachedLevel(); state.levelPick = reachedLevel(); } // zurück zur Basis
+    if (state.mission.station && !state.result.stationDone && !company.over) { state.flight = null; state.phase = 'station'; } // weiter planen
+    else if (state.mission.contract) { state.phase = 'company'; state.levelView = reachedLevel(); state.levelPick = reachedLevel(); } // zurück zur Basis
     else { state.phase = 'build'; state.build = 0; }
   }
   render();
@@ -2240,7 +2386,9 @@ NEXT.addEventListener('click', () => {
 BACK.addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0 && !(state.mission && state.mission.module)) state.build -= 1;
   else if (state.phase === 'company') state.phase = 'start';
+  else if (state.phase === 'station') state.phase = 'company';
   else if (state.phase === 'research') state.phase = state.returnTo || 'start'; // auch zurück in die Bau-Ansicht
+  else if (state.mission && state.mission.station && state.phase === 'build') state.phase = 'station'; // Stationsflug: zurück zum Planer
   else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company'; // aus dem Bau zurück zur Basis
   else state.phase = 'start';
   render();

@@ -232,19 +232,11 @@ export const contracts = [
   { id: 'c4', level: 1, dest: 'leo', base: 'weather', minScience: 100, fee: 110,
     client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
     de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
-  // Level 2: eine kleine Raumstation aus fünf Modulen (Idee Mentor und Josias, 14.11.).
-  // Massen und Preise sind Spiel-Annahmen, kein NASA-Wert. Die Raketen-Nutzlast gilt laut NASA für 800 km,
-  // eine Station fliegt tiefer. Echte Raketen tragen dorthin mehr, das Spiel rechnet vorsichtig.
-  ...[
-    ['s1', 'Core module', 'Kernmodul', 'The heart of the station: computers, control and the first room.', 'Das Herz der Station: Computer, Steuerung und der erste Raum.', 6000, 40, 155],
-    ['s2', 'Power module', 'Energiemodul', 'Big solar wings that give the whole station power.', 'Große Solarflügel, die der ganzen Station Strom geben.', 4000, 30, 145],
-    ['s3', 'Lab module', 'Labormodul', 'A lab for experiments in weightlessness.', 'Ein Labor für Versuche in der Schwerelosigkeit.', 8000, 50, 170],
-    ['s4', 'Habitat module', 'Wohnmodul', 'Beds, kitchen and air for a crew of three.', 'Betten, Küche und Luft für drei Leute.', 9000, 55, 180],
-    ['s5', 'Docking node', 'Andockknoten', 'Lets spacecraft dock. After this the station is complete.', 'Hier docken Raumschiffe an. Danach ist die Station fertig.', 3000, 25, 140],
-  ].map(([id, name, nameDe, goal, goalDe, mass, cost, fee]) => ({
-    id, level: 2, dest: 'leo', module: { mass, cost, name, de: { name: nameDe } }, fee: fee + 60, // +60 je Modul (15.11.): Level 3 braucht Geld zum Einstieg
-    client: name, goal, de: { client: nameDe, goal: goalDe },
-  })),
+  // Level 2: deine eigene Raumstation (Linus 15.11.). Ein Auftrag, viele Flüge: Module, Vorräte, Crew, Roboter.
+  // Regeln und Zahlen in src/station.js und data/station.js. Geld bringen die Partner pro Modul (stationFee).
+  { id: 'station', level: 2, dest: 'leo', station: true, fee: 0,
+    client: 'Your space station', goal: 'Build a station with power, a lab, a habitat, storage and a crew of three.',
+    de: { client: 'Deine Raumstation', goal: 'Baue eine Station mit Strom, Labor, Wohnmodul, Lager und einer Crew von drei Leuten.' } },
   // Level 3: Mondbasis, Level 4: Mars. Massen, Baukosten und Zahlungen sind Spiel-Annahmen.
   // Das Wohnmodul (20 t) passt nicht in Falcon Heavy: entweder die teure SLS oder Starship nach der Forschung „Betankung“.
   ...[
@@ -279,7 +271,6 @@ export const sideJobs = [
   ['side-iot', 'Small IoT satellite', 'Kleiner IoT-Satellit', 120],
   ['side-eo', 'Earth observation satellite', 'Erdbeobachtungs-Satellit', 450],
   ['side-comms', 'Comms satellites', 'Funksatelliten', 1500],
-  ['side-cargo', 'Supplies for the station', 'Vorräte für die Station', 2500, 2],
 ].map(([id, name, nameDe, mass, level]) => ({ id, name, mass, level, fee: Math.round(Math.max(50, mass) * RIDESHARE_PER_KG * 1000) / 1000, de: { name: nameDe } }));
 // Großauftrag (Linus 15.11.): füllt große Raketen wie Starship. 2.000 $ pro kg ist eine Annahme des Spiels (Großkunden zahlen weniger pro kg).
 export const BULK_PER_KG = 0.002;

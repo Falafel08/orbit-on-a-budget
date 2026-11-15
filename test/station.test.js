@@ -117,3 +117,19 @@ test('Station fertig mit allen Modularten, Crew von 3, Strom und Vorräten für 
   assert.equal(isComplete({ ...s, supplies: 161 }), false);
   assert.equal(isComplete({ ...s, modules: s.modules.filter((m) => m.type !== 'storage') }), false);
 });
+
+import { emptyStation, stationFee } from '../src/station.js';
+
+test('Leere Station: erster Flug ist der Kern, nur in der Mitte', () => {
+  const s = emptyStation('Aurora');
+  assert.equal(s.modules.length, 0);
+  assert.equal(canPlace(s, 2, 2, 'core').ok, true);
+  assert.equal(canPlace(s, 1, 2, 'core').ok, false);
+  assert.equal(canPlace(s, 2, 2, 'lab').reason, 'coreFirst');
+  assert.equal(place(s, 2, 2, 'core').modules[0].type, 'core');
+});
+
+test('Partner zahlen pro angedocktem Modul, andere Flüge bringen kein Geld', () => {
+  assert.equal(stationFee({ kind: 'module', type: 'lab' }), 50 + 220);
+  assert.equal(stationFee({ kind: 'crew', crew: 3 }), 0);
+});
