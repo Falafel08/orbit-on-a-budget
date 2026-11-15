@@ -269,3 +269,15 @@ export const LEVELS = [
   { n: 3, place: 'moon', name: 'Moon base', de: { name: 'Mondbasis' } },
   { n: 4, place: 'mars', name: 'Mars', de: { name: 'Mars' } },
 ];
+
+// Nebenaufträge (Linus 15.11.): Satelliten anderer Kunden fliegen als Zusatzladung mit, nur im Erdorbit.
+// Bezahlung wie ein Mitflug bei SpaceX: etwa 7.000 $ pro kg, mindestens 50 kg (Marktberichte 2026, kein offizielles Preisblatt).
+// Bringt Geld, aber keine Forschungspunkte. Die Vorräte gibt es nur bei Flügen zur Station (Level 2).
+export const RIDESHARE_PER_KG = 0.007;
+export const sideJobs = [
+  ['side-school', 'School CubeSat', 'Schul-CubeSat', 4],
+  ['side-iot', 'Small IoT satellite', 'Kleiner IoT-Satellit', 120],
+  ['side-eo', 'Earth observation satellite', 'Erdbeobachtungs-Satellit', 450],
+  ['side-comms', 'Comms satellites', 'Funksatelliten', 1500],
+  ['side-cargo', 'Supplies for the station', 'Vorräte für die Station', 2500, 2],
+].map(([id, name, nameDe, mass, level]) => ({ id, name, mass, level, fee: Math.round(Math.max(50, mass) * RIDESHARE_PER_KG * 1000) / 1000, de: { name: nameDe } }));

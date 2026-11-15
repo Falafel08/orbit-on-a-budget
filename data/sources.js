@@ -37,6 +37,8 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: 'Side jobs pay about $7,000 per kg, like a SpaceX rideshare in 2026 (market analysis, no official price sheet)', de: 'Nebenaufträge zahlen etwa 7.000 $ pro kg wie ein Mitflug bei SpaceX 2026 (Marktanalyse, kein offizielles Preisblatt)',
+    url: 'https://newspaceeconomy.ca/2026/02/27/satellite-ridesharing-market-analysis-2026/' },
   { en: '"Why it matters" lines: NASA CubeSat Launch Initiative, NOAA JPSS weather satellites, NASA Sea Level, NASA ISS facts, NASA Artemis, NASA Perseverance',
     de: '„Wozu das gut ist“: NASA CubeSat Launch Initiative, NOAA-Wettersatelliten JPSS, NASA Sea Level, NASA ISS-Fakten, NASA Artemis, NASA Perseverance',
     url: 'https://sealevel.nasa.gov/understanding-sea-level/key-indicators/global-mean-sea-level/' },

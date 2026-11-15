@@ -2,7 +2,7 @@
 import { facts } from './data/facts.js';
 import { SPRITES } from './assets/kenney/sprites.js';
 import { nasaSources, otherSources } from './data/sources.js';
-import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START, OWN_STAGES, OWN_STAGES_2 } from './data/parts.js';
+import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START, OWN_STAGES, OWN_STAGES_2, sideJobs } from './data/parts.js';
 import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked, minCostToFinish } from './src/campaign.js';
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
@@ -174,7 +174,16 @@ const press = (fn) => (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preve
 const instMass = () => state.instruments.reduce((m, i) => m + i.mass, 0);
 const instPower = () => state.instruments.reduce((p, i) => p + i.power, 0);
 const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
-const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0);
+const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0) + (state.sideMass || 0);
+// Nebenaufträge, die zu diesem Auftrag passen: nur in der Kampagne und nur im Erdorbit
+const sideOffered = () => (state.mission && state.mission.contract && (state.mission.dest || 'leo') === 'leo'
+  ? sideJobs.filter((j) => !j.level || j.level === state.mission.contract.level) : []);
+const sideFee = () => sideJobs.filter((j) => (state.side || []).includes(j.id)).reduce((a, j) => a + j.fee, 0);
+function toggleSide(j) {
+  state.side = state.side.includes(j.id) ? state.side.filter((x) => x !== j.id) : [...state.side, j.id];
+  state.sideMass = sideJobs.filter((x) => state.side.includes(x.id)).reduce((a, x) => a + x.mass, 0);
+  render();
+}
 const powerAvailable = () => (state.bus ? state.bus.power : 0) + (state.panel ? state.panel.power : 0);
 // Versicherung: 8 % des Raketenpreises, auf 1.000 $ genau (bei 0,1 Mio. $ wurde der Mitflug-Preis zu 0 und wirkte nicht)
 const insurancePrice = (rocket) => Math.round(rocket.cost * 0.08 * 1000) / 1000;
@@ -304,7 +313,7 @@ function go(phase) {
 function startMission(m) {
   leftStep = null; // neue Mission: links oben anfangen
   state.rocketView = null;
-  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null });
+  Object.assign(state, { mission: m, phase: 'build', build: 0, instruments: [], bus: null, panel: null, rocket: null, insured: false, info: null, side: [], sideMass: 0 });
   if (m.module) Object.assign(state, { build: 1, bus: { ...moduleBus(m.module), name: m.module.name, de: m.module.de } });
   state.rocket = offered(rocketList())[0] || null; // vorne im Karussell = gewählt
   render();
@@ -892,6 +901,13 @@ function renderLeft() {
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
       el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
+    ...(state.build === 1 && sideOffered().length ? [
+      el('h3', { class: 'group' }, t('groupSide')),
+      el('div', { class: 'catalog' }, sideOffered().map((j) => el('div', {
+        class: 'card side-job', role: 'button', tabindex: '0', 'aria-pressed': String(state.side.includes(j.id)),
+        onclick: () => toggleSide(j), onkeydown: press(() => toggleSide(j)),
+        onmouseenter: () => showInfo({ name: tr(j, 'name'), info: t('sideInfo', { kg: kg(j.mass), c: money(j.fee) }) }),
+      }, icon('sat'), el('div', {}, el('strong', {}, tr(j, 'name')), el('span', { class: 'side-meta' }, `${kg(j.mass)} · +${money(j.fee)}`)))))] : []),
   ].filter(Boolean));
   left.scrollTop = scroll;
   if (focusIndex >= 0) focusables()[focusIndex]?.focus({ preventScroll: true });
@@ -1896,7 +1912,7 @@ function factIcon(kind) {
 
 // Konfetti für den Gewinn: einmal herabfallen, dann weg
 // 3 Sterne: höchstens 15 % teurer als der billigste mögliche Weg, 2 Sterne: höchstens 60 % teurer
-const stars = (r) => (r.spent <= r.minCost * 1.15 ? 3 : r.spent <= r.minCost * 1.6 ? 2 : 1);
+const stars = (r) => { const net = r.spent - (r.sideFee || 0); return net <= r.minCost * 1.15 ? 3 : net <= r.minCost * 1.6 ? 2 : 1; }; // Nebenaufträge senken die Kosten
 
 function confetti() {
   const box = el('div', { class: 'confetti', 'aria-hidden': 'true' });
@@ -1965,7 +1981,8 @@ function renderResult() {
         r.cost.ins ? [el('dt', { class: 'sub' }, t('insure')), el('dd', { class: 'sub' }, money(r.cost.ins))] : ''] : []),
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
       ...(state.mission.contract ? [el('dt', {}, t('clientPays')), el('dd', {}, money(r.fee || 0)),
-        el('dt', { class: 'profit' }, t('profit')), el('dd', { class: `profit ${(r.fee || 0) - r.spent >= 0 ? 'plus' : 'minus'}` }, money((r.fee || 0) - r.spent))] : []),
+        r.sideFee ? [el('dt', {}, t('sideIncome')), el('dd', {}, `+${money(r.sideFee)}`)] : '',
+        el('dt', { class: 'profit' }, t('profit')), el('dd', { class: `profit ${(r.fee || 0) + (r.sideFee || 0) - r.spent >= 0 ? 'plus' : 'minus'}` }, money((r.fee || 0) + (r.sideFee || 0) - r.spent))] : []),
       free || state.mission.contract ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))], // im Auftrag zählt nur das Firmengeld
       ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
         el('dt', {}, t(r.rp ? 'pointsEarned' : 'missionPoints')), el('dd', {}, String(r.science)), // „verdient“ nur, wenn sie wirklich gutgeschrieben werden
@@ -2154,6 +2171,8 @@ NEXT.addEventListener('click', () => {
       if (paid.includes(contract.id)) r.rp = 0;
       else if (r.success) research.paid = [...paid, contract.id];
       company.cash = settleContract(company.cash, r, contract.fee);
+      r.sideFee = r.success ? sideFee() : 0; // Nebenaufträge zahlen nur, wenn der Start klappt
+      company.cash = Math.round((company.cash + r.sideFee) * 1000) / 1000;
       if (r.success) { company.index += 1; state.levelView = null; state.levelPick = null; } // Levelauswahl springt aufs aktuelle Level
       const next = contracts[company.index];
       if (next && isBankrupt(company.cash, minCostFor(company.index))) company.over = true; // billigster Weg inklusive Forschung

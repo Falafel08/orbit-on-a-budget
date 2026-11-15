@@ -19,7 +19,7 @@ export function deltaV(stages, payloadMass) {
 }
 
 // Prüft eine geplante Mission. problems nennt jeden Grund fürs Scheitern.
-export function missionResult({ mission, instruments, bus, panel, rocket, insurance = 0 }) {
+export function missionResult({ mission, instruments, bus, panel, rocket, insurance = 0, sideMass = 0 }) {
   // Solarpanel ist freiwillig: ohne Panel zählt nur der Strom des Busses. Versicherung zählt wie ein Teil.
   const parts = [...instruments, bus, panel, rocket, insurance ? { cost: insurance } : null].filter(Boolean);
   const left = budgetLeft(mission.budget, parts);
@@ -28,7 +28,7 @@ export function missionResult({ mission, instruments, bus, panel, rocket, insura
   const instPower = instruments.reduce((p, i) => p + i.power, 0);
   const science = instruments.reduce((s, i) => s + i.science, 0);
   const powerAvailable = (bus.power || 0) + (panel ? panel.power : 0);
-  const payload = bus.mass + instMass + (panel ? panel.mass : 0);
+  const payload = bus.mass + instMass + (panel ? panel.mass : 0) + sideMass; // Nebenaufträge fliegen mit
   // Gekaufte Rakete oder Mitfluggelegenheit: Nutzlast laut NASA für den Ziel-Orbit.
   // Selbst gebaute Rakete (stages): Delta-v aus der Raketengleichung.
   const bySpec = rocket.maxPayload !== undefined;

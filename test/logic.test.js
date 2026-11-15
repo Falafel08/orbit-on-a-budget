@@ -145,3 +145,10 @@ test('big buses bring their own power, so a satellite without extra panels can w
   const r = missionResult({ mission: { budget: 1000, minScience: 0 }, instruments: [camera], bus: buses.find((b) => b.id === 'bus-s'), panel: null, rocket: { cost: 69, maxPayload: 10670 } });
   assert.ok(!r.problems.includes('power'));
 });
+
+// Nebenaufträge (Linus 15.11.): Satelliten anderer Kunden fliegen mit, ihre Masse zählt zur Nutzlast der Rakete
+test('side payloads add mass, so a full rocket can no longer reach orbit', () => {
+  const base = { mission: { budget: 100, minScience: 0 }, instruments: [], bus: { cost: 1, mass: 100, power: 0, capacity: 10 }, panel: null, rocket: { cost: 10, maxPayload: 500 } };
+  assert.equal(missionResult({ ...base, sideMass: 300 }).payload, 400);
+  assert.ok(missionResult({ ...base, sideMass: 450 }).problems.includes('rocket-mass'));
+});

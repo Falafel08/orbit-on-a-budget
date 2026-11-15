@@ -892,3 +892,10 @@ html.big-text .fact-label { font-size: 13px; }
 .after-research.bad { color: var(--schlecht); }
 .research { grid-template-areas: 'need need' 'nav nav' 'scene projects'; grid-template-rows: auto auto 1fr; }
 .research > .budget-need { grid-area: need; }
+
+/* Nebenaufträge */
+#left .card.side-job { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px; cursor: pointer; }
+#left .card.side-job .icon { color: #e8c547; width: 20px; height: 20px; }
+#left .card.side-job strong { display: block; font-size: 0.84rem; line-height: 1.2; }
+.side-meta { font-size: 0.76rem; color: var(--nebentext); }
+#left .card.side-job strong { overflow-wrap: anywhere; }
