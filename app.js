@@ -417,7 +417,7 @@ function choose(kind, item) {
 
 const catalogs = [
   { kind: 'instrument', items: instruments, hint: 'hintInstrument',
-    rows: (i) => [[t('science'), i.science], [t('mass'), kg(i.mass)], [t('power'), `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
+    rows: (i) => [[t('pointsShort'), i.science], [t('mass'), kg(i.mass)], [t('power'), `${i.power} W`]], picked: (i) => state.instruments.includes(i) },
   { kind: 'bus', items: buses, hint: 'hintBus', group: 'groupBus',
     rows: (b) => [[t('carries'), kg(b.capacity)], [t('ownMass'), kg(b.mass)], ...(b.power ? [[t('power'), `${b.power} W`]] : [])], picked: (b) => state.bus === b },
   { kind: 'panel', items: panels, group: 'groupPanel',

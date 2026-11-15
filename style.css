@@ -871,3 +871,8 @@ html.big-text .fact-label { font-size: 13px; }
 .research > .lab-scene { align-self: center; }
 .research { max-width: 1380px; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); column-gap: 20px; }
 .research > .projects { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+/* Werte in den Kacheln bleiben im Rand: Name links, Wert rechts */
+#left .card-body { min-width: 0; }
+#left .card dl { grid-template-columns: minmax(0, 1fr) auto; justify-content: stretch; width: 100%; }
+#left .card dt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#left .card dd { text-align: right; }
