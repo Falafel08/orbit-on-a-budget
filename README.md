@@ -6,21 +6,24 @@ A browser game for students. You plan a space mission with a fixed budget, pick 
 
 Built at the NASA Space Apps Challenge 2026, Aachen. Challenge: Space Mission Design Game.
 
+Slides of our pitch: [docs/Orbit-on-a-Budget_Pitch_v1.pdf](docs/Orbit-on-a-Budget_Pitch_v1.pdf) (PowerPoint in the same folder).
+
 ## How to play
-1. Choose a difficulty. Each one is a different mission with its own parts, budget and science target.
-2. Drag instruments onto the rocket. Each one adds science, mass, power draw and cost.
-3. Build the satellite: a bus that carries the instruments and solar panels that power them.
-4. Book a rocket or a CubeSat rideshare.
-5. Launch. Every rocket has a real success rate, so a launch can fail. Insurance pays for a second launch.
-6. See if you reached orbit, how much money is left and your science per million dollars. Then try again for less money.
-7. A new best score earns research points. Repeating the same mission without doing better earns none. Use them to research your own rocket, Orbiter-1. Its first flight is expensive, every flight after that is cheaper, and a reusable booster cuts the price again.
+1. Choose a level, then open Mission control at your base.
+2. Pick instruments. Each one brings research points, mass, power draw and cost.
+3. Pick a satellite bus. Big buses bring their own power (NASA RSDO data), CubeSats need solar panels.
+4. Choose one of 12 real rockets, from Electron to Starship, and decide whether to insure the launch.
+5. Launch. Watch the stages separate, the fairing open and the satellite unfold. Every rocket has a real success rate, so a launch can fail.
+6. Your score is research points per million dollars. Try the same mission again for less money.
+
+The first contract has a short intro. Point at any part, rocket or the insurance to see what it does.
 
 ## Campaign
-Run your own space company from a base you see from above: Mission control for contracts, the research lab, the launch pad. You start with $110M. Your company pays for the parts, the client pays when the mission works, and what is left funds the next contract. Fail twice in a row and you go bankrupt.
+You run a space company and start with $110M. Your company pays for parts and launches, the client pays when the mission works, and the rest funds the next contract. Research costs money and research points: your own rocket Orbiter-1 gets cheaper with every flight, a reusable booster cuts the price again.
 
-- Level 1, Earth orbit: four contracts for satellites. Research lab on Earth: your own rocket.
-- Level 2, Space station: five flights, each brings one module. Research on the station: orbital refueling.
-- Level 3, Moon base: four landings with Falcon Heavy, NASA's SLS or (after refueling) Starship. Research: fuel from Moon ice.
+- Level 1, Earth orbit: satellites for four clients.
+- Level 2, Space station: five flights, each module docks to the station.
+- Level 3, Moon base: four landings. The habitat needs a big rocket.
 - Level 4, Mars: three flights. The crewed landing needs a fuel plant on Mars first.
 
 ## Run it on your own computer
