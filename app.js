@@ -1885,9 +1885,10 @@ function factPicture(fact) {
     }
     case 'voyager': {
       add('circle', { cx: 30, cy: 75, r: 10, fill: sun });
+      // Rand der Sonnenblase: Kreisbogen um die Sonne. Voyager 1 (122 AE, Norden) und Voyager 2 (119 AE, Süden) trafen ihn fast gleich weit weg
       for (const r of [22, 34, 52, 70]) add('circle', { cx: 30, cy: 75, r, fill: 'none', stroke: 'rgba(245,239,230,0.2)' });
-      add('path', { d: 'M150 10 Q215 75 150 140', stroke: '#9fb3e8', 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' });
-      label(170, 26, t('picBubble'));
+      add('path', { d: 'M150 10 A137 137 0 0 1 150 140', stroke: '#9fb3e8', 'stroke-width': 2, fill: 'none', 'stroke-dasharray': '5 4' });
+      label(232, 22, t('picBubble'));
       add('path', { d: 'M262 64 Q272 72 282 64 Z', fill: '#F5EFE6' }); add('rect', { x: 268, y: 66, width: 8, height: 8, fill: '#e0c070' });
       label(272, 98, '1977 → 2012');
       break;
