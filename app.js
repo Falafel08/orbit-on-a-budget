@@ -558,20 +558,20 @@ let gradSeq = 0;
 const ROCKET_LOOK = {
   // Höhen nach den echten Verhältnissen (Starship 121 m, SLS 98 m, Falcon 9 und Heavy 70 m, Pegasus 17 m), leicht gestaucht,
   // damit kleine Raketen sichtbar bleiben (Faktencheck 15.11.). Falcon-Kerne gleich breit, SLS-Booster bis etwa 58 % der Höhe.
-  rideshare: { H: 170, w: 16, body: ['#ece6dc', '#b8b0a4'] },
-  electron: { H: 110, w: 11, body: ['#3a3a40', '#16161a'] },   // 18 m, schwarze Kohlefaser
-  alpha: { H: 125, w: 13, body: ['#3b3836', '#1c1a19'] },      // 29 m, schwarz
-  ariane6: { H: 220, w: 20, body: ['#f4f2ee', '#bdb8ae'], boosters: { w: 8, color: ['#f4f2ee', '#b5b0a6'], h: 0.42 } }, // 63 m, 2 P120C
-  vegac: { H: 140, w: 13, body: ['#f2f0ec', '#b9b4aa'] },      // 35 m, ohne Booster
-  h3: { H: 205, w: 19, body: ['#f4f2ee', '#bdb8ae'] },         // 57 m, H3-30 ohne Booster
-  pslv: { H: 165, w: 11, body: ['#ece4d4', '#b9ae98'], boosters: { w: 5, color: ['#ece4d4', '#a89d88'], h: 0.3 } },   // 44 m, sechs dünne Booster
-  soyuz: { H: 170, w: 12, body: ['#b9c0ae', '#7f8873'], boosters: { w: 9, color: ['#b9c0ae', '#7a836e'], h: 0.42 } }, // 46 m, vier kegelförmige Booster
-  pegasus: { H: 125, w: 14, body: ['#f5efe6', '#bdb5a9'] },
-  own: { H: 220, w: 18, body: ['#c9b6ec', '#7d68a6'] },
-  falcon9: { H: 245, w: 15, body: ['#ffffff', '#c9c2b8'] },
+  rideshare: { H: 170, w: 16, fair: 1.2, body: ['#ece6dc', '#b8b0a4'] },
+  electron: { H: 110, w: 11, fair: 1.0, body: ['#3a3a40', '#16161a'] },   // 18 m, schwarze Kohlefaser
+  alpha: { H: 125, w: 13, fair: 1.1, body: ['#3b3836', '#1c1a19'] },      // 29 m, schwarz
+  ariane6: { H: 220, w: 20, fair: 1.0, body: ['#f4f2ee', '#bdb8ae'], boosters: { w: 8, color: ['#f4f2ee', '#b5b0a6'], h: 0.42 } }, // 63 m, 2 P120C
+  vegac: { H: 140, w: 13, fair: 1.0, body: ['#f2f0ec', '#b9b4aa'] },      // 35 m, ohne Booster
+  h3: { H: 205, w: 19, fair: 1.0, body: ['#f4f2ee', '#bdb8ae'] },         // 57 m, H3-30 ohne Booster
+  pslv: { H: 165, w: 11, fair: 1.15, body: ['#ece4d4', '#b9ae98'], boosters: { w: 5, color: ['#ece4d4', '#a89d88'], h: 0.3 } },   // 44 m, sechs dünne Booster
+  soyuz: { H: 170, w: 12, fair: 1.4, body: ['#b9c0ae', '#7f8873'], boosters: { w: 9, color: ['#b9c0ae', '#7a836e'], h: 0.42 } }, // 46 m, vier kegelförmige Booster
+  pegasus: { H: 125, w: 14, fair: 1.0, body: ['#f5efe6', '#bdb5a9'] },
+  own: { H: 220, w: 18, fair: 1.25, body: ['#c9b6ec', '#7d68a6'] },
+  falcon9: { H: 245, w: 15, fair: 1.4, body: ['#ffffff', '#c9c2b8'] },
   starship: { H: 308, w: 30, body: ['#d6dbe1', '#8d949c'] },
-  falconHeavy: { H: 245, w: 15, body: ['#ffffff', '#c9c2b8'], boosters: { w: 15, color: ['#ffffff', '#c9c2b8'], h: 0.78 } },
-  sls: { H: 280, w: 22, body: ['#f0a052', '#b8642a'], boosters: { w: 9, color: ['#ffffff', '#c9c2b8'], h: 0.58 } },
+  falconHeavy: { H: 245, w: 15, fair: 1.4, body: ['#ffffff', '#c9c2b8'], boosters: { w: 15, color: ['#ffffff', '#c9c2b8'], h: 0.78 } },
+  sls: { H: 280, w: 22, fair: 1.0, body: ['#f0a052', '#b8642a'], boosters: { w: 9, color: ['#ffffff', '#c9c2b8'], h: 0.58 } },
 };
 
 // Satellit in der Spitze: Körper, eingeklappte Solarflügel, Instrumente obendrauf (Klick entfernt sie)
@@ -595,6 +595,12 @@ function modulePicture(g, id, cx, bottom, maxW, maxH) {
 }
 
 function payloadIn(g, cx, bottom, maxW, maxH) {
+  // schmale Verkleidung (echte Breite): Inhalt für 46 Einheiten zeichnen und passend verkleinern
+  if (maxW < 46) {
+    const k = maxW / 46, inner = svg('g', { transform: `translate(${cx} ${bottom}) scale(${k}) translate(${-cx} ${-bottom})` });
+    g.append(inner);
+    g = inner; maxH /= k; maxW = 46;
+  }
   if (state.mission && state.mission.module && state.mission.contract) { modulePicture(g, state.mission.contract.id, cx, bottom, maxW, maxH); return; }
   // Feste Plätze (Linus und Freund 15.11.): unten der Bus, links und rechts die eingeklappten Solarflügel, oben die Instrumente.
   // Leere Plätze gestrichelt. Beim Ziehen leuchtet der passende Platz (CSS über body[data-drag]).
@@ -710,7 +716,8 @@ function towerPicture(r, front = false) {
 function rocketGeom(r, withPayload) {
   const look = ROCKET_LOOK[r.id] || ROCKET_LOOK.own, starship = r.id === 'starship';
   const top = 312 - look.H, fh = starship ? 50 : Math.min(84, Math.round(look.H * 0.36)), bodyTop = top + fh;
-  const fw = starship ? look.w : withPayload ? Math.max(look.w + 18, Math.min(46, look.w * 3)) : Math.max(look.w + 8, Math.min(30, look.w * 2)); // vorne breiter, damit der Satellit gut zu sehen ist
+  // Verkleidung im echten Verhältnis zum Rumpf (Linus 15.11.: kein riesiger Block vorne), z. B. Falcon 9 5,2 m zu 3,7 m
+  const fw = starship ? look.w : Math.round(look.w * (look.fair || 1.2) * 10) / 10;
   return { top, fh, fw, bodyTop, splitY: bodyTop + (304 - bodyTop) * 0.32 }; // Oberstufe = oberes Drittel des Rumpfs
 }
 
