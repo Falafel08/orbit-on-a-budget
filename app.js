@@ -554,6 +554,7 @@ function partPicture(kind, item) {
   return s;
 }
 
+const rowIcon = (k) => ({ [t('pointsShort')]: 'flask', [t('mass')]: 'weight', [t('ownMass')]: 'weight', [t('power')]: 'bolt', [t('carries')]: 'hangar' })[k] || 'info';
 function card(cat, item) {
   const node = el('div', {
     class: 'card', role: 'button', tabindex: '0', draggable: 'true', 'aria-pressed': String(cat.picked(item)),
@@ -574,7 +575,8 @@ function card(cat, item) {
   partPicture(cat.kind, item),
   el('div', { class: 'card-body' },
     el('h2', {}, el('span', {}, tr(item, 'name')), el('span', { class: 'price' }, money(item.cost))),
-    el('dl', {}, cat.rows(item).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))]))));
+    // Entscheidung 6: Zahlen als Symbol plus Wert statt Beschriftung (Wort steht im Tooltip)
+    el('div', { class: 'card-chips' }, cat.rows(item).map(([k, v]) => el('span', { class: 'card-chip', title: k, 'aria-label': `${k}: ${v}` }, icon(rowIcon(k)), String(v))))));
   node.classList.add('with-pic');
   return node;
 }

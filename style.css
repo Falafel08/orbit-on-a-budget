@@ -1033,3 +1033,7 @@ body.menu-3d .world-bg::after { background: radial-gradient(ellipse at 50% 50%, 
 .credit-3d { display: none; }
 body.menu-3d .credit-2d { display: none; }
 body.menu-3d .credit-3d { display: inline-block; }
+/* Entscheidung 6: Teile-Karten mit Symbolen statt Beschriftungen */
+.card-chips { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
+.card-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 0.8rem; color: var(--nebentext); white-space: nowrap; }
+.card-chip .icon { width: 13px; height: 13px; color: var(--akzent-text); }
