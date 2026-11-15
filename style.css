@@ -857,3 +857,17 @@ html.big-text .fact-label { font-size: 13px; }
 .home:not(.choosing) .sat-wrap { top: 68vh; }
 .action-bar { flex-direction: row; align-items: center; gap: 10px; }
 .launch-warn { margin: 0; white-space: nowrap; max-width: none; }
+
+/* Geld und Forschungspunkte oben rechts */
+.budget { display: flex; gap: 10px; }
+.hud-item { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(38, 34, 32, 0.8); border: 1px solid var(--linie); font-weight: 800; font-variant-numeric: tabular-nums; }
+.hud-item .icon { width: 18px; height: 18px; color: #e8c547; }
+.hud-item + .hud-item .icon { color: var(--akzent-text); }
+.hud-item.low { color: var(--schlecht); border-color: var(--schlecht); }
+.hud { top: 18px; right: 20px; display: flex; gap: 10px; }
+.hud:empty { display: none; }
+/* Labor: großes Bild links, Projekte rechts */
+.research { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr); grid-template-areas: 'nav nav' 'scene projects'; grid-template-rows: auto 1fr; align-items: center; }
+.research > .lab-scene { align-self: center; }
+.research { max-width: 1380px; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); column-gap: 20px; }
+.research > .projects { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }

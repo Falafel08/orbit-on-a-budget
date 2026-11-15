@@ -229,6 +229,7 @@ function renderHome() {
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]));
 
   $('hexes').replaceChildren(choosing ? renderLevelSelect() : '');
+  $('hud-home').replaceChildren(...(choosing ? hud(money(company.cash), company.over) : []));
 }
 
 // ---------- Level-Auswahl: Karussell über die vier Orte (Linus 14.11.) ----------
@@ -1441,9 +1442,6 @@ function renderResearch() {
       title: l.n > reached ? t('reachLevel') : '', onclick: () => { state.researchView = l.n; render(); },
     }, t(PLACE_NAME[l.place])))),
     el('div', { class: 'lab-scene', 'aria-hidden': 'true' }, placeSvg(view, null, delivered)),
-    el('h1', {}, t('labOf', { x: t(PLACE_NAME[place]) })),
-    el('p', { class: 'lead' }, t('researchLead')),
-    el('p', { class: 'big-number rp' }, `${research.rp} ${t('rpShort')} · ${money(company.cash)}`),
     el('div', { class: 'projects' }, PROJECTS.filter((pr) => pr.level === view).map((pr) => projectCard(pr, reached))));
 }
 
@@ -1760,7 +1758,6 @@ function renderCompany() {
     el('div', { class: 'base-wrap' }, placeSvg(view, canFly ? c : null, delivered), el('p', { class: 'hint' }, t('baseHint2'))),
     el('div', { class: 'company-panel' },
       el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`),
-      el('p', { class: 'big-number rp' }, `${money(company.cash)} · ${research.rp} ${t('rpShort')}`),
       el('p', { class: 'lvl-desc' }, t(`levelGoal${view}`)), // mehr Platz für beschreibenden Text
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
       row('antenna', t('bldgControl'), c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'), ''),
@@ -2054,6 +2051,13 @@ function footer() {
   }
 }
 
+// Geld und Forschungspunkte immer oben rechts (Linus 15.11.: „alles im Blick“)
+function hud(moneyText, low = false) {
+  return [el('span', { class: `hud-item${low ? ' low' : ''}`, title: t('cash') }, icon('coin'), moneyText),
+    el('span', { class: 'hud-item', title: t('rpLong') }, icon('flask'), String(research.rp))];
+}
+const setHud = (moneyText, low) => $('budget').replaceChildren(...hud(moneyText, low));
+
 function render() {
   queueMicrotask(tutorial); // Einführung nach dem Neuzeichnen an die neuen Stellen setzen
   setTimeout(tutorial, 520); // und noch einmal, wenn die Seitenleisten fertig hereingeglitten sind
@@ -2069,16 +2073,14 @@ function render() {
   stage.classList.toggle('launching', state.phase === 'launch');
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');
-    $('budget').textContent = money(company.cash);
-    $('budget').classList.toggle('low', company.over);
+    setHud(money(company.cash), company.over);
     $('center').replaceChildren(renderCompany());
     footer();
     return;
   }
   if (state.phase === 'research') {
     $('mission-label').textContent = t('research');
-    $('budget').textContent = `${research.rp} ${t('rpShort')}`;
-    $('budget').classList.remove('low');
+    setHud(money(company.cash));
     $('center').replaceChildren(renderResearch());
     footer();
     return;
@@ -2086,8 +2088,7 @@ function render() {
   const m = state.mission;
   $('mission-label').textContent = m.contract ? `${t('level')} ${m.contract.level}: ${tr(m, 'name')}` : `${t(`lvl${m.level}`)}: ${tr(m, 'name')}`;
   const left = budgetLeft(m.budget, chosen());
-  $('budget').textContent = m.free ? t('noLimit') : `${t('budget')} ${money(left)} / ${money(m.budget)}`;
-  $('budget').classList.toggle('low', !m.free && left < 0);
+  setHud(m.free ? t('noLimit') : money(left), !m.free && left < 0); // im Bau: Geld nach den gewählten Teilen
 
   if (state.phase === 'build') {
     // Fokus in der Mitte merken und nach dem Neuzeichnen zurückgeben (Tastatur-Nutzer)
