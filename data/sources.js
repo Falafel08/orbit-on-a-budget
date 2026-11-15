@@ -11,6 +11,10 @@ const FACT_PAGES = {
 };
 
 export const nasaSources = [
+  { en: 'Radio call "Contact light." at the Moon landing: Apollo 11, NASA Apollo Lunar Surface Journal', de: 'Funkspruch „Contact light.“ bei der Mondlandung: Apollo 11, NASA Apollo Lunar Surface Journal',
+    url: 'https://www.nasa.gov/wp-content/uploads/static/history/alsj/a11/a11.landing.html' },
+  { en: 'Radio call "Touchdown confirmed." at the Mars landing: Perseverance, NASA JPL', de: 'Funkspruch „Touchdown confirmed.“ bei der Marslandung: Perseverance, NASA JPL',
+    url: 'https://science.nasa.gov/mission/mars-2020-perseverance/' },
   { en: 'Electron price ($6.9M, 2015): NASA Venture Class Launch Services contracts', de: 'Preis Electron (6,9 Mio. $, 2015): NASA-Verträge Venture Class Launch Services',
     url: 'https://www.nasa.gov/news-release/nasa-awards-venture-class-launch-services-contracts-for-cubesat-satellites/' },
   { en: 'Rocket payload to an 800 km orbit (Pegasus XL, Falcon 9): NASA Launch Services Program, Launch Vehicle Performance Website',

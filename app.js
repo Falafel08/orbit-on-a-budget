@@ -1282,17 +1282,9 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     [t('capStage')]: 'Stage separation.',
     [t('capFairing')]: 'Fairing separation.',
     [t('capDoor')]: 'Payload door open.',
-    [t('capDeploy')]: 'Spacecraft separation.',
-    [t('capOrbit')]: 'Orbit insertion.',
-    [t('capMoon')]: 'Burn complete.',
-    [t('capMars')]: 'Burn complete.',
-    [t('capLanded')]: 'Booster caught.',
-    [t('capDocked')]: 'Hard dock.',
+    // Am Ende nur wörtliche NASA-Sätze (Linus 15.11.): Apollo 11 (Apollo Lunar Surface Journal) und Perseverance (NASA JPL)
     [t('capMoonLanded')]: 'Contact light.',
     [t('capMarsLanded')]: 'Touchdown confirmed.',
-    [t('capHeavy')]: 'Hold, hold, hold.',
-    [t('capNoFuel')]: 'Loss of thrust.',
-    [t('capExplode')]: 'Vehicle anomaly.',
   };
   const spoken = new Set();
   const announce = (text) => { if (!text || spoken.has(text)) return; spoken.add(text); if (isPlaying()) say(text, 'en'); };
