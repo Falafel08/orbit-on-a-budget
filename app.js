@@ -1038,7 +1038,7 @@ function renderLaunch() {
   const front = el('canvas', { class: 'front', 'aria-hidden': 'true' }); // vorderer Greifarm liegt vor der Rakete
   const wrap = el('div', { class: 'launch-wrap', role: 'img', 'aria-label': t('launch') }, canvas, rocket, front);
   let launches = 0; try { launches = Number(localStorage.getItem('launches')) || 0; } catch { /* ohne Speicher */ }
-  if (launches > 1) wrap.append(el('button', { class: 'secondary skip-launch', type: 'button', onclick: () => { state.phase = 'result'; render(); } }, t('skipLaunch'), icon('next'))); // ab dem zweiten Start
+  if (launches > 1) wrap.append(el('button', { class: 'secondary skip-launch', type: 'button', onclick: () => { hush(); state.phase = 'result'; render(); } }, t('skipLaunch'), icon('next'))); // ab dem zweiten Start
   // die Bau-Ansicht bleibt kurz stehen und blendet aus, nur ohne die vordere Rakete (die übernimmt die Szene)
   const old = $('center').firstElementChild;
   if (old) {
@@ -1278,20 +1278,20 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
   // Echte Funksprüche wie bei Starts von NASA und Raketenfirmen, immer auf Englisch (Linus 15.11.: „keine 0815-Sätze“).
   // Die Bildunterschrift bleibt in der Spielsprache, gesprochen wird der Funkspruch.
   const RADIO = {
-    [t('capStage')]: 'MECO. Stage separation confirmed. Second stage ignition.',
-    [t('capFairing')]: 'Fairing separation confirmed.',
-    [t('capDoor')]: 'Payload bay door open.',
-    [t('capDeploy')]: 'SECO. Spacecraft separation confirmed.',
-    [t('capOrbit')]: 'Orbit insertion confirmed.',
-    [t('capMoon')]: 'Trans-lunar injection complete.',
-    [t('capMars')]: 'Trans-Mars injection complete.',
-    [t('capLanded')]: 'Landing burn. Touchdown. Booster is secured.',
-    [t('capDocked')]: 'Capture confirmed. Hard dock.',
-    [t('capMoonLanded')]: 'Contact light. Engine stop. We are on the Moon.',
-    [t('capMarsLanded')]: 'Touchdown confirmed. Safe on the surface of Mars.',
-    [t('capHeavy')]: 'Hold, hold, hold. Engine shutdown on the pad.',
-    [t('capNoFuel')]: 'Loss of thrust. Vehicle is not on trajectory.',
-    [t('capExplode')]: 'We have had a vehicle anomaly.',
+    [t('capStage')]: 'Stage separation.',
+    [t('capFairing')]: 'Fairing separation.',
+    [t('capDoor')]: 'Payload door open.',
+    [t('capDeploy')]: 'Spacecraft separation.',
+    [t('capOrbit')]: 'Orbit insertion.',
+    [t('capMoon')]: 'Burn complete.',
+    [t('capMars')]: 'Burn complete.',
+    [t('capLanded')]: 'Booster caught.',
+    [t('capDocked')]: 'Hard dock.',
+    [t('capMoonLanded')]: 'Contact light.',
+    [t('capMarsLanded')]: 'Touchdown confirmed.',
+    [t('capHeavy')]: 'Hold, hold, hold.',
+    [t('capNoFuel')]: 'Loss of thrust.',
+    [t('capExplode')]: 'Vehicle anomaly.',
   };
   const spoken = new Set();
   const announce = (text) => { if (!text || spoken.has(text)) return; spoken.add(text); if (isPlaying()) say(text, 'en'); };
@@ -1340,8 +1340,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
 
     // Ton steuern
     if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); announce(['Three', 'Two', 'One'][sound.beeps]); sound.beeps += 1; }
-    if (igniting) announce('Ignition. And liftoff!');
-    if (mode === 'ok' && s > 1.0 && s < 2.5) announce('Vehicle is supersonic.');
+    if (igniting) announce('Liftoff!'); // kurz halten (Linus 15.11.: Stimme redete länger als die Animation)
     if (mode === 'ok' && s > 1.8 && s < 2.5) announce('Max Q.');
     if (igniting && !sound.rumble) sound.rumble = rumble(burnTime, mode === 'nofuel');
     if (boomAt !== null && !sound.boom) { boomSound(); sound.boom = true; }
@@ -1439,7 +1438,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     } else if (mode === 'ok' && s > 3.5 && !returning && !arriving) caption(goal);
     if (landed) caption(t('capLanded'));
     if (tc >= count + ignite + flight + arrive + back) { // nach kurzer Pause von selbst zum Ergebnis
-      setTimeout(() => { if (state.phase === 'launch') { state.phase = 'result'; render(); } }, 1200);
+      setTimeout(() => { hush(); if (state.phase === 'launch') { state.phase = 'result'; render(); } }, 1200); // Stimme endet mit der Animation
       return;
     }
     requestAnimationFrame(frame);

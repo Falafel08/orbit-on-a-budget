@@ -90,7 +90,7 @@ export function boomSound() {
 export function say(text, lang = 'en') {
   if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang === 'de' ? 'de-DE' : 'en-US'; u.rate = 1.05; u.pitch = 0.9; u.volume = 0.9;
+  u.lang = lang === 'de' ? 'de-DE' : 'en-US'; u.rate = 1.15; u.pitch = 0.9; u.volume = 0.9;
   const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang));
   if (voice) u.voice = voice;
   speechSynthesis.speak(u);
