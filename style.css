@@ -1011,3 +1011,5 @@ body.ambient-3d .world-bg { opacity: 1; }
 body.ambient-3d .app { background: linear-gradient(180deg, rgba(11, 10, 18, 0.35) 0%, rgba(11, 10, 18, 0.1) 45%, rgba(11, 10, 18, 0.45) 100%); }
 body.ambient-3d .side { background: rgba(23, 21, 20, 0.66); backdrop-filter: blur(10px); }
 body.ambient-3d .world-fade { display: none; }
+.st-left .launch-warn, .station-round .launch-warn { white-space: normal; } /* Warnung bricht um statt über die Karte zu ragen */
+body.ambient-3d .station-plan .st-left { background: rgba(23, 21, 20, 0.9); }
