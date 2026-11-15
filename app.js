@@ -48,6 +48,8 @@ function ownRocket() {
 const freshCompany = () => ({ cash: CAMPAIGN_START, index: 0, over: false });
 let company = freshCompany();
 try { company = { ...company, ...JSON.parse(localStorage.getItem('company') || '{}') }; } catch { /* Neustart */ }
+// Neue Firma: Startzähler fürs Überspringen zurücksetzen (Linus 15.11.: sonst gibt es „Überspringen“ schon beim ersten Start)
+const newCompany = () => { try { localStorage.removeItem('launches'); } catch { /* ohne Speicher */ } return freshCompany(); };
 const saveCompany = () => { try { localStorage.setItem('company', JSON.stringify(company)); } catch { /* ohne Speicher */ } };
 const bestCompany = () => { try { return Number(localStorage.getItem('best-company')) || 0; } catch { return 0; } };
 
@@ -285,7 +287,7 @@ function renderLevelSelect() {
         // Neue Firma: braucht man nach Fehlern, darum hier vor der Wahl (Linus 14.11.). Zweiter Klick bestätigt.
         el('button', { class: state.confirmRestart ? 'link-btn danger-text new-company' : 'link-btn new-company', type: 'button', onclick: () => {
           if (!state.confirmRestart) { state.confirmRestart = true; render(); return; }
-          state.confirmRestart = false; company = freshCompany(); saveCompany(); state.levelPick = 1; render();
+          state.confirmRestart = false; company = newCompany(); saveCompany(); state.levelPick = 1; render();
         } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany'))),
       ''));
 }
@@ -1926,7 +1928,7 @@ function renderResult() {
   if (won && !r.cheered) { r.cheered = true; document.body.append(confetti()); } // nur einmal, nicht bei jedem Neuzeichnen
   return el('section', { class: `result enter${won ? ' won' : ''}` },
     won ? el('div', { class: 'win' }, el('p', { class: 'win-title' }, `🏆 ${t('winTitle')}`), el('p', {}, t('winText', { c: money(company.cash) })),
-      el('button', { class: 'link-btn', type: 'button', onclick: () => { company = freshCompany(); saveCompany(); state.levelPick = 1; go('start'); } }, t('restartCompany'))) : '',
+      el('button', { class: 'link-btn', type: 'button', onclick: () => { company = newCompany(); saveCompany(); state.levelPick = 1; go('start'); } }, t('restartCompany'))) : '',
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
@@ -1959,7 +1961,7 @@ function saveBest(m, v) {
 }
 function resetProgress() {
   resetBest();
-  company = freshCompany(); saveCompany();
+  company = newCompany(); saveCompany();
   research = { rp: 0, done: {}, flights: 0, active: null }; saveResearch();
   try { localStorage.removeItem('seen-level'); localStorage.removeItem('best-company'); } catch { /* ohne Speicher */ }
   state.levelPick = null;
