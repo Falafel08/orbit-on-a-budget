@@ -11,8 +11,8 @@ import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush, cl
 // Klickton für alle Knöpfe und Karten, ein Zuhörer für die ganze Seite
 document.addEventListener('click', (e) => { if (e.target.closest('button, [role="button"], .card, .st-slot')) clickSound(); }, true);
 import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } from './src/research.js';
-import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlight, endRound, isComplete, foodPerRound, stationFee, GRID } from './src/station.js';
-import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS } from './data/station.js';
+import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlight, endRound, isComplete, foodPerRound, stationFee, GRID, batteryOf } from './src/station.js';
+import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS, BATTERY_PACK } from './data/station.js';
 import { showStation3D } from './src/station3d.js';
 import { showWorld, hasWebGL } from './src/world3d.js';
 
@@ -68,6 +68,7 @@ function flightName(f) {
   if (f.kind === 'module') return tr(MODULES[f.type], 'name');
   if (f.kind === 'robot') return tr(ROBOTS.find((r) => r.id === f.robot), 'name');
   if (f.kind === 'crew') return t('stFlightCrew', { n: f.crew });
+  if (f.kind === 'battery') return t('stBatteryPack');
   return t('stFlightSupplies', { kg: kg(f.kg) });
 }
 function contractMission(c) {
@@ -1907,6 +1908,7 @@ function stationChips(st) {
     chip('sat', t('stCrew'), `${st.crew} / ${v.beds}`),
     chip('coin', t('stSupplies'), `${kg(st.supplies)} / ${kg(v.storage)}`, st.supplies < foodPerRound(st.crew)),
     chip('weight', t('stMass'), `${Math.round(v.mass / 1000)} / ${STATION_MAX_MASS / 1000} t`),
+    chip('bolt', t('stBattery'), `${batteryOf(st).charge} / ${batteryOf(st).capacity}`, v.power < 0 && batteryOf(st).charge < -v.power),
     st.robots.length ? chip('antenna', t('stKind_robot'), st.robots.map((id) => tr(ROBOTS.find((r) => r.id === id), 'name')).join(', ')) : '');
 }
 
@@ -1924,15 +1926,17 @@ function renderStationPlanner() {
   if (!state.flight) { const k = BUILDABLE.find((x) => freeSlots(st, x).length); state.flight = k ? { kind: 'module', type: k } : { kind: 'supplies', kg: 250 }; }
   const f = state.flight, v = stationStats(st);
   const setF = (nf) => { state.flight = nf; render(); };
-  const tab = (k) => el('button', { type: 'button', class: f.kind === k ? 'tab on' : 'tab', 'aria-pressed': String(f.kind === k), disabled: st.modules.length ? null : '',
+  const isTab = (k) => f.kind === k || (k === 'supplies' && f.kind === 'battery');
+  const tab = (k) => el('button', { type: 'button', class: isTab(k) ? 'tab on' : 'tab', 'aria-pressed': String(isTab(k)), disabled: st.modules.length ? null : '',
     onclick: () => setF(k === 'module' ? { kind: 'module', type: BUILDABLE.find((x) => freeSlots(st, x).length) || 'lab' } : k === 'supplies' ? { kind: 'supplies', kg: Math.min(500, Math.max(100, v.storage - st.supplies)) } : k === 'crew' ? { kind: 'crew', crew: 1 } : { kind: 'robot', robot: 'canadarm' }) }, t(`stKind_${k}`));
   const choice = (on, label, meta, pick, info) => el('button', { type: 'button', class: on ? 'st-choice on' : 'st-choice', 'aria-pressed': String(on), onclick: pick,
     onmouseenter: info ? () => showInfo(info) : null }, el('strong', {}, label), el('span', { class: 'side-meta' }, meta));
   let options = '';
   if (f.kind === 'module' && st.modules.length) options = el('div', { class: 'st-choices' }, BUILDABLE.filter((k) => freeSlots(st, k).length).map((k) => { const m = MODULES[k];
     return choice(f.type === k, tr(m, 'name'), `${money(m.cost)} · ${kg(m.mass)} · ${m.power > 0 ? '+' : ''}${m.power} kW`, () => setF({ kind: 'module', type: k }), { name: tr(m, 'name'), info: tr(m, 'info') }); }));
-  if (f.kind === 'supplies') options = el('div', { class: 'st-choices' }, [100, 250, 500, 1000, 2000].map((n) =>
-    choice(f.kg === n, kg(n), `${money(payloadOf({ kind: 'supplies', kg: n }).cost)}`, () => setF({ kind: 'supplies', kg: n }))));
+  if (f.kind === 'supplies' || f.kind === 'battery') options = el('div', { class: 'st-choices' }, ...[100, 250, 500, 1000, 2000].map((n) =>
+    choice(f.kind === 'supplies' && f.kg === n, kg(n), `${money(payloadOf({ kind: 'supplies', kg: n }).cost)}`, () => setF({ kind: 'supplies', kg: n }))),
+    choice(f.kind === 'battery', t('stBatteryPack'), `${money(BATTERY_PACK.cost)} · ${kg(BATTERY_PACK.mass)} · +${BATTERY_PACK.capacity}`, () => setF({ kind: 'battery' })));
   if (f.kind === 'crew') options = el('div', { class: 'st-choices' }, [1, 2, 3].map((n) =>
     choice(f.crew === n, t('stFlightCrew', { n }), `${kg(foodPerRound(n))} ${t('stPerRound')}`, () => setF({ kind: 'crew', crew: n }))));
   if (f.kind === 'robot') options = el('div', { class: 'st-choices' }, ROBOTS.map((r) =>
@@ -1944,11 +1948,12 @@ function renderStationPlanner() {
   const check = needsCell && f.x === undefined ? { ok: false, reason: noSlot ? 'noPort' : null } : flightCheck(st, f, { reliability: 1 });
   const fee = stationFee(f);
   const robot = f.kind === 'robot' && ROBOTS.find((r) => r.id === f.robot);
-  const info = f.kind === 'crew' ? t('stCapsule') : f.kind === 'supplies' ? t('stFoodInfo') : robot ? `${tr(robot, 'info')} (${robot.source})`
+  const info = f.kind === 'crew' ? t('stCapsule') : f.kind === 'supplies' ? t('stFoodInfo') : f.kind === 'battery' ? t('stBatteryInfo') : robot ? `${tr(robot, 'info')} (${robot.source})`
     : !st.modules.length ? t('stCoreHint') : `${tr(MODULES[f.type], 'info')} ${t('stPickSlot')}`;
   const goRocket = () => { if (check.ok) startMission(contractMission(c)); };
   return el('section', { class: 'station-plan enter' },
     el('div', { class: 'st-left' }, el('h1', {}, st.name), stationChips(st),
+      v.power < 0 ? el('p', { class: 'launch-warn' }, `⚠ ${t('stOnBattery', { c: batteryOf(st).charge, m: batteryOf(st).capacity })}`) : '',
       el('div', { class: 'st-tabs', role: 'group' }, ['module', 'supplies', 'crew', 'robot'].map(tab)),
       options, info ? infobox(info, f.kind === 'crew' ? 'sat' : 'info') : '',
       el('p', { class: 'hint' }, st.crew ? t('stRound', { kg: kg(foodPerRound(st.crew)) }) : t('stRoundEmpty'))),
@@ -2020,8 +2025,8 @@ function stationRoundBox(r) {
     if (stationStats(st).power < 0) missing.push(t('stNeedPower'));
   }
   return el('div', { class: 'station-round' },
-    rd.rescue ? el('p', { class: 'result-msg fail' }, t('stRescue', { c: money(RESCUE_COST) })) : st.crew || rd.rp ? el('p', {}, t('stRoundResult', { kg: kg(foodPerRound(st.crew)), rp: rd.rp })) : '',
-    rd.noPower ? el('p', { class: 'launch-warn' }, `⚠ ${t('stNoPower')}`) : '',
+    rd.rescue ? el('p', { class: 'result-msg fail' }, t(rd.blackout ? 'stRescuePower' : 'stRescue', { c: money(RESCUE_COST) })) : st.crew || rd.rp ? el('p', {}, t('stRoundResult', { kg: kg(foodPerRound(st.crew)), rp: rd.rp })) : '',
+    rd.noPower ? el('p', { class: 'launch-warn' }, `⚠ ${t('stNoPower')}`) : rd.onBattery ? el('p', { class: 'launch-warn' }, `⚠ ${t('stOnBattery', { c: batteryOf(st).charge, m: batteryOf(st).capacity })}`) : '',
     r.stationDone ? el('p', { class: 'result-msg' }, t('stComplete', { name: st.name })) : missing.length ? el('p', { class: 'hint' }, t('stStillMissing', { x: missing.join(', ') })) : '',
     station3dBox(st, null, r.success && state.mission.flight.kind === 'module' ? state.mission.flight : null, true));
 }

@@ -87,3 +87,4 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | Module masses, prices, power, storage; robot prices, power and research points; partner payments; rescue cost; station max 80 t | — | — | Game assumption |
 | 3D graphics | Three.js 0.170, https://threejs.org/ | MIT, `assets/vendor/three/LICENSE` | Used |
 | Astronaut 3D model | Kenney Space Kit, https://kenney.nl/assets/space-kit | CC0 | Used (`assets/kenney3d/astronautA.glb`) |
+| Battery: start 10, pack +20 (unit: kW for one round), pack 1,500 kg, $15M. Surplus power recharges it. Empty battery with crew aboard = rescue with the lifeboat | The ISS stores power in lithium-ion batteries for the time in Earth's shadow; sizes and prices here are simplified | — | Game assumption |

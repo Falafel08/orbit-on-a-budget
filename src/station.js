@@ -1,5 +1,6 @@
 import {
   MODULES, ROBOTS, CAPSULE, CREW_MIN_RELIABILITY, ROBOT_MIN_RELIABILITY, STATION_MAX_MASS, SUPPLY_COST_PER_KG, FOOD_PER_PERSON_DAY, ROUND_DAYS, CREW_RP, RESCUE_COST,
+  BATTERY_START, BATTERY_PACK,
 } from '../data/station.js';
 
 // Level 2: eigene Raumstation, Rechenlogik ohne DOM (Spec docs/Level2_Station_Spec_v1.md).
@@ -10,9 +11,9 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const ALL_PORTS = new Set(['core', 'node']);
 
 // Neue Firma in Level 2: Station ohne Module, der erste Flug bringt den Kern
-export const emptyStation = (name) => ({ name, modules: [], crew: 0, robots: [], supplies: 0 });
+export const emptyStation = (name) => ({ name, modules: [], crew: 0, robots: [], supplies: 0, battery: { charge: BATTERY_START, capacity: BATTERY_START } });
 export function newStation(name) {
-  return { name, modules: [{ x: MID, y: MID, type: 'core', axis: null }], crew: 0, robots: [], supplies: 0 };
+  return { name, modules: [{ x: MID, y: MID, type: 'core', axis: null }], crew: 0, robots: [], supplies: 0, battery: { charge: BATTERY_START, capacity: BATTERY_START } };
 }
 
 const at = (s, x, y) => s.modules.find((m) => m.x === x && m.y === y);
@@ -58,6 +59,7 @@ export function payloadOf(f) {
   if (f.kind === 'module') return { mass: MODULES[f.type].mass, cost: MODULES[f.type].cost };
   if (f.kind === 'crew') return { mass: CAPSULE.mass, cost: CAPSULE.cost };
   if (f.kind === 'robot') { const r = ROBOTS.find((x) => x.id === f.robot); return { mass: r.mass, cost: r.cost }; }
+  if (f.kind === 'battery') return { mass: BATTERY_PACK.mass, cost: BATTERY_PACK.cost };
   return { mass: f.kg, cost: Math.round(f.kg * SUPPLY_COST_PER_KG * 1000) / 1000 };
 }
 
@@ -87,20 +89,31 @@ export function applyFlight(s, f) {
   if (f.kind === 'module') return place(s, f.x, f.y, f.type);
   if (f.kind === 'crew') return { ...s, crew: (s.crew || 0) + f.crew };
   if (f.kind === 'robot') return { ...s, robots: [...(s.robots || []), f.robot] };
+  if (f.kind === 'battery') { const b = batteryOf(s), cap = b.capacity + BATTERY_PACK.capacity; return { ...s, battery: { charge: cap, capacity: cap } }; }
   return { ...s, supplies: (s.supplies || 0) + f.kg };
 }
 
 // Eine Runde (30 Tage): Crew isst, Labor forscht nur mit Strom. Reichen die Vorräte nicht, kehrt die Crew mit dem Rettungsboot zurück.
 export const foodPerRound = (crew) => Math.round(crew * FOOD_PER_PERSON_DAY * ROUND_DAYS);
+// Batterie: Überschuss lädt auf, fehlender Strom wird entnommen. Reicht sie nicht, ist Stromausfall:
+// Labor und Roboter stehen still, eine Crew muss mit dem Rettungsboot zurück (ohne Luft und Heizung geht es nicht).
+export const batteryOf = (s) => s.battery || { charge: BATTERY_START, capacity: BATTERY_START };
 export function endRound(s) {
   const st = stationStats(s), need = foodPerRound(s.crew || 0);
-  const noPower = st.power < 0;
-  if ((s.supplies || 0) < need) {
-    return { station: { ...s, crew: 0, supplies: 0 }, rp: 0, rescue: true, cost: RESCUE_COST, noPower };
+  const bat = batteryOf(s);
+  let charge = bat.charge, onBattery = false, blackout = false;
+  if (st.power >= 0) charge = Math.min(bat.capacity, charge + st.power);
+  else if (charge >= -st.power) { charge = Math.round((charge + st.power) * 10) / 10; onBattery = true; }
+  else { charge = 0; blackout = true; }
+  const battery = { charge, capacity: bat.capacity };
+  const noPower = blackout;
+  const crew = s.crew || 0;
+  if ((s.supplies || 0) < need || (blackout && crew > 0)) {
+    return { station: { ...s, crew: 0, supplies: (s.supplies || 0) < need ? 0 : (s.supplies || 0) - need, battery }, rp: 0, rescue: true, cost: RESCUE_COST, noPower, onBattery, blackout };
   }
   const bots = (s.robots || []).reduce((a, id) => a + ROBOTS.find((r) => r.id === id).rp, 0);
-  const rp = st.hasLab && !noPower ? (s.crew || 0) * CREW_RP + bots : 0;
-  return { station: { ...s, supplies: (s.supplies || 0) - need }, rp, rescue: false, cost: 0, noPower };
+  const rp = st.hasLab && !blackout ? crew * CREW_RP + bots : 0;
+  return { station: { ...s, supplies: (s.supplies || 0) - need, battery }, rp, rescue: false, cost: 0, noPower, onBattery, blackout };
 }
 
 // Fertig: alle Modularten, Crew von 3, Strom nicht negativ, Vorräte für die nächste Runde

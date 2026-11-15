@@ -49,3 +49,8 @@ export const ROBOTS = [
     name: 'Optimus', info: 'Tesla\'s humanoid robot. Mass is a company figure, it has never flown in space.',
     de: { name: 'Optimus', info: 'Der humanoide Roboter von Tesla. Masse ist eine Firmenangabe, er war nie im All.' } },
 ];
+
+// Batterie (Linus 15.11.): puffert fehlenden Strom. Einheit: kW für eine Runde (Spiel-Vereinfachung).
+// Die ISS speichert Strom in Lithium-Ionen-Batterien für die Zeit im Erdschatten; Größe und Preis hier sind Spiel-Annahmen.
+export const BATTERY_START = 10;
+export const BATTERY_PACK = { mass: 1500, cost: 15, capacity: 20 };

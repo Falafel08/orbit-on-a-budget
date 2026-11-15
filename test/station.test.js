@@ -97,7 +97,7 @@ test('Runde: Crew isst 54 kg pro Person, Labor bringt Punkte nur mit Strom', () 
   assert.equal(r.station.supplies, 500 - 3 * 54);
   assert.equal(r.rp, 3 * 6 + 3);
   assert.equal(r.rescue, false);
-  const dark = { ...s, modules: s.modules.filter((m) => m.type !== 'solar') }; // ohne Solar: Strom negativ
+  const dark = { ...s, modules: s.modules.filter((m) => m.type !== 'solar'), battery: { charge: 0, capacity: 10 } }; // ohne Solar und leere Batterie
   assert.equal(endRound(dark).rp, 0);
   assert.equal(endRound(dark).noPower, true);
 });
@@ -132,4 +132,48 @@ test('Leere Station: erster Flug ist der Kern, nur in der Mitte', () => {
 test('Partner zahlen pro angedocktem Modul, andere Flüge bringen kein Geld', () => {
   assert.equal(stationFee({ kind: 'module', type: 'lab' }), 50 + 220);
   assert.equal(stationFee({ kind: 'crew', crew: 3 }), 0);
+});
+
+import { batteryOf } from '../src/station.js';
+// Batterie (Linus 15.11.): puffert fehlenden Strom, lädt sich mit Überschuss auf, lässt sich mit einem Paket vergrößern
+const dark = () => ({ ...fullStation(), modules: fullStation().modules.filter((m) => m.type !== 'solar') }); // Strom −8: 5 − 4 − 8 − 1
+
+test('Neue Station hat eine volle Batterie im Kern', () => {
+  assert.deepEqual(batteryOf(emptyStation('A')), { charge: 10, capacity: 10 });
+  assert.deepEqual(batteryOf({ modules: [] }), { charge: 10, capacity: 10 }, 'alter Spielstand ohne Batterie');
+});
+
+test('Fehlender Strom kommt aus der Batterie, Labor läuft weiter, Warnung', () => {
+  const r = endRound({ ...dark(), crew: 3, supplies: 500, battery: { charge: 10, capacity: 10 } });
+  assert.equal(r.onBattery, true);
+  assert.equal(r.station.battery.charge, 2);
+  assert.equal(r.rp, 18);
+  assert.equal(r.rescue, false);
+});
+
+test('Batterie leer: Labor steht still, Crew muss zurück', () => {
+  const r = endRound({ ...dark(), crew: 3, supplies: 500, battery: { charge: 2, capacity: 10 } });
+  assert.equal(r.blackout, true);
+  assert.equal(r.rp, 0);
+  assert.equal(r.rescue, true);
+  assert.equal(r.station.crew, 0);
+  assert.equal(r.station.battery.charge, 0);
+});
+
+test('Ohne Crew: leere Batterie legt nur Labor und Roboter still', () => {
+  const r = endRound({ ...dark(), crew: 0, robots: ['robonaut'], battery: { charge: 0, capacity: 10 } });
+  assert.equal(r.blackout, true);
+  assert.equal(r.rescue, false);
+  assert.equal(r.rp, 0);
+});
+
+test('Überschuss lädt die Batterie auf, höchstens bis voll', () => {
+  const r = endRound({ ...fullStation(), crew: 0, battery: { charge: 1, capacity: 10 } }); // Strom +22
+  assert.equal(r.station.battery.charge, 10);
+});
+
+test('Batterie-Paket vergrößert die Batterie und ist voll geladen', () => {
+  const s = applyFlight(emptyStation('A'), { kind: 'battery' });
+  assert.deepEqual(s.battery, { charge: 30, capacity: 30 });
+  assert.deepEqual(payloadOf({ kind: 'battery' }), { mass: 1500, cost: 15 });
 });
