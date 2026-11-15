@@ -16,6 +16,7 @@ import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS, BATTERY_PACK } from './
 import { showStation3D } from './src/station3d.js';
 import { showWorld, hasWebGL } from './src/world3d.js';
 import { BADGES, newBadges } from './src/badges.js';
+import { playLaunch3D } from './src/launch3d.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -1079,6 +1080,26 @@ function launchMode(r) {
 // Nach „Launch“ gleiten die Seitenleisten weg, Nachbarn und Zahlen blenden aus, die Rakete rückt groß in die Mitte.
 // Beim Countdown kippt der Ständer weg, dann Feuer, Rauch, Wackeln, Abheben, die Kamera fliegt mit.
 function renderLaunch() {
+  if (hasWebGL() && effects3d()) return renderLaunch3D(); // Entscheidung 1: Start in 3D, 2D bleibt als Rückfall
+  return renderLaunch2D();
+}
+// Start in 3D: gleiche Abfolge und Texte wie der 2D-Start, danach automatisch das Ergebnis
+function renderLaunch3D() {
+  const wrap = el('div', { class: 'launch-wrap launch3d', role: 'img', 'aria-label': t('launch') });
+  let launches = 0; try { launches = Number(localStorage.getItem('launches')) || 0; } catch { /* ohne Speicher */ }
+  if (launches > 1) wrap.append(el('button', { class: 'secondary skip-launch', type: 'button', onclick: () => { hush(); state.phase = 'result'; render(); } }, t('skipLaunch'), icon('next')));
+  NEXT.disabled = true;
+  const dest = state.mission.dest || 'leo', mod = !!state.mission.module;
+  const cap = { stage: t('capStage'), fairing: t('capFairing'), deploy: mod ? '' : t('capDeploy'), explode: t('capExplode'), heavy: t('capHeavy'), nofuel: t('capNoFuel'),
+    goal: mod ? t({ moon: 'capMoonLanded', mars: 'capMarsLanded' }[dest] || 'capDocked') : t('capOrbit') };
+  queueMicrotask(async () => {
+    const ok = await playLaunch3D(wrap, { look: ROCKET_LOOK[state.rocket.id] || ROCKET_LOOK.own, mode: launchMode(state.result), cap, beep, rumble, boom: boomSound,
+      onDone: () => { hush(); if (state.phase === 'launch') { state.phase = 'result'; render(); } } });
+    if (!ok && state.phase === 'launch') wrap.replaceWith(renderLaunch2D());
+  });
+  return wrap;
+}
+function renderLaunch2D() {
   const canvas = el('canvas', { 'aria-hidden': 'true' });
   const rocket = rocketPicture(state.rocket, true);
   rocket.classList.add('launch-rocket');

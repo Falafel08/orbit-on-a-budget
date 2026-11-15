@@ -1037,3 +1037,9 @@ body.menu-3d .credit-3d { display: inline-block; }
 .card-chips { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
 .card-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 0.8rem; color: var(--nebentext); white-space: nowrap; }
 .card-chip .icon { width: 13px; height: 13px; color: var(--akzent-text); }
+/* Start in 3D */
+.launch3d { position: relative; width: 100%; height: 100%; }
+.launch3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.launch3d-caption { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); font-size: 2rem; font-weight: 800; color: #F5EFE6; text-shadow: 0 2px 12px rgba(0,0,0,0.7); pointer-events: none; white-space: nowrap; }
+.launch3d-caption.show { animation: star-pop 360ms cubic-bezier(.3, 1.4, .5, 1) both; }
+.launch3d .skip-launch { position: absolute; right: 18px; bottom: 18px; z-index: 2; }

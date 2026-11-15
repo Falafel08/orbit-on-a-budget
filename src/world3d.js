@@ -140,7 +140,7 @@ async function earthScene() {
   // Rakete auf der Rampe aus Kenney-Teilen gestapelt
   let y = 0.35;
   for (const [part, sz] of [['rocket_finsA', 1.3], ['rocket_fuelA', 0.9], ['rocket_fuelA', 0.9], ['rocket_topA', 0.9]]) {
-    const g = await model(part, sz); g.position.set(-1.5, y, -4.2); g.userData.building = 'pad'; s.add(g);
+    const g = await model(part, sz); g.position.set(-1.5, y, -4.2); g.userData.building = 'pad'; g.userData.padRocket = true; s.add(g);
     y += new T.Box3().setFromObject(g).getSize(new T.Vector3()).y * 0.98;
   }
   await place(s, 'machine_generatorLarge', 1.4, -5.6, -2.4);
@@ -326,3 +326,6 @@ export async function showWorld(container, opts) {
   if (!w.loop) w.loop = requestAnimationFrame(frame);
   return true;
 }
+
+// Für den 3D-Start (src/launch3d.js): Erdbasis bauen, Three.js und Planetenkarten mitgeben
+export async function earthWorld() { await load(); const built = await earthScene(); return { T, built, planetMap }; }
