@@ -69,3 +69,21 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | Payload power: small bus 100 W, medium bus 90 W (Ball BCP-Small configurations), large bus 600 W orbit average (Ball BCP-Large). Bus masses already include their solar arrays, so extra wings are optional | NASA RSDO Rapid IV catalog, Ball BCP Small and BCP Large data sheets (URLs above) | NASA content, facts only | Used |
 | Extra solar wings (mass, power, price) | Game assumption | — | Game assumption |
 
+
+## Level 2: your own space station (added 15 Nov 2026)
+
+| What | Source | License | Status |
+|---|---|---|---|
+| Food per crew member: about 1.8 kg per day including packaging. One round = 30 days = 54 kg per person | NASA Human Research Roadmap, https://humanresearchroadmap.nasa.gov/evidence/reports/food.pdf | NASA content, facts only | Used |
+| Water and air are recycled on the station and not counted | Simplification | — | Game assumption |
+| Crew seat price about $55M on Crew Dragon, launch included | NASA OIG estimate 2019, reported by Space.com, https://www.space.com/spacex-boeing-commercial-crew-seat-prices.html. NASA and Boeing say it is too high | Facts only | Used for the capsule price (rocket + capsule 100 M$ ≈ 56 M$ per seat with Falcon 9) |
+| Capsule mass 9,500 kg | Simplified so a crew flight fits the 800 km payload numbers of the game | — | Game assumption |
+| People fly only on rockets with at least 99 % success, robots with at least 90 % | Game rule | — | Game assumption |
+| Astrobee: 32 cm cube, about 10 kg | NASA NTRS, https://ntrs.nasa.gov/api/citations/20180003326/downloads/20180003326.pdf | NASA content | Used |
+| Robonaut 2: about 150 kg | IEEE Spectrum, https://spectrum.ieee.org/how-robonaut-2-will-help-astronauts-in-space | Facts only | Used |
+| Dextre: 1,662 kg | Canadian Space Agency via Wikipedia, https://en.wikipedia.org/wiki/Dextre (MDA lists 1,710 kg) | Facts only | Used |
+| Canadarm2: 1,800 kg | Canadian Space Agency (commonly cited) | Facts only | Used |
+| Optimus: 57 kg | Tesla company figure, never flown in space | Company claim | Marked as claim |
+| Module masses, prices, power, storage; robot prices, power and research points; partner payments; rescue cost; station max 80 t | — | — | Game assumption |
+| 3D graphics | Three.js 0.170, https://threejs.org/ | MIT, `assets/vendor/three/LICENSE` | Used |
+| Astronaut 3D model | Kenney Space Kit, https://kenney.nl/assets/space-kit | CC0 | Used (`assets/kenney3d/astronautA.glb`) |

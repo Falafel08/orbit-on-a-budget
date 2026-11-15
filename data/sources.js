@@ -11,6 +11,10 @@ const FACT_PAGES = {
 };
 
 export const nasaSources = [
+  { en: 'Food for the station crew: about 1.8 kg per person per day including packaging, NASA Human Research Roadmap', de: 'Essen für die Crew der Station: etwa 1,8 kg pro Person und Tag mit Verpackung, NASA Human Research Roadmap',
+    url: 'https://humanresearchroadmap.nasa.gov/evidence/reports/food.pdf' },
+  { en: 'Astrobee robot: 32 cm cube, about 10 kg, NASA Ames (NASA Technical Reports Server)', de: 'Roboter Astrobee: Würfel mit 32 cm, etwa 10 kg, NASA Ames (NASA Technical Reports Server)',
+    url: 'https://ntrs.nasa.gov/api/citations/20180003326/downloads/20180003326.pdf' },
   { en: 'Radio call "Contact light." at the Moon landing: Apollo 11, NASA Apollo Lunar Surface Journal', de: 'Funkspruch „Contact light.“ bei der Mondlandung: Apollo 11, NASA Apollo Lunar Surface Journal',
     url: 'https://www.nasa.gov/wp-content/uploads/static/history/alsj/a11/a11.landing.html' },
   { en: 'Radio call "Touchdown confirmed." at the Mars landing: Perseverance, NASA JPL', de: 'Funkspruch „Touchdown confirmed.“ bei der Marslandung: Perseverance, NASA JPL',
@@ -41,6 +45,12 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: 'Crew seat price: about $55M per seat on Crew Dragon, estimate by NASA\'s Inspector General 2019 (NASA and Boeing call it too high)', de: 'Preis pro Sitz: etwa 55 Mio. $ bei Crew Dragon, Schätzung des NASA-Generalinspekteurs 2019 (NASA und Boeing halten sie für zu hoch)',
+    url: 'https://www.space.com/spacex-boeing-commercial-crew-seat-prices.html' },
+  { en: 'Robonaut 2: about 150 kg, NASA and General Motors (IEEE Spectrum)', de: 'Robonaut 2: etwa 150 kg, NASA und General Motors (IEEE Spectrum)',
+    url: 'https://spectrum.ieee.org/how-robonaut-2-will-help-astronauts-in-space' },
+  { en: 'Dextre: 1,662 kg, Canadian Space Agency', de: 'Dextre: 1.662 kg, Kanadische Raumfahrtagentur', url: 'https://en.wikipedia.org/wiki/Dextre' },
+  { en: '3D graphics: Three.js 0.170, MIT license (license file in assets/vendor/three/LICENSE)', de: '3D-Grafik: Three.js 0.170, MIT-Lizenz (Lizenzdatei in assets/vendor/three/LICENSE)', url: 'https://threejs.org/' },
   { en: 'Side jobs pay about $7,000 per kg, like a SpaceX rideshare in 2026 (market analysis, no official price sheet)', de: 'Nebenaufträge zahlen etwa 7.000 $ pro kg wie ein Mitflug bei SpaceX 2026 (Marktanalyse, kein offizielles Preisblatt)',
     url: 'https://newspaceeconomy.ca/2026/02/27/satellite-ridesharing-market-analysis-2026/' },
   { en: '"Why it matters" lines: NASA CubeSat Launch Initiative, NOAA JPSS weather satellites, NASA Sea Level, NASA ISS facts, NASA Artemis, NASA Perseverance',
