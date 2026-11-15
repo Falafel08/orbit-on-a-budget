@@ -1738,7 +1738,8 @@ function landingPad(s, cx, cy, color, withShip) {
   return parts;
 }
 
-function stationScene(c, delivered) {
+function stationScene(c, st) {
+  const built = new Set(st.modules.map((m) => m.type)), has = (k) => built.has(k);
   const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('placeStation') });
   starsInto(s, 60);
   // Erde unten, mit Atmosphärenrand und Wolken
@@ -1748,17 +1749,21 @@ function stationScene(c, delivered) {
   for (const [x, y, rx] of [[-150, 215, 60], [40, 200, 80], [170, 230, 50]]) s.append(svg('ellipse', { cx: x, cy: y, rx, ry: 8, fill: 'rgba(255,255,255,0.25)' }));
   // Gitterträger und Solarflügel (Energiemodul)
   const y = 40;
-  s.append(svg('rect', { x: -230, y: y - 3, width: 460, height: 6, fill: delivered ? '#8a8f96' : 'rgba(245,239,230,0.3)' }));
+  s.append(svg('rect', { x: -230, y: y - 3, width: 460, height: 6, fill: has('solar') ? '#8a8f96' : 'rgba(245,239,230,0.3)' }));
   for (const x of [-230, -180, 150, 200]) {
-    const solid = delivered >= 2;
+    const solid = has('solar');
     s.append(svg('rect', { x, y: y - 70, width: 40, height: 140, fill: solid ? grad(s, 'linearGradient', [['0', '#3d5196'], ['1', '#1f2b52']]) : 'none', stroke: solid ? '#9fb3e8' : 'rgba(245,239,230,0.4)', 'stroke-dasharray': solid ? null : '4 3' }));
   }
-  s.append(cylinder(s, -110, y, 70, 16, '#f1e3b8', '#a68f52', delivered >= 4));           // Wohnmodul
-  s.append(building(t('bldgControl'), [-10, y + 44], focusContract, [cylinder(s, -40, y, 80, 20, '#f5efe6', '#a9a49b', delivered >= 1)]));
-  s.append(building(t('bldgLab'), [105, y - 30], labAction(2), [cylinder(s, 40, y, 70, 17, '#e3f1f4', '#7fa9b0', delivered >= 3)]));
+  s.append(cylinder(s, -110, y, 70, 16, '#f1e3b8', '#a68f52', has('habitat')));           // Wohnmodul
+  s.append(cylinder(s, 110, y, 50, 14, '#d9c3a0', '#8a7552', has('storage')));            // Lager
+  s.append(building(t('bldgControl'), [-10, y + 44], focusContract, [cylinder(s, -40, y, 80, 20, '#f5efe6', '#a9a49b', has('core'))]));
+  s.append(building(t('bldgLab'), [105, y - 30], labAction(2), [cylinder(s, 40, y, 70, 17, '#e3f1f4', '#7fa9b0', has('lab'))]));
   const dock = grad(s, 'radialGradient', [['0', '#d8c9f2'], ['1', '#6d5a92']], { cx: '0.35', cy: '0.35' });
-  s.append(building(t('bldgDock'), [0, y - 50], padAction(c), [svg('circle', { cx: 0, cy: y - 28, r: 12, fill: delivered >= 5 ? dock : 'none', stroke: delivered >= 5 ? 'none' : 'rgba(245,239,230,0.45)', 'stroke-dasharray': '3 3' })]));
-  s.append(svg('text', { x: 0, y: y + 84, 'text-anchor': 'middle', class: 'bldg-label' }, t('modulesOf', { n: delivered, m: 5 })));
+  s.append(building(t('bldgDock'), [0, y - 50], padAction(c), [svg('circle', { cx: 0, cy: y - 28, r: 12, fill: has('node') ? dock : 'none', stroke: has('node') ? 'none' : 'rgba(245,239,230,0.45)', 'stroke-dasharray': '3 3' })]));
+  // Crew als kleine Figuren neben dem Kern
+  for (let i = 0; i < (st.crew || 0); i++) s.append(svg('circle', { cx: -60 + i * 14, cy: y - 34, r: 4, fill: '#F5EFE6' }));
+  const n = ['core', 'solar', 'lab', 'habitat', 'storage'].filter(has).length;
+  s.append(svg('text', { x: 0, y: y + 84, 'text-anchor': 'middle', class: 'bldg-label' }, `${st.name ? `${st.name} · ` : ''}${t('modulesOf', { n, m: 5 })} · ${t('stCrew')} ${st.crew || 0}/3`));
   return s;
 }
 
@@ -1810,7 +1815,7 @@ function marsScene(c, delivered) {
 // Ort eines Levels zeichnen. delivered = gelieferte Module in diesem Level.
 function placeSvg(level, c, delivered) {
   const place = LEVELS[level - 1].place;
-  if (place === 'station') return stationGridSvg(company.station || emptyStation('')); // Level 2: deine Station auf dem Raster (alte Szene stationScene ungenutzt)
+  if (place === 'station') return stationScene(c, company.station || emptyStation('')); // Level 2: Umriss der fertigen Station, gebaute Teile ausgefüllt (Linus 15.11.)
   if (place === 'moon') return moonScene(c, delivered);
   if (place === 'mars') return marsScene(c, delivered);
   return baseSvg(c);
