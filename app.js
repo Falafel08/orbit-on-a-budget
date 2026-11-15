@@ -935,7 +935,7 @@ function renderRight() {
     el('h2', {}, t('budgetLeft')),
     el('p', { class: 'big-number' }, m.free ? t('noLimit') : money(left)),
     !m.module ? el('div', { class: 'score-box' },
-      el('span', {}, t('sciencePerM')),
+      el('span', {}, t('scoreLabel')),
       el('strong', {}, m.budget - left > 0 ? (science() / (m.budget - left)).toFixed(1) : '0.0'),
       el('p', { class: 'hint' }, t('scoreHint'))) : '',
     el('div', { class: 'meters' }, meters),
@@ -1947,8 +1947,8 @@ function renderResult() {
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
       free || state.mission.contract ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))], // im Auftrag zählt nur das Firmengeld
       ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
-        el('dt', {}, t('science')), el('dd', {}, String(r.science)),
-        el('dt', {}, t('sciencePerM')), el('dd', {}, r.sciencePerMillion.toFixed(1))]),
+        el('dt', {}, t('pointsEarned')), el('dd', {}, String(r.science)),
+        el('dt', {}, t('scoreLabel')), el('dd', {}, r.sciencePerMillion.toFixed(1))]), // Unterschied klar benannt (Linus 15.11.)
       free || state.mission.contract ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
 }
 
