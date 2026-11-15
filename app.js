@@ -177,7 +177,14 @@ const science = () => state.instruments.reduce((s, i) => s + i.science, 0);
 const payload = () => (state.bus ? state.bus.mass : 0) + instMass() + (state.panel ? state.panel.mass : 0) + (state.sideMass || 0);
 // Nebenaufträge, die zu diesem Auftrag passen: nur in der Kampagne und nur im Erdorbit
 const sideOffered = () => (state.mission && state.mission.contract && (state.mission.dest || 'leo') === 'leo'
-  ? sideJobs.filter((j) => !j.level || j.level === state.mission.contract.level) : []);
+  ? sideJobs.filter((j) => (!j.level || j.level === state.mission.contract.level) && (!j.minCapacity || rocketCap(state.rocket) >= j.minCapacity)) : []);
+// Wie viel die gewählte Rakete in den Orbit trägt (gekauft: Datenblatt, eigene: Raketengleichung)
+const rocketCap = (r) => (!r ? 0 : r.maxPayload !== undefined ? r.maxPayload : r.stages ? maxPayload(r.stages, (state.mission && state.mission.requiredDv) || 9500) : 0);
+function dropUnfitSide() {
+  const ok = new Set(sideOffered().map((j) => j.id));
+  state.side = (state.side || []).filter((id) => ok.has(id));
+  state.sideMass = sideJobs.filter((x) => state.side.includes(x.id)).reduce((a, x) => a + x.mass, 0);
+}
 const sideFee = () => sideJobs.filter((j) => (state.side || []).includes(j.id)).reduce((a, j) => a + j.fee, 0);
 function toggleSide(j) {
   state.side = state.side.includes(j.id) ? state.side.filter((x) => x !== j.id) : [...state.side, j.id];
@@ -822,6 +829,7 @@ function moveRocket(items, d) {
   state.rocket = r.placeholder ? null : r; // Platzhalter (eigene Rakete) ist keine Wahl
   state.info = state.rocket || state.info;
   state.slide = d;
+  dropUnfitSide();
   render();
 }
 
@@ -930,10 +938,11 @@ function renderLeft() {
       el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
     ...(state.build === 1 && sideOffered().length ? [
       el('h3', { class: 'group' }, t('groupSide')),
+      state.rocket && state.rocket.id === 'starship' && payload() < rocketCap(state.rocket) / 2 ? infobox(t('fillStarship'), 'weight') : null,
       el('div', { class: 'catalog side-catalog' }, sideOffered().map((j) => el('div', {
         class: 'card side-job', role: 'button', tabindex: '0', 'aria-pressed': String(state.side.includes(j.id)),
         onclick: () => toggleSide(j), onkeydown: press(() => toggleSide(j)),
-        onmouseenter: () => showInfo({ name: tr(j, 'name'), info: t('sideInfo', { kg: kg(j.mass), c: money(j.fee) }) }),
+        onmouseenter: () => showInfo({ name: tr(j, 'name'), info: t(j.bulk ? 'sideInfoBulk' : 'sideInfo', { kg: kg(j.mass), c: money(j.fee) }) }),
       }, icon('sat'), el('div', {}, el('strong', {}, tr(j, 'name')), el('span', { class: 'side-meta' }, `${kg(j.mass)} · +${money(j.fee)}`)))))] : []),
   ].filter(Boolean));
   left.scrollTop = scroll;
@@ -1298,7 +1307,8 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     [t('capMarsLanded')]: 'Touchdown confirmed.',
   };
   const spoken = new Set();
-  const announce = (text) => { if (!text || spoken.has(text)) return; spoken.add(text); if (isPlaying()) say(text, 'en'); };
+  // Stimme aus (Linus 15.11.): die Sprachausgabe klingt auf jedem Rechner anders und ruckelt teils. Ansagen bleiben als Bildunterschrift.
+  const announce = (text) => { if (!text || spoken.has(text)) return; spoken.add(text); };
   hush();
   function caption(text) {
     announce(RADIO[text]);
@@ -1343,7 +1353,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     const sx = (Math.random() - 0.5) * shakeAmp, sy = (Math.random() - 0.5) * shakeAmp;
 
     // Ton steuern
-    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); announce(['Three', 'Two', 'One'][sound.beeps]); sound.beeps += 1; }
+    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660, sound.beeps === 2 ? 0.6 : 0.14); announce(['Three', 'Two', 'One'][sound.beeps]); sound.beeps += 1; }
     if (igniting) announce('Liftoff!'); // kurz halten (Linus 15.11.: Stimme redete länger als die Animation)
     if (mode === 'ok' && s > 1.8 && s < 2.5) announce('Max Q.');
     if (igniting && !sound.rumble) sound.rumble = rumble(burnTime, mode === 'nofuel');
@@ -2037,10 +2047,12 @@ const TUT = [
   { sel: '#next', key: 'tut3', done: () => state.build > 0 },
   { sel: '#left', key: 'tut4', done: () => !!state.bus && (!!state.panel || state.bus.power > 0) },
   { sel: '.side-catalog', key: 'tutSide', next: true }, // fehlt der Bereich (Mond, Mars), wird der Schritt übersprungen
-  { sel: '.carousel-stage', key: 'tut5', next: true },
+  { sel: '.carousel-stage', key: 'tut5', next: true, gate: () => planOk() }, // Linus 15.11.: sonst Start mit zu schwacher Rakete
   { sel: '.insure', key: 'tut6', next: true },
   { sel: '#next', key: 'tut7', done: () => state.phase !== 'build' },
 ];
+// Plan ohne Fehler (Geld zählt hier nicht, das sperrt der Startknopf ohnehin)
+const planOk = () => !!state.rocket && missionResult({ ...state, insurance: insuranceCost() }).problems.filter((p) => p !== 'budget' && p !== 'launch-failure').length === 0;
 const tutSeen = () => { try { return localStorage.getItem('tutorial-done') === '1'; } catch { return true; } };
 const tutFinish = () => { try { localStorage.setItem('tutorial-done', '1'); } catch { /* ohne Speicher */ } state.tut = null; tutorial(); };
 let tutSpot = null, tutTip = null;
@@ -2067,7 +2079,7 @@ function tutorial() {
     el('p', {}, t(step.key)),
     el('div', { class: 'tut-actions' },
       el('button', { class: 'link-btn', type: 'button', onclick: tutFinish }, t('tutSkip')),
-      step.next ? el('button', { class: 'primary go', type: 'button', onclick: () => { state.tut += 1; tutorial(); } }, t('tutNext')) : ''));
+      step.next ? el('button', { class: 'primary go', type: 'button', disabled: step.gate && !step.gate() ? '' : null, onclick: () => { state.tut += 1; tutorial(); } }, t('tutNext')) : ''));
   // Tipp rechts neben das Ziel, sonst links, sonst darunter
   let x = r.right + 18, y = r.top;
   if (x + tw > innerWidth - 12) x = r.left - tw - 18;
@@ -2103,6 +2115,7 @@ function footer() {
       const heavyKey = state.side && state.side.length ? 'wHeavySide' : 'wHeavy';
       if (!(state.build === 1 && !affordable)) warn.textContent = plan.length ? `⚠ ${t({ 'rocket-mass': heavyKey, 'delta-v': weakKey, power: 'wPower', capacity: 'wCapacity', science: 'wScience' }[plan[0]])}` : '';
       if (plan.length) next.classList.remove('go');
+      if (plan.length && state.tut != null) next.disabled = true; // in der Einführung kein Start, der sicher scheitert
     }
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch

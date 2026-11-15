@@ -281,3 +281,6 @@ export const sideJobs = [
   ['side-comms', 'Comms satellites', 'Funksatelliten', 1500],
   ['side-cargo', 'Supplies for the station', 'Vorräte für die Station', 2500, 2],
 ].map(([id, name, nameDe, mass, level]) => ({ id, name, mass, level, fee: Math.round(Math.max(50, mass) * RIDESHARE_PER_KG * 1000) / 1000, de: { name: nameDe } }));
+// Großauftrag (Linus 15.11.): füllt große Raketen wie Starship. 2.000 $ pro kg ist eine Annahme des Spiels (Großkunden zahlen weniger pro kg).
+export const BULK_PER_KG = 0.002;
+sideJobs.push({ id: 'side-bulk', name: 'Bulk order: satellite network', mass: 20000, minCapacity: 20000, bulk: true, fee: 20000 * BULK_PER_KG, de: { name: 'Großauftrag: Satellitennetz' } });
