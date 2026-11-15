@@ -876,3 +876,8 @@ html.big-text .fact-label { font-size: 13px; }
 #left .card dl { grid-template-columns: minmax(0, 1fr) auto; justify-content: stretch; width: 100%; }
 #left .card dt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #left .card dd { text-align: right; }
+/* Kosten im Ergebnis */
+.result dl .sub { color: var(--nebentext); font-size: 0.92em; }
+.result dl dt.profit, .result dl dd.profit { font-weight: 800; border-top: 1px solid var(--linie); padding-top: 6px; }
+.result dl dd.plus { color: var(--gut); }
+.result dl dd.minus { color: var(--schlecht); }

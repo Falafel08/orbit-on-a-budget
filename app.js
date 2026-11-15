@@ -1939,11 +1939,16 @@ function renderResult() {
       el('a', { href: WHY[whyKind(state.mission.contract)], target: '_blank', rel: 'noopener' }, t('whySource'))) : '',
     r.fact ? el('div', { class: 'fact big-fact' }, factPicture(r.fact), el('p', {}, el('strong', {}, t('funFact')), ' ', r.fact[getLang()])) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
-    state.mission.contract && r.fee ? el('p', { class: 'rp-earned' }, t('feeReceived', { c: money(r.fee) })) : '',
     state.mission.contract ? el('p', { class: 'hint' }, t('cashNow', { c: money(company.cash) })) : '',
     r.repeat ? el('p', { class: 'hint' }, t('noRpRepeat')) : '',
     el('dl', {},
+      ...(r.cost ? [ // was der Start gekostet hat, im Vergleich zur Zahlung (Linus 15.11.)
+        el('dt', { class: 'sub' }, t('costRocket', { r: tr(state.rocket, 'name') })), el('dd', { class: 'sub' }, money(r.cost.rocket)),
+        el('dt', { class: 'sub' }, t(state.mission.module ? 'costModule' : 'costSat')), el('dd', { class: 'sub' }, money(r.cost.sat)),
+        r.cost.ins ? [el('dt', { class: 'sub' }, t('insure')), el('dd', { class: 'sub' }, money(r.cost.ins))] : ''] : []),
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
+      ...(state.mission.contract ? [el('dt', {}, t('clientPays')), el('dd', {}, money(r.fee || 0)),
+        el('dt', { class: 'profit' }, t('profit')), el('dd', { class: `profit ${(r.fee || 0) - r.spent >= 0 ? 'plus' : 'minus'}` }, money((r.fee || 0) - r.spent))] : []),
       free || state.mission.contract ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))], // im Auftrag zählt nur das Firmengeld
       ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
         el('dt', {}, t('pointsEarned')), el('dd', {}, String(r.science)),
@@ -2110,6 +2115,7 @@ NEXT.addEventListener('click', () => {
     if (state.build < 1) { state.build += 1; render(); return; }
     const r = missionResult({ ...state, insurance: insuranceCost() });
     // billigster mögliche Weg für die Sterne, berechnet vor dem Abrechnen (danach zeigt der Auftrag schon auf den nächsten)
+    r.cost = { rocket: state.rocket.cost, sat: [...state.instruments, state.bus, state.panel].filter(Boolean).reduce((a, x) => a + x.cost, 0), ins: insuranceCost() }; // Aufschlüsselung fürs Ergebnis
     if (!state.mission.free) r.minCost = cheapestMission(state.mission, { instruments, buses, panels }, offered(rocketList()));
     if (r.reachedOrbit) {
       const out = launchOutcome(state.rocket.reliability ?? 1, !!insuranceCost());
