@@ -107,7 +107,10 @@ async function stationScene(station) {
   earth.position.set(0, -82, -30); s.add(earth);
   const atm = new T.Mesh(new T.SphereGeometry(71.5, 64, 48), new T.MeshBasicMaterial({ color: 0x8cc8ff, transparent: true, opacity: 0.12 }));
   atm.position.copy(earth.position); s.add(atm);
-  const st = stationModel(station); s.add(st);
+  // Noch nichts gebaut: das Kernmodul als durchscheinender Geist zeigt, was kommt
+  const empty = !station || !station.modules.length;
+  const st = stationModel(empty ? { modules: [{ x: 2, y: 2, type: 'core', axis: null }] } : station); s.add(st);
+  if (empty) st.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.28; o.material.depthWrite = false; } });
   // Anker für die Widgets: Kern = Leitstand, Labor = Labor, Knoten oder Kern = Andockstelle
   const anchor = (id, x, y, z) => { const a = new T.Object3D(); a.position.set(x, y, z); a.userData.building = id; s.add(a); };
   anchor('control', 0, 1.2, 0); anchor('lab', 2, 1.2, 0); anchor('pad', 0, 1.2, -2);
@@ -225,8 +228,9 @@ function placeWidgets(w, h) {
   const v = new T.Vector3();
   for (const wd of W.widgets) {
     if (!wd.target) continue;
-    new T.Box3().setFromObject(wd.target).getCenter(v);
-    v.y = new T.Box3().setFromObject(wd.target).max.y + 0.3;
+    const box = new T.Box3().setFromObject(wd.target);
+    if (box.isEmpty()) wd.target.getWorldPosition(v); // unsichtbarer Anker (Station)
+    else { box.getCenter(v); v.y = box.max.y + 0.3; }
     v.project(W.camera);
     const hidden = v.z > 1 || W.flying;
     wd.el.classList.toggle('off', !!hidden);
