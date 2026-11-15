@@ -116,7 +116,7 @@ function mapScene(reached) {
   const line = (a, b) => s.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(...a), new T.Vector3(...b)]), new T.LineDashedMaterial({ color: 0xa88fd6, dashSize: 0.4, gapSize: 0.3, transparent: true, opacity: 0.45 })).computeLineDistances());
   line([0, 0, 0], [11, 0.6, -5]); line([11, 0.6, -5], [25, -0.4, -13]);
   const targets = { 0: [new T.Vector3(-4.5, 0, 0), 12], // Startseite: Erde rechts, Titel bleibt lesbar
-    1: [new T.Vector3(0, 0, 0), 8.5], 2: [st.position, 2.6], 3: [moon.position, 3.4], 4: [mars.position, 5.2] };
+    1: [new T.Vector3(0, 0, 0), 8.5], 2: [st.position, 3.2], 3: [moon.position, 5.5], 4: [mars.position, 8.5] };
   return { scene: s, radius: 10, height: 4,
     anims: [(t) => { earth.rotation.y = t / 30000; moon.rotation.y = t / 50000; mars.rotation.y = t / 45000; const a = t / 9000; st.position.set(Math.cos(a) * 3.9, Math.sin(a) * 0.6, Math.sin(a) * 3.9); st.rotation.y = -a; }],
     focusOf: (n) => targets[n] || targets[0] };

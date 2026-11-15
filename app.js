@@ -370,6 +370,9 @@ function openSettings() {
       seg([[true, t('on')], [false, t('off')]], isPlaying(), (v) => { setMusic(v); updateSound(); draw(); })),
     el('div', { class: 'row' }, el('span', {}, t('bigText')),
       seg([[true, t('on')], [false, t('off')]], document.documentElement.classList.contains('big-text'), (v) => { setBigText(v); draw(); })),
+    // Entscheidung 7: 3D-Effekte aus für schwache Laptops (Basen bleiben 3D, die Welt hinter den anderen Bildschirmen und die Karte entfallen)
+    el('div', { class: 'row' }, el('span', {}, t('effects3d')),
+      seg([[true, t('on')], [false, t('off')]], effects3d(), (v) => { try { localStorage.setItem('effects-3d', v ? '1' : '0'); } catch { /* ohne Speicher */ } draw(); render(); })),
     el('div', { class: 'row' }, el('span', {}, t('language')),
       seg([['en', 'English'], ['de', 'Deutsch']], getLang(), (v) => { setLang(v); render(); draw(); })),
     el('div', { class: 'row' }, el('button', { class: 'danger', type: 'button', onclick: () => {
