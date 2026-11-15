@@ -37,6 +37,15 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: 'Ariane 62 payload (7,200 kg to 500 km SSO): Arianespace Ariane 6 User\'s Manual', de: 'Nutzlast Ariane 62 (7.200 kg auf 500 km SSO): Arianespace, Ariane 6 User\'s Manual',
+    url: 'https://ariane.group/app/uploads/sites/4/2024/10/Mua-6_Issue-2_Revision-0_March-2021.pdf' },
+  { en: 'Vega C payload (2.3 t to SSO): ESA', de: 'Nutzlast Vega C (2,3 t in den SSO): ESA', url: 'https://www.esa.int/Enabling_Support/Space_Transportation/Vega/Vega-C' },
+  { en: 'H3-30 payload (4 t to 500 km SSO): JAXA', de: 'Nutzlast H3-30 (4 t auf 500 km SSO): JAXA', url: 'https://www.rocket.jaxa.jp/rocket/h3/system.html' },
+  { en: 'PSLV-XL payload (1,750 kg to 600 km SSO): ISRO', de: 'Nutzlast PSLV-XL (1.750 kg auf 600 km SSO): ISRO', url: 'https://www.isro.gov.in/PSLV_CON.html' },
+  { en: 'Prices PSLV ($21–31M) and Soyuz ($80M): US GAO report GAO-17-609', de: 'Preise PSLV (21–31 Mio. $) und Sojus (80 Mio. $): US-Rechnungshof GAO, Bericht GAO-17-609', url: 'https://www.gao.gov/assets/gao-17-609.pdf' },
+  { en: 'Soyuz-2.1b/Fregat payload (4,400 kg to 820 km SSO): Arianespace Soyuz User\'s Manual (2018)', de: 'Nutzlast Sojus-2.1b/Fregat (4.400 kg auf 820 km SSO): Arianespace, Soyuz User\'s Manual (2018)',
+    url: 'https://sky-brokers.com/wp-content/uploads/2025/04/Soyuz-Users-Manual-2018.pdf' },
+  { en: 'Prices Ariane 6, Vega C, H3 and flight counts: Wikipedia (press estimates)', de: 'Preise Ariane 6, Vega C, H3 und Flugzahlen: Wikipedia (Schätzungen aus der Presse)', url: 'https://en.wikipedia.org/wiki/Ariane_6' },
   { en: 'Electron payload (200 kg to 500 km SSO): Rocket Lab', de: 'Nutzlast Electron (200 kg auf 500 km SSO): Rocket Lab',
     url: 'https://rocketlabcorp.com/updates/rocket-lab-increases-electron-payload-capacity-enabling-interplanetary-missions-and-reusability/' },
   { en: 'Firefly Alpha payload (630 kg to 500 km SSO) and price ($15M): Firefly Payload User\'s Guide', de: 'Nutzlast Firefly Alpha (630 kg auf 500 km SSO) und Preis (15 Mio. $): Firefly Payload User\'s Guide',

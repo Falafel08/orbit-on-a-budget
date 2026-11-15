@@ -18,13 +18,14 @@ test('the company is bankrupt when it cannot pay the cheapest mission', () => {
 });
 
 // Pleite-Grenze wird aus den verfügbaren Raketen berechnet, nicht fest eingetragen.
-// Mit Starship (10 Mio. $) wird der Wetter-Auftrag viel billiger als mit Pegasus.
+// Mit Electron wird der Wetter-Auftrag viel billiger als mit Pegasus.
 test('the cheapest way to finish a contract depends on the rockets you can book', async () => {
   const { cheapestMission } = await import('../src/campaign.js');
   const P = await import('../data/parts.js');
   const weather = { ...P.missions.find((m) => m.id === 'weather'), minScience: 55 };
-  assert.equal(cheapestMission(weather, P, P.rockets), 68.3); // kleiner Bus bringt 100 W mit (RSDO), kein Extra-Panel nötig
-  assert.equal(cheapestMission(weather, P, [...P.rockets, { ...P.starship, cost: 10 }]), 22); // Starship nach voller Forschung, ebenfalls ohne Extra-Panel
+  const only = (...ids) => P.rockets.filter((r) => ids.includes(r.id));
+  assert.equal(cheapestMission(weather, P, only('pegasus', 'falcon9')), 68.3); // Pegasus; kleiner Bus bringt 100 W mit (RSDO), kein Extra-Panel
+  assert.equal(cheapestMission(weather, P, only('pegasus', 'falcon9', 'electron')), 18.9); // Electron trägt 200 kg für 6,9 Mio. $
 });
 
 // Level 2 Raumstation: Jeder Flug bringt ein festes Modul. Billigster Weg = Modul + billigste Rakete, die es trägt.

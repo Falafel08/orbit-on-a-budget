@@ -530,6 +530,11 @@ const ROCKET_LOOK = {
   rideshare: { H: 170, w: 16, body: ['#ece6dc', '#b8b0a4'] },
   electron: { H: 110, w: 11, body: ['#3a3a40', '#16161a'] },   // 18 m, schwarze Kohlefaser
   alpha: { H: 125, w: 13, body: ['#3b3836', '#1c1a19'] },      // 29 m, schwarz
+  ariane6: { H: 220, w: 20, body: ['#f4f2ee', '#bdb8ae'], boosters: { w: 8, color: ['#f4f2ee', '#b5b0a6'], h: 0.42 } }, // 63 m, 2 P120C
+  vegac: { H: 140, w: 13, body: ['#f2f0ec', '#b9b4aa'] },      // 35 m, ohne Booster
+  h3: { H: 205, w: 19, body: ['#f4f2ee', '#bdb8ae'] },         // 57 m, H3-30 ohne Booster
+  pslv: { H: 165, w: 11, body: ['#ece4d4', '#b9ae98'], boosters: { w: 5, color: ['#ece4d4', '#a89d88'], h: 0.3 } },   // 44 m, sechs dünne Booster
+  soyuz: { H: 170, w: 12, body: ['#b9c0ae', '#7f8873'], boosters: { w: 9, color: ['#b9c0ae', '#7a836e'], h: 0.42 } }, // 46 m, vier kegelförmige Booster
   pegasus: { H: 125, w: 14, body: ['#f5efe6', '#bdb5a9'] },
   own: { H: 220, w: 18, body: ['#c9b6ec', '#7d68a6'] },
   falcon9: { H: 245, w: 15, body: ['#ffffff', '#c9c2b8'] },
@@ -711,7 +716,7 @@ function rocketPicture(r, withPayload = false) {
       const fl = sy > bodyTop + 10 ? 9 : 6;
       s.append(svg('path', { d: `M${x} ${sy} L${x - fl} ${sy + fl * 1.6} L${x} ${sy + fl * 2.4} Z M${x + w} ${sy} L${x + w + fl} ${sy + fl * 1.6} L${x + w} ${sy + fl * 2.4} Z`, fill: '#6f767e' }));
     }
-  } else if (!['falcon9', 'falconHeavy', 'sls', 'electron', 'alpha'].includes(r.id)) {
+  } else if (!['falcon9', 'falconHeavy', 'sls', 'electron', 'alpha', 'ariane6', 'vegac', 'h3', 'pslv', 'soyuz'].includes(r.id)) {
     s.append(svg('path', { d: `M${x} ${ground - 28} L${x - 9} ${ground - 4} L${x} ${ground - 8} Z M${x + w} ${ground - 28} L${x + w + 9} ${ground - 4} L${x + w} ${ground - 8} Z`, fill: '#745F9A' }));
   }
   if (r.id === 'own' || r.rideshare) s.append(svg('rect', { x, y: bodyTop + 30, width: w, height: 4, fill: '#745F9A' }));

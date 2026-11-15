@@ -9,19 +9,19 @@ export const missions = [
     id: 'cubesat', level: 'Easy', name: 'Student CubeSat',
     goal: 'Get a small CubeSat with a camera into low Earth orbit.',
     budget: 1, minScience: 8, requiredDv: 9400, verified: false,
-    allowed: ['cube-camera', 'cube-radiometer', 'cube-1u', 'cube-3u', 'cube-6u', 'panel-body', 'panel-deploy', 'rideshare'],
+    allowed: ['cube-camera', 'cube-radiometer', 'cube-1u', 'cube-3u', 'cube-6u', 'panel-body', 'panel-deploy', 'rideshare', 'electron'],
   },
   {
     id: 'weather', level: 'Intermediate', name: 'Weather satellite',
     goal: 'Put a weather satellite into an 800 km orbit to watch clouds and storms.',
     budget: 120, minScience: 55, requiredDv: 9500, verified: false,
-    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'pegasus', 'falcon9', 'own', 'starship'],
+    allowed: ['camera', 'lightning', 'radiometer', 'sounder', 'bus-s', 'bus-m', 'panel-s', 'panel-m', 'electron', 'alpha', 'vegac', 'pslv', 'h3', 'soyuz', 'ariane6', 'pegasus', 'falcon9', 'own', 'starship'],
   },
   {
     id: 'ocean', level: 'Hard', name: 'Ocean satellite',
     goal: 'Measure sea level from an 800 km orbit. The radar needs a lot of power.',
     budget: 120, minScience: 125, requiredDv: 9500, verified: false,
-    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'pegasus', 'falcon9', 'own', 'starship'],
+    allowed: ['camera', 'radiometer', 'sounder', 'altimeter', 'bus-s', 'bus-m', 'bus-l', 'panel-s', 'panel-m', 'panel-l', 'electron', 'alpha', 'vegac', 'pslv', 'h3', 'soyuz', 'ariane6', 'pegasus', 'falcon9', 'own', 'starship'],
   },
   {
     id: 'free', level: 'Unrestricted', name: 'Free play', free: true,
@@ -106,6 +106,33 @@ export const rockets = [
     verified: true, // 630 kg auf 500 km SSO und 15 Mio. $ Listenpreis: Firefly Payload User's Guide
     info: 'A two-stage carbon-fibre rocket from Firefly in Texas. 630 kg to a 500 km sun-synchronous orbit and a list price of $15M (Firefly figures). Only 4 of 7 flights worked so far.',
   },
+  // Raketen anderer Länder (Linus und Freund 15.11.): ESA, JAXA, ISRO, Roskosmos. Nutzlast mit Bahn laut Betreiber,
+  // geschätzte Preise sind im Infotext so benannt. Quellen in data/sources.js.
+  {
+    id: 'ariane6', name: 'Ariane 6', cost: 110, maxPayload: 7200, reliability: 0.89, // 8 von 9 Flügen erfolgreich, 1 Teilerfolg (Wikipedia, 15.11.2026)
+    verified: true,
+    info: 'Europe\'s newest heavy rocket, here as Ariane 62 with two side boosters. 7,200 kg to a 500 km sun-synchronous orbit (Arianespace manual). The price of about $110M (€100M) is a press estimate. 8 of 9 flights fully worked.',
+  },
+  {
+    id: 'vegac', name: 'Vega C', cost: 52, maxPayload: 2300, reliability: 0.875, // 7 von 8 Flügen erfolgreich (Wikipedia, 15.11.2026)
+    verified: true,
+    info: 'A slim European rocket for small satellites, without side boosters. 2,300 kg to a 700 km sun-synchronous orbit (ESA, Arianespace). The price of about $52M (€48M) is a press estimate. 7 of 8 flights worked.',
+  },
+  {
+    id: 'h3', name: 'H3', cost: 34, maxPayload: 4000, reliability: 0.8, // 8 von 10 Flügen erfolgreich (Wikipedia, aerotime, 15.11.2026)
+    verified: true,
+    info: 'Japan\'s new main rocket, here as H3-30 without side boosters. At least 4,000 kg to a 500 km sun-synchronous orbit (JAXA). About $34M (¥5 billion) is JAXA\'s price target, an estimate. 8 of 10 flights worked.',
+  },
+  {
+    id: 'pslv', name: 'PSLV-XL', cost: 26, maxPayload: 1750, reliability: 0.926, // 25 von 27 Flügen erfolgreich (Wikipedia, 15.11.2026)
+    verified: true,
+    info: 'India\'s workhorse rocket with six thin boosters around its base. 1,750 kg to a 600 km sun-synchronous orbit (ISRO). The US GAO lists $21–31M per launch; the game uses $26M. 25 of 27 flights worked.',
+  },
+  {
+    id: 'soyuz', name: 'Soyuz-2.1b', cost: 80, maxPayload: 4400, reliability: 0.977, // 86 von 88 Flügen erfolgreich (keeptrack.space, 15.11.2026)
+    verified: true,
+    info: 'Russia\'s veteran rocket with four cone-shaped boosters, here with the Fregat upper stage. 4,400 kg to an 820 km sun-synchronous orbit (Arianespace manual, launch from Kourou). The US GAO lists $80M per launch (2017). 86 of 88 flights worked.',
+  },
   {
     id: 'pegasus', name: 'Pegasus XL', cost: 56.3, maxPayload: 190, reliability: 0.9, // 27 von 30 Starts erfolgreich
     verified: true, // 190 kg: NASA LSP; 56,3 Mio. $: NASA, Launch-Vertrag ICON
@@ -179,6 +206,11 @@ const DE = {
   starship: { info: 'Die Riesenrakete von SpaceX, noch in Testflügen. 100 t in einen niedrigen Orbit ist eine Angabe von SpaceX und noch nicht gezeigt. Der Preis von 100 Mio. $ pro Flug ist eine Schätzung des Spiels; mit der Forschung Starship-Wiederverwendung wird er billiger. 10 von 15 Testflügen haben geklappt. Im Spiel versichert sie niemand (Annahme).' },
   electron: { info: 'Kleine Rakete aus Kohlefaser von Rocket Lab, die Pumpen der Triebwerke laufen mit Akkus. Etwa 200 kg in einen Sonnensynchron-Orbit in 500 km Höhe (Angabe Rocket Lab, niedriger als die 800 km der NASA-Zahlen). Die NASA zahlte 2015 6,9 Mio. $ für einen eigenen Start. 86 von 90 Flügen haben geklappt.' },
   alpha: { info: 'Zweistufige Rakete aus Kohlefaser von Firefly aus Texas. 630 kg in einen Sonnensynchron-Orbit in 500 km Höhe und 15 Mio. $ Listenpreis (Angaben von Firefly). Bisher haben nur 4 von 7 Flügen geklappt.' },
+  ariane6: { info: 'Europas neueste schwere Rakete, hier als Ariane 62 mit zwei Seitenboostern. 7.200 kg in einen Sonnensynchron-Orbit in 500 km Höhe (Handbuch Arianespace). Der Preis von etwa 110 Mio. $ (100 Mio. €) ist eine Schätzung aus der Presse. 8 von 9 Flügen haben ganz geklappt.' },
+  vegac: { info: 'Schlanke europäische Rakete für kleine Satelliten, ohne Seitenbooster. 2.300 kg in einen Sonnensynchron-Orbit in 700 km Höhe (ESA, Arianespace). Der Preis von etwa 52 Mio. $ (48 Mio. €) ist eine Schätzung aus der Presse. 7 von 8 Flügen haben geklappt.' },
+  h3: { info: 'Japans neue Hauptrakete, hier als H3-30 ohne Seitenbooster. Mindestens 4.000 kg in einen Sonnensynchron-Orbit in 500 km Höhe (JAXA). Etwa 34 Mio. $ (5 Mrd. ¥) ist das Preisziel der JAXA, eine Schätzung. 8 von 10 Flügen haben geklappt.' },
+  pslv: { info: 'Indiens Arbeitspferd mit sechs dünnen Boostern unten am Rumpf. 1.750 kg in einen Sonnensynchron-Orbit in 600 km Höhe (ISRO). Der US-Rechnungshof GAO nennt 21 bis 31 Mio. $ pro Start, das Spiel nimmt 26 Mio. $. 25 von 27 Flügen haben geklappt.' },
+  soyuz: { info: 'Russlands altbewährte Rakete mit vier kegelförmigen Boostern, hier mit der Oberstufe Fregat. 4.400 kg in einen Sonnensynchron-Orbit in 820 km Höhe (Handbuch Arianespace, Start in Kourou). Der US-Rechnungshof GAO nennt 80 Mio. $ pro Start (2017). 86 von 88 Flügen haben geklappt.' },
   falcon9: { info: 'Eine große Rakete, deren erste Stufe landet und wieder fliegt. Laut NASA trägt sie 10.670 kg in einen Orbit in 800 km Höhe.' },
 };
 for (const list of [missions, instruments, buses, panels, rockets, [starship, falconHeavy, sls]]) for (const x of list) x.de = DE[x.id];
@@ -191,13 +223,13 @@ export const contracts = [
   { id: 'c1', level: 1, dest: 'leo', base: 'cubesat', minScience: 8, fee: 2,
     client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
     de: { client: 'Raumfahrt-AG einer Uni', goal: 'Starte einen kleinen CubeSat mit Kamera für Studierende.' } },
-  { id: 'c2', level: 1, dest: 'leo', base: 'weather', minScience: 55, fee: 130,
+  { id: 'c2', level: 1, dest: 'leo', base: 'weather', minScience: 55, fee: 60, // gesenkt 15.11.: neue billige Raketen (Electron, H3, PSLV)
     client: 'National weather service', goal: 'Put a weather satellite into an 800 km orbit.',
     de: { client: 'Nationaler Wetterdienst', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' } },
-  { id: 'c3', level: 1, dest: 'leo', base: 'ocean', minScience: 125, fee: 190,
+  { id: 'c3', level: 1, dest: 'leo', base: 'ocean', minScience: 125, fee: 110,
     client: 'Ocean research institute', goal: 'Measure sea level with a radar satellite.',
     de: { client: 'Institut für Meeresforschung', goal: 'Miss die Meereshöhe mit einem Radar-Satelliten.' } },
-  { id: 'c4', level: 1, dest: 'leo', base: 'weather', minScience: 100, fee: 160,
+  { id: 'c4', level: 1, dest: 'leo', base: 'weather', minScience: 100, fee: 90,
     client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
     de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
   // Level 2: eine kleine Raumstation aus fünf Modulen (Idee Mentor und Josias, 14.11.).
