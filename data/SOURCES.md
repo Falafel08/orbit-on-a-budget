@@ -88,3 +88,13 @@ ISS facts and figures (nasa.gov), James Webb mission page, Moon facts, Sun facts
 | 3D graphics | Three.js 0.170, https://threejs.org/ | MIT, `assets/vendor/three/LICENSE` | Used |
 | Astronaut 3D model | Kenney Space Kit, https://kenney.nl/assets/space-kit | CC0 | Used (`assets/kenney3d/astronautA.glb`) |
 | Battery: start 10, pack +20 (unit: kW for one round), pack 1,500 kg, $15M. Surplus power recharges it. Empty battery with crew aboard = rescue with the lifeboat | The ISS stores power in lithium-ion batteries for the time in Earth's shadow; sizes and prices here are simplified | — | Game assumption |
+
+## 3D world (added 15 Nov 2026)
+
+| What | Source | License | Status |
+|---|---|---|---|
+| Earth map (`assets/planets/earth.jpg`, 1024 × 512) | Solar System Scope, https://www.solarsystemscope.com/textures/, based on NASA imagery | CC BY 4.0 | Used |
+| Mars map (`assets/planets/mars.jpg`, 1024 × 512) | Solar System Scope, https://www.solarsystemscope.com/textures/, based on NASA imagery | CC BY 4.0 | Used |
+| Moon map (`assets/planets/moon.jpg`, 1024 × 512) | NASA Scientific Visualization Studio, CGI Moon Kit (LRO data), https://svs.gsfc.nasa.gov/4720 | NASA content | Used |
+| Buildings, rocks, craters, rover, rocket parts (3D) | Kenney Space Kit, https://kenney.nl/assets/space-kit | CC0 | Used (`assets/kenney3d/`) |
+| Camera controls | Three.js OrbitControls 0.170 | MIT | Used |

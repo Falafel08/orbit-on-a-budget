@@ -2420,7 +2420,8 @@ function setHudCash(value, low = false) {
   hudAnim = requestAnimationFrame(step);
 }
 
-let lastPhase = null, phaseChanged = true; // weicher Übergang, wenn der Bildschirm wechselt (Spielgefühl: keine harten Schnitte)
+let lastPhase = null, phaseChanged = true;
+const effects3d = () => { try { return localStorage.getItem('effects-3d') !== '0'; } catch { return true; } }; // weicher Übergang, wenn der Bildschirm wechselt (Spielgefühl: keine harten Schnitte)
 function render() {
   phaseChanged = state.phase !== lastPhase;
   if (state.phase !== lastPhase) {
@@ -2434,14 +2435,20 @@ function render() {
   $('app').classList.toggle('hidden-app', inMenu);
   document.body.classList.toggle('playing', !inMenu);
   updateSound();
-  if (inMenu) { renderHome(); return; }
+  if (inMenu) { // Startseite und Level-Auswahl: 3D-Karte mit Erde, Station, Mond, Mars (Entscheidung 2 und 3)
+    const map3d = hasWebGL() && effects3d();
+    document.body.classList.toggle('ambient-3d', map3d); document.body.classList.toggle('menu-3d', map3d);
+    if (map3d) queueMicrotask(() => showWorld($('world-bg'), { level: 'map', reached: reachedLevel(), focus: state.phase === 'start' ? (state.levelPick || reachedLevel()) : 0, widgets: [], ambient: true }));
+    renderHome(); return;
+  }
+  document.body.classList.remove('menu-3d');
   $('home').classList.remove('show');
 
   const stage = $('stage');
   stage.classList.toggle('full', ['result', 'research', 'company', 'station'].includes(state.phase));
   stage.classList.toggle('launching', state.phase === 'launch');
   // 3D-Welt des Levels als Hintergrund (Linus 15.11.: alles im Stil der Landschaft). Basis zeigt sie selbst, der Start hat eigene Bilder.
-  const ambient = hasWebGL() && !['company', 'launch'].includes(state.phase);
+  const ambient = hasWebGL() && effects3d() && !['company', 'launch'].includes(state.phase);
   document.body.classList.toggle('ambient-3d', ambient);
   if (ambient) {
     const lvl = state.phase === 'station' ? 2 : state.phase === 'research' ? (state.researchView || reachedLevel())

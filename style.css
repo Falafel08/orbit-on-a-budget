@@ -1026,3 +1026,10 @@ body.ambient-3d .station-plan .st-left { background: rgba(23, 21, 20, 0.9); }
 .badge-new { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; border-radius: 999px; background: rgba(232, 197, 71, 0.12); border: 1px solid rgba(232, 197, 71, 0.5); animation: star-pop 520ms cubic-bezier(.3, 1.6, .5, 1) both 300ms; }
 .badge-new small { display: block; font-size: 0.72rem; color: #e8c547; text-transform: uppercase; letter-spacing: 0.06em; }
 @media (prefers-reduced-motion: reduce) { .badge-new { animation: none; } }
+/* Startseite und Level-Auswahl mit 3D-Karte: altes Sternenfeld und gezeichneter Satellit treten zurück */
+body.menu-3d #space, body.menu-3d .sat-wrap, body.menu-3d .planet { display: none; }
+body.menu-3d { background: #05040a; }
+body.menu-3d .world-bg::after { background: radial-gradient(ellipse at 50% 50%, rgba(5, 4, 10, 0) 30%, rgba(5, 4, 10, 0.55) 100%); }
+.credit-3d { display: none; }
+body.menu-3d .credit-2d { display: none; }
+body.menu-3d .credit-3d { display: inline-block; }

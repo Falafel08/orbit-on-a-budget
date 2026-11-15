@@ -71,6 +71,57 @@ function lights(scene, sunColor = 0xfff3e0, amb = 0.55) {
   const sun = new T.DirectionalLight(sunColor, 1.7); sun.position.set(10, 16, 6); scene.add(sun);
 }
 
+// Einfache Planeten-Oberfläche als Canvas-Textur: Grundfarbe plus Flecken (Kontinente, Krater, dunkle Ebenen)
+function planetTexture(base, spots, n, seed = 1, size = 1, caps = false) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const g = c.getContext('2d'); g.fillStyle = base; g.fillRect(0, 0, 512, 256);
+  let x = seed * 9301;
+  const rnd = () => { x = (x * 9301 + 49297) % 233280; return x / 233280; };
+  for (let i = 0; i < n; i++) {
+    g.fillStyle = spots[i % spots.length]; g.globalAlpha = 0.5 + rnd() * 0.5;
+    g.beginPath(); g.ellipse(rnd() * 512, 30 + rnd() * 196, (4 + rnd() * 26) * size, (3 + rnd() * 14) * size, rnd() * 3, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+  if (caps) { g.fillStyle = '#eef3f8'; g.fillRect(0, 0, 512, 14); g.fillRect(0, 242, 512, 14); } // Polkappen
+  const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace;
+  return tex;
+}
+
+const texCache = new Map();
+function planetMap(name) {
+  if (!texCache.has(name)) { const t = new T.TextureLoader().load(`assets/planets/${name}.jpg`); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 4; texCache.set(name, t); }
+  return texCache.get(name);
+}
+
+// Karte für Startseite und Level-Auswahl: Erde mit Station, Mond, Mars. Gesperrte Orte dunkel.
+function mapScene(reached) {
+  const s = new T.Scene(); s.background = new T.Color(0x05040a);
+  s.add(new T.AmbientLight(0xffffff, 0.7));
+  const sun = new T.DirectionalLight(0xfff3e0, 2.4); sun.position.set(12, 8, 22); s.add(sun);
+  stars(s, 1400, 160);
+  const planet = (r, tex, pos, locked) => {
+    const m = new T.Mesh(new T.SphereGeometry(r, 48, 32), new T.MeshStandardMaterial({ map: tex, roughness: 0.9, color: locked ? 0x3a3a44 : 0xffffff }));
+    m.position.set(...pos); s.add(m); return m;
+  };
+  const earth = planet(3, planetMap('earth'), [0, 0, 0], false);
+  const atm = new T.Mesh(new T.SphereGeometry(3.12, 48, 32), new T.MeshBasicMaterial({ color: 0x8cc8ff, transparent: true, opacity: 0.15 })); s.add(atm);
+  const moon = planet(0.9, planetMap('moon'), [11, 0.6, -5], reached < 3);
+  const mars = planet(1.7, planetMap('mars'), [25, -0.4, -13], reached < 4);
+  const st = new T.Group();
+  const body = new T.Mesh(new T.CylinderGeometry(0.12, 0.12, 0.7, 12), new T.MeshStandardMaterial({ color: 0xf5efe6 })); body.rotation.z = Math.PI / 2; st.add(body);
+  for (const dx of [-0.5, 0.5]) { const w = new T.Mesh(new T.BoxGeometry(0.3, 0.02, 0.5), new T.MeshStandardMaterial({ color: 0x2b3a6b, emissive: 0x0a1030 })); w.position.x = dx; st.add(w); }
+  if (reached < 2) st.traverse((o) => { if (o.isMesh) { o.material.transparent = true; o.material.opacity = 0.35; } });
+  s.add(st);
+  // Bahnen als feine Linien: Erde → Mond → Mars
+  const line = (a, b) => s.add(new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(...a), new T.Vector3(...b)]), new T.LineDashedMaterial({ color: 0xa88fd6, dashSize: 0.4, gapSize: 0.3, transparent: true, opacity: 0.45 })).computeLineDistances());
+  line([0, 0, 0], [11, 0.6, -5]); line([11, 0.6, -5], [25, -0.4, -13]);
+  const targets = { 0: [new T.Vector3(-4.5, 0, 0), 12], // Startseite: Erde rechts, Titel bleibt lesbar
+    1: [new T.Vector3(0, 0, 0), 8.5], 2: [st.position, 2.6], 3: [moon.position, 3.4], 4: [mars.position, 5.2] };
+  return { scene: s, radius: 10, height: 4,
+    anims: [(t) => { earth.rotation.y = t / 30000; moon.rotation.y = t / 50000; mars.rotation.y = t / 45000; const a = t / 9000; st.position.set(Math.cos(a) * 3.9, Math.sin(a) * 0.6, Math.sin(a) * 3.9); st.rotation.y = -a; }],
+    focusOf: (n) => targets[n] || targets[0] };
+}
+
 // ---------- die vier Orte ----------
 async function earthScene() {
   const s = new T.Scene();
@@ -103,7 +154,7 @@ async function stationScene(station) {
   const s = new T.Scene();
   s.background = new T.Color(0x05040a);
   lights(s, 0xfff3e0, 0.5); stars(s, 1000);
-  const earth = new T.Mesh(new T.SphereGeometry(70, 64, 48), new T.MeshStandardMaterial({ color: 0x2d6cb0, emissive: 0x0b2240, roughness: 0.9 }));
+  const earth = new T.Mesh(new T.SphereGeometry(70, 64, 48), new T.MeshStandardMaterial({ map: planetMap('earth'), roughness: 0.9 }));
   earth.position.set(0, -82, -30); s.add(earth);
   const atm = new T.Mesh(new T.SphereGeometry(71.5, 64, 48), new T.MeshBasicMaterial({ color: 0x8cc8ff, transparent: true, opacity: 0.12 }));
   atm.position.copy(earth.position); s.add(atm);
@@ -125,7 +176,7 @@ async function moonScene(mars = false) {
   if (!mars) stars(s, 900);
   s.add(terrain(mars ? 0xb5532d : 0x8c8a86, mars ? 1.4 : 1.1));
   if (!mars) { // die Erde am Mondhimmel
-    const earth = new T.Mesh(new T.SphereGeometry(3.5, 48, 32), new T.MeshStandardMaterial({ color: 0x3a7bd5, emissive: 0x10305a }));
+    const earth = new T.Mesh(new T.SphereGeometry(3.5, 48, 32), new T.MeshStandardMaterial({ map: planetMap('earth'), emissive: 0x0a1a30 }));
     earth.position.set(-14, 16, -40); s.add(earth);
   }
   await place(s, mars ? 'hangar_roundA' : 'hangar_roundA', 3, 3.4, -2.6, 0, 'control');
@@ -216,7 +267,15 @@ function frame(t) {
   const box = W.renderer.domElement.parentElement, w = box.clientWidth, h = box.clientHeight;
   if (W.w !== w || W.h !== h) { W.renderer.setSize(w, h, false); W.camera.aspect = w / Math.max(1, h); W.camera.updateProjectionMatrix(); W.w = w; W.h = h; }
   // Umgebung: langsam kreisen; die Station (niedrige Höhe) weit weg, damit sie nicht hinter den Karten hervorschaut
-  if (W.ambient && !W.flying) { W.ambientAngle = (W.ambientAngle || 0.85) + (reduced() ? 0 : 0.0006); W.camera.position.copy(orbitPos(W.info, W.ambientAngle, W.info.height < 7 ? 3.2 : 1.7)); W.camera.position.y *= 0.55; W.camera.lookAt(0, 0, 0); }
+  if (W.ambient && !W.flying && W.info.focusOf) { // Karte: Ziel weich ansteuern, langsam darum kreisen
+    const [target, dist] = W.info.focusOf(W.focus);
+    W.tgt = W.tgt || target.clone(); W.dist = W.dist || dist;
+    W.tgt.lerp(target, 0.035); W.dist += (dist - W.dist) * 0.035;
+    W.ambientAngle = (W.ambientAngle || 0.6) + (reduced() ? 0 : 0.0007);
+    W.camera.position.set(W.tgt.x + Math.sin(W.ambientAngle) * W.dist, W.tgt.y + W.dist * 0.32, W.tgt.z + Math.cos(W.ambientAngle) * W.dist);
+    W.camera.lookAt(W.tgt);
+  }
+  else if (W.ambient && !W.flying) { W.ambientAngle = (W.ambientAngle || 0.85) + (reduced() ? 0 : 0.0006); W.camera.position.copy(orbitPos(W.info, W.ambientAngle, W.info.height < 7 ? 3.2 : 1.7)); W.camera.position.y *= 0.55; W.camera.lookAt(0, 0, 0); }
   else if (W.flying) { W.controls.enabled = false; if (!W.flying.step(t)) { W.flying = null; W.controls.enabled = true; } W.camera.lookAt(0, 0, 0); }
   else W.controls.update();
   for (const a of W.anims) a(t);
@@ -240,7 +299,7 @@ function placeWidgets(w, h) {
   }
 }
 
-const sceneFor = (level, station) => (level === 1 ? earthScene() : level === 2 ? stationScene(station) : moonScene(level === 4));
+const sceneFor = (level, station, reached) => (level === 'map' ? mapScene(reached) : level === 1 ? earthScene() : level === 2 ? stationScene(station) : moonScene(level === 4));
 const FADE = { 2: '#dfefff', 3: '#000', 4: '#000', 1: '#000' }; // Erde → Station: durch die Wolken (hell), sonst ins Dunkel
 
 // Welt zeigen. opts: level, station, widgets [{ building, el }], onBuilding(id), flight: 'intro' | 'short' | { from }
@@ -253,14 +312,15 @@ export async function showWorld(container, opts) {
   container.replaceChildren(w.renderer.domElement, fade, ...opts.widgets.map((x) => x.el));
   w.onBuilding = opts.onBuilding;
   w.ambient = !!opts.ambient; w.controls.enabled = !opts.ambient;
-  const key = `${opts.level}|${opts.station ? opts.station.modules.length + ':' + opts.station.crew : ''}`;
+  const key = `${opts.level}|${opts.reached || ''}|${opts.station ? opts.station.modules.length + ':' + opts.station.crew : ''}`;
+  w.focus = opts.focus ?? 0;
   const attach = (built) => {
     w.scene = built.scene; w.anims = built.anims; w.info = built; w.key = key;
     if (built.stationGroup) built.stationGroup.visible = !opts.hideStation; // Planer zeigt die Station schon als Umriss
     w.widgets = opts.widgets.map((x) => { let target = null; built.scene.traverse((o) => { if (!target && o.userData.building === x.building) target = o; }); return { ...x, target }; });
   };
   const prevInfo = w.info;
-  const built = w.key === key && w.scene ? w.info : await sceneFor(opts.level, opts.station);
+  const built = w.key === key && w.scene ? w.info : await sceneFor(opts.level, opts.station, opts.reached || 1);
   if (opts.flight && opts.flight.from && prevInfo && w.scene) flyTransition(fade, prevInfo, built, () => attach(built), FADE[opts.level]);
   else { attach(built); if (opts.flight) flyIntro(built, opts.flight === 'intro'); else if (!w.flying && w.camera.position.lengthSq() === 0) w.camera.position.copy(orbitPos(built, 0.85)); }
   if (!w.loop) w.loop = requestAnimationFrame(frame);

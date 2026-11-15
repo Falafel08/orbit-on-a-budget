@@ -11,6 +11,7 @@ const FACT_PAGES = {
 };
 
 export const nasaSources = [
+  { en: 'Moon map in the 3D world: NASA SVS CGI Moon Kit (LRO data)', de: 'Mondkarte in der 3D-Welt: NASA SVS CGI Moon Kit (LRO-Daten)', url: 'https://svs.gsfc.nasa.gov/4720' },
   { en: 'Food for the station crew: about 1.8 kg per person per day including packaging, NASA Human Research Roadmap', de: 'Essen für die Crew der Station: etwa 1,8 kg pro Person und Tag mit Verpackung, NASA Human Research Roadmap',
     url: 'https://humanresearchroadmap.nasa.gov/evidence/reports/food.pdf' },
   { en: 'Astrobee robot: 32 cm cube, about 10 kg, NASA Ames (NASA Technical Reports Server)', de: 'Roboter Astrobee: Würfel mit 32 cm, etwa 10 kg, NASA Ames (NASA Technical Reports Server)',
@@ -45,6 +46,7 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: 'Earth and Mars maps in the 3D world: Solar System Scope, based on NASA imagery, CC BY 4.0', de: 'Erd- und Marskarte in der 3D-Welt: Solar System Scope, nach NASA-Bildern, CC BY 4.0', url: 'https://www.solarsystemscope.com/textures/' },
   { en: 'Crew seat price: about $55M per seat on Crew Dragon, estimate by NASA\'s Inspector General 2019 (NASA and Boeing call it too high)', de: 'Preis pro Sitz: etwa 55 Mio. $ bei Crew Dragon, Schätzung des NASA-Generalinspekteurs 2019 (NASA und Boeing halten sie für zu hoch)',
     url: 'https://www.space.com/spacex-boeing-commercial-crew-seat-prices.html' },
   { en: 'Robonaut 2: about 150 kg, NASA and General Motors (IEEE Spectrum)', de: 'Robonaut 2: etwa 150 kg, NASA und General Motors (IEEE Spectrum)',
