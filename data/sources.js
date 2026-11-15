@@ -37,6 +37,9 @@ export const nasaSources = [
 ];
 
 export const otherSources = [
+  { en: '"Why it matters" lines: NASA CubeSat Launch Initiative, NOAA JPSS weather satellites, NASA Sea Level, NASA ISS facts, NASA Artemis, NASA Perseverance',
+    de: '„Wozu das gut ist“: NASA CubeSat Launch Initiative, NOAA-Wettersatelliten JPSS, NASA Sea Level, NASA ISS-Fakten, NASA Artemis, NASA Perseverance',
+    url: 'https://sealevel.nasa.gov/understanding-sea-level/key-indicators/global-mean-sea-level/' },
   { en: 'Ariane 62 payload (7,200 kg to 500 km SSO): Arianespace Ariane 6 User\'s Manual', de: 'Nutzlast Ariane 62 (7.200 kg auf 500 km SSO): Arianespace, Ariane 6 User\'s Manual',
     url: 'https://ariane.group/app/uploads/sites/4/2024/10/Mua-6_Issue-2_Revision-0_March-2021.pdf' },
   { en: 'Vega C payload (2.3 t to SSO): ESA', de: 'Nutzlast Vega C (2,3 t in den SSO): ESA', url: 'https://www.esa.int/Enabling_Support/Space_Transportation/Vega/Vega-C' },

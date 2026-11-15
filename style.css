@@ -837,3 +837,23 @@ button.primary.small { min-height: 34px; font-size: 0.85rem; padding: 0 12px; wi
 .fee-line .icon { width: 20px; height: 20px; }
 #left .card dl { grid-template-columns: auto auto; justify-content: start; column-gap: 6px; }
 #left .card dd { white-space: nowrap; }
+
+/* ---------- Usability-Funde 15.11. ---------- */
+.tagline { position: absolute; left: 50%; top: calc(14vh + 3.2 * clamp(3rem, 7vw, 6rem)); transform: translateX(-50%); margin: 0; width: min(90vw, 720px);
+  text-align: center; font-size: 1.15rem; color: var(--text); text-shadow: 0 2px 10px rgba(0,0,0,0.8); transition: opacity var(--dauer) ease; }
+.home.choosing .tagline { opacity: 0; pointer-events: none; }
+.launch-warn { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: rgba(224, 96, 90, 0.18); border: 1px solid #e0605a; color: #f5c2bf; font-size: 0.9rem; max-width: 300px; }
+.action-bar { flex-direction: column; align-items: flex-end; }
+.skip-launch { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; min-height: 44px !important; }
+.stars-box { display: grid; gap: 2px; }
+.stars { font-size: 2.2rem; color: #e8c547; letter-spacing: 0.1em; line-height: 1; }
+.why { display: flex; gap: 8px; align-items: flex-start; text-align: left; padding: 10px 12px; border-radius: 10px; background: rgba(143, 224, 166, 0.1); border: 1px solid rgba(143, 224, 166, 0.4); font-size: 0.95rem; line-height: 1.45; }
+.why .icon { color: #8fe0a6; flex: none; margin-top: 2px; }
+.why a { color: var(--akzent-text); white-space: nowrap; }
+html.big-text { font-size: 112.5%; }
+html.big-text .bldg-label { font-size: 14px; }
+html.big-text .fact-label { font-size: 13px; }
+.tagline { z-index: 2; }
+.home:not(.choosing) .sat-wrap { top: 68vh; }
+.action-bar { flex-direction: row; align-items: center; gap: 10px; }
+.launch-warn { margin: 0; white-space: nowrap; max-width: none; }

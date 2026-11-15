@@ -213,12 +213,13 @@ function renderHome() {
   $('lang').replaceChildren(el('span', { 'aria-hidden': 'true' }, '🌐'), getLang().toUpperCase());
   $('lang').setAttribute('aria-label', t('languageToggle'));
   $('credits-btn').textContent = t('credits');
+  $('tagline').textContent = t('tagline'); // worum es geht, auf einen Blick
   $('version').textContent = t('version');
   if (!$('sat').firstChild) $('sat').append(satelliteSvg());
 
   $('side-buttons').replaceChildren(...(choosing
     // gleiche Reihenfolge in beiden Ansichten, Einstellungen immer unten (Fund Josias 14.11.)
-    ? [el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('menu')),
+    ? [el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => go('home') }, t('backHome')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => startMission(missions.find((m) => m.free)) }, t('freePlay')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: () => openFacts(0) }, t('spaceFacts')),
       el('button', { class: 'hexbtn ghost', type: 'button', onclick: openSettings }, t('settings'))]
@@ -252,7 +253,7 @@ function renderLevelSelect() {
     return el('figure', { class: `lvl-card ${role}${open ? '' : ' locked'}${role === 'mid' && unlocking ? ' unlocking' : ''}`, onclick: role === 'mid' ? null : () => moveLevel(n - i) },
       el('div', { class: 'lvl-scene', 'aria-hidden': 'true' }, placeSvg(n, null, pr.done)),
       !open || (role === 'mid' && unlocking) ? el('span', { class: 'lock', 'aria-label': t('locked') }, '🔒') : '',
-      el('figcaption', {}, el('strong', {}, `${t('level')} ${n} · ${tr(l, 'name')}`), el('span', { class: `diff d${n}` }, t(LEVEL_DIFF[n - 1]))));
+      el('figcaption', {}, el('strong', {}, role === 'mid' ? `${t('level')} ${n} · ${tr(l, 'name')}` : `${t('level')} ${n}`), el('span', { class: `diff d${n}` }, t(LEVEL_DIFF[n - 1]))));
   };
   const l = LEVELS[i - 1], open = i <= reached, pr = levelProgress(i);
   const started = company.index > contracts.findIndex((x) => x.level === i);
@@ -311,6 +312,13 @@ function seg(options, current, onPick) {
     el('button', { type: 'button', 'aria-pressed': String(value === current), onclick: () => onPick(value) }, label)));
 }
 
+// Große Schrift für ältere Spieler (Fund 9): alle rem-Größen wachsen um 12,5 %, gemerkt im Browser
+function setBigText(on) {
+  document.documentElement.classList.toggle('big-text', on);
+  try { localStorage.setItem('big-text', on ? '1' : '0'); } catch { /* ohne Speicher */ }
+}
+try { if (localStorage.getItem('big-text') === '1') document.documentElement.classList.add('big-text'); } catch { /* ohne Speicher */ }
+
 function openSettings() {
   const panel = $('panel');
   state.confirmReset = false;
@@ -318,6 +326,8 @@ function openSettings() {
     el('h2', { id: 'panel-title' }, t('settings')),
     el('div', { class: 'row' }, el('span', {}, t('music')),
       seg([[true, t('on')], [false, t('off')]], isPlaying(), (v) => { setMusic(v); updateSound(); draw(); })),
+    el('div', { class: 'row' }, el('span', {}, t('bigText')),
+      seg([[true, t('on')], [false, t('off')]], document.documentElement.classList.contains('big-text'), (v) => { setBigText(v); draw(); })),
     el('div', { class: 'row' }, el('span', {}, t('language')),
       seg([['en', 'English'], ['de', 'Deutsch']], getLang(), (v) => { setLang(v); render(); draw(); })),
     el('div', { class: 'row' }, el('button', { class: 'danger', type: 'button', onclick: () => {
@@ -810,7 +820,7 @@ function rocketCarouselCenter() {
       if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); moveRocket(items, 1); }
     },
   },
-  el('div', { class: 'action-bar' }, NEXT),
+  el('div', { class: 'action-bar' }, el('p', { class: 'launch-warn', id: 'launch-warn', hidden: '' }), NEXT),
   el('div', { class: 'carousel-stage' },
     n > 1 ? el('button', { class: 'arrow', type: 'button', 'data-dir': 'prev', 'aria-label': t('prevRocket'), onclick: () => moveRocket(items, -1) }, '‹') : el('span'),
     // endlos: ab zwei Raketen stehen immer links und rechts Nachbarn (bei zwei ist es dieselbe)
@@ -991,6 +1001,8 @@ function renderLaunch() {
   rocket.classList.add('launch-rocket');
   const front = el('canvas', { class: 'front', 'aria-hidden': 'true' }); // vorderer Greifarm liegt vor der Rakete
   const wrap = el('div', { class: 'launch-wrap', role: 'img', 'aria-label': t('launch') }, canvas, rocket, front);
+  let launches = 0; try { launches = Number(localStorage.getItem('launches')) || 0; } catch { /* ohne Speicher */ }
+  if (launches > 1) wrap.append(el('button', { class: 'secondary skip-launch', type: 'button', onclick: () => { state.phase = 'result'; render(); } }, t('skipLaunch'), icon('next'))); // ab dem zweiten Start
   // die Bau-Ansicht bleibt kurz stehen und blendet aus, nur ohne die vordere Rakete (die übernimmt die Szene)
   const old = $('center').firstElementChild;
   if (old) {
@@ -1751,12 +1763,11 @@ function renderCompany() {
       el('p', { class: 'big-number rp' }, `${money(company.cash)} · ${research.rp} ${t('rpShort')}`),
       el('p', { class: 'lvl-desc' }, t(`levelGoal${view}`)), // mehr Platz für beschreibenden Text
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
-      row('antenna', t('bldgControl'),
-        c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'),
-        el('button', { class: canFly ? 'primary small go' : 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild },
-          icon('rocket'), el('span', {}, need ? t('researchFirst', { x: t(need.name) }) : t('buildMission')))),
+      row('antenna', t('bldgControl'), c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'), ''),
       row('flask', t('bldgLab'), t('labRowText'), el('button', { class: need ? 'primary small go' : 'primary small', type: 'button', onclick: toLab }, icon('flask'), el('span', {}, t('openLab')))),
-      firstHall ? row('hangar', t('bldgHall'), t('hallText'), el('button', { class: 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild }, icon('hangar'), el('span', {}, t('toHall')))) : '',
+      row(firstHall ? 'hangar' : 'rocket', t(firstHall ? 'bldgHall' : view === 2 ? 'bldgDock' : 'bldgLanding'), t('hallText'),
+        el('button', { class: canFly ? 'primary small go' : 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild },
+          icon('rocket'), el('span', {}, need ? t('researchFirst', { x: t(need.name) }) : t('toHall')))),
       el('ol', { class: 'contracts' }, inLevel.map((x) => {
         const i = contracts.indexOf(x);
         return el('li', { class: i < company.index ? 'is-done' : i === company.index ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
@@ -1869,6 +1880,9 @@ function factIcon(kind) {
 
 
 // Konfetti für den Gewinn: einmal herabfallen, dann weg
+// 3 Sterne: höchstens 15 % teurer als der billigste mögliche Weg, 2 Sterne: höchstens 60 % teurer
+const stars = (r) => (r.spent <= r.minCost * 1.15 ? 3 : r.spent <= r.minCost * 1.6 ? 2 : 1);
+
 function confetti() {
   const box = el('div', { class: 'confetti', 'aria-hidden': 'true' });
   const colors = ['#e8c547', '#8fe0a6', '#A88FD6', '#e0605a', '#9fb3e8', '#F5EFE6'];
@@ -1881,6 +1895,26 @@ function confetti() {
   setTimeout(() => box.remove(), 5500);
   return box;
 }
+
+// Grund fürs Scheitern als Satz (Ergebnis und Warnung am Start-Knopf)
+function problemText(p) {
+  return {
+    budget: t('rBudget'), power: t('rPower'), capacity: t('rCapacity'), 'delta-v': t('rDv'),
+    'rocket-mass': t('rRocketMass'), science: t('rScience', { n: state.mission.minScience }), 'launch-failure': t('rLaunch'),
+  }[p];
+}
+
+// Wozu der Auftrag in echt gut ist (Awareness für Raumfahrt, Linus 15.11.). Je Auftragsart ein Satz mit Quelle.
+const WHY = {
+  cubesat: 'https://www.nasa.gov/kennedy/launch-services-program/cubesat-launch-initiative/',
+  weather: 'https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system',
+  storm: 'https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system',
+  ocean: 'https://sealevel.nasa.gov/understanding-sea-level/key-indicators/global-mean-sea-level/',
+  station: 'https://www.nasa.gov/international-space-station/space-station-facts-and-figures/',
+  moon: 'https://www.nasa.gov/humans-in-space/artemis/',
+  mars: 'https://science.nasa.gov/mission/mars-2020-perseverance/',
+};
+const whyKind = (c) => ({ c1: 'cubesat', c2: 'weather', c3: 'ocean', c4: 'storm' })[c.id] || { 2: 'station', 3: 'moon', 4: 'mars' }[c.level];
 
 function renderResult() {
   const r = state.result;
@@ -1899,6 +1933,11 @@ function renderResult() {
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
+    r.success && r.minCost && Number.isFinite(r.minCost) ? el('div', { class: 'stars-box' },
+      el('p', { class: 'stars', 'aria-label': t('starsLabel', { n: stars(r) }) }, '★'.repeat(stars(r)) + '☆'.repeat(3 - stars(r))),
+      el('p', { class: 'hint' }, t('cheapestWay', { c: money(r.minCost) }))) : '',
+    r.success && state.mission.contract ? el('p', { class: 'why' }, icon('star'), el('span', {}, el('strong', {}, t('whyTitle')), ' ', t(`why_${whyKind(state.mission.contract)}`), ' '),
+      el('a', { href: WHY[whyKind(state.mission.contract)], target: '_blank', rel: 'noopener' }, t('whySource'))) : '',
     r.fact ? el('div', { class: 'fact big-fact' }, factPicture(r.fact), el('p', {}, el('strong', {}, t('funFact')), ' ', r.fact[getLang()])) : '',
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
     state.mission.contract && r.fee ? el('p', { class: 'rp-earned' }, t('feeReceived', { c: money(r.fee) })) : '',
@@ -1906,7 +1945,7 @@ function renderResult() {
     r.repeat ? el('p', { class: 'hint' }, t('noRpRepeat')) : '',
     el('dl', {},
       el('dt', {}, t('spent')), el('dd', {}, money(r.spent)),
-      free ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))],
+      free || state.mission.contract ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))], // im Auftrag zählt nur das Firmengeld
       ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
         el('dt', {}, t('science')), el('dd', {}, String(r.science)),
         el('dt', {}, t('sciencePerM')), el('dd', {}, r.sciencePerMillion.toFixed(1))]),
@@ -1993,6 +2032,14 @@ function footer() {
     if (state.build === 1) setNext(t('launch'), 'rocket'); else setNext(t('next'), 'next', true);
     next.disabled = !ready;
     next.classList.toggle('go', ready);
+    // Warnung, wenn der Plan so scheitern würde (zu schwer, zu wenig Strom, zu wenig Forschungspunkte)
+    const warn = document.getElementById('launch-warn');
+    if (warn) {
+      const plan = state.build === 1 && ready ? missionResult({ ...state, insurance: insuranceCost() }).problems.filter((p) => p !== 'budget') : [];
+      warn.hidden = !plan.length;
+      warn.textContent = plan.length ? `⚠ ${t({ 'rocket-mass': 'wHeavy', 'delta-v': 'wWeak', power: 'wPower', capacity: 'wCapacity', science: 'wScience' }[plan[0]])}` : '';
+      if (plan.length) next.classList.remove('go');
+    }
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch
   } else if (state.phase === 'research' || state.phase === 'company') {
@@ -2009,6 +2056,7 @@ function footer() {
 
 function render() {
   queueMicrotask(tutorial); // Einführung nach dem Neuzeichnen an die neuen Stellen setzen
+  setTimeout(tutorial, 520); // und noch einmal, wenn die Seitenleisten fertig hereingeglitten sind
   const inMenu = state.phase === 'home' || state.phase === 'start';
   $('app').classList.toggle('hidden-app', inMenu);
   document.body.classList.toggle('playing', !inMenu);
@@ -2058,6 +2106,8 @@ NEXT.addEventListener('click', () => {
   if (state.phase === 'build') {
     if (state.build < 1) { state.build += 1; render(); return; }
     const r = missionResult({ ...state, insurance: insuranceCost() });
+    // billigster mögliche Weg für die Sterne, berechnet vor dem Abrechnen (danach zeigt der Auftrag schon auf den nächsten)
+    if (!state.mission.free) r.minCost = cheapestMission(state.mission, { instruments, buses, panels }, offered(rocketList()));
     if (r.reachedOrbit) {
       const out = launchOutcome(state.rocket.reliability ?? 1, !!insuranceCost());
       r.attempts = out.attempts;
@@ -2088,9 +2138,10 @@ NEXT.addEventListener('click', () => {
     r.repeat = r.success && !r.rp && !state.mission.free && !contract;
     research.rp += r.rp;
     saveResearch();
-    if (r.reachedOrbit) r.fact = facts[Math.floor(Math.random() * facts.length)]; // beim Start festgelegt, ändert sich beim Neuzeichnen nicht
+    r.fact = facts[Math.floor(Math.random() * facts.length)]; // auch bei Fehlstart (Fund 12), beim Start festgelegt
     state.result = r;
     state.launchFrom = document.querySelector('.slot.mid .rocket-pic')?.getBoundingClientRect() || null; // Startpunkt für den Übergang
+    try { localStorage.setItem('launches', String((Number(localStorage.getItem('launches')) || 0) + 1)); } catch { /* ohne Speicher */ }
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
   else if (state.phase === 'result') {
