@@ -41,7 +41,7 @@ test('a contract that needs research stays locked until it is done', () => {
 
 // Pleite-Prüfung (Fund Code-Review 14.11.): billigster Weg über alle sinnvollen Forschungs-Kombinationen,
 // Forschung kostet Geld. Mond-Wohnmodul (20 t), nur Starship-Wiederverwendung I erforscht:
-// Betankung 150 + Starship 50 + Modul 300 = 500 (nicht 2.500 mit SLS und nicht „alles erforschen“).
+// Betankung 150 + Starship 60 + Modul 300 = 510 (nicht 2.500 mit SLS und nicht „alles erforschen“).
 test('the cheapest way to finish counts only the research a path needs', async () => {
   const { minCostToFinish } = await import('../src/campaign.js');
   const { starshipCost } = await import('../src/research.js');
@@ -54,8 +54,8 @@ test('the cheapest way to finish counts only the research a path needs', async (
   ];
   const rocketsWith = (dest, d) => rocketsFor(dest, [...P.rockets, { ...P.starship, cost: starshipCost(d) }, P.falconHeavy, P.sls], d);
   const habitat = { minScience: 0, requiredDv: 9500, module: { mass: 20000, cost: 300 }, dest: 'moon' };
-  assert.equal(minCostToFinish(habitat, P, (d) => rocketsWith('moon', d), projects, { 'ss-reuse-1': true }), 500);
+  assert.equal(minCostToFinish(habitat, P, (d) => rocketsWith('moon', d), projects, { 'ss-reuse-1': true }), 510);
   // Gesperrter Auftrag: die nötige Forschung zählt immer mit
   const crew = { minScience: 0, requiredDv: 9500, module: { mass: 50000, cost: 800 }, dest: 'mars', requires: 'mars-fuel' };
-  assert.equal(minCostToFinish(crew, P, (d) => rocketsWith('mars', d), projects, { refuel: true, 'ss-reuse-1': true, 'ss-reuse-2': true }), 300 + 25 + 800);
+  assert.equal(minCostToFinish(crew, P, (d) => rocketsWith('mars', d), projects, { refuel: true, 'ss-reuse-1': true, 'ss-reuse-2': true }), 300 + 40 + 800);
 });

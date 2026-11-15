@@ -7,9 +7,9 @@ import { OWN_STAGES, OWN_STAGES_2 } from '../data/parts.js';
 // Starship (Linus 14.11.): Start bei 100 Mio. $, Forschung „Wiederverwendung“ in drei Stufen bis 10 Mio. $
 test('Starship costs $100M and gets cheaper with each reuse research tier', () => {
   assert.equal(starshipCost({}), 100);
-  assert.equal(starshipCost({ 'ss-reuse-1': true }), 50);
-  assert.equal(starshipCost({ 'ss-reuse-1': true, 'ss-reuse-2': true }), 25);
-  assert.equal(starshipCost({ 'ss-reuse-1': true, 'ss-reuse-2': true, 'ss-reuse-3': true }), 10);
+  assert.equal(starshipCost({ 'ss-reuse-1': true }), 60); // Untergrenze 30 Mio. $, sonst ist Starship immer die beste Wahl (Linus 15.11.)
+  assert.equal(starshipCost({ 'ss-reuse-1': true, 'ss-reuse-2': true }), 40);
+  assert.equal(starshipCost({ 'ss-reuse-1': true, 'ss-reuse-2': true, 'ss-reuse-3': true }), 30);
 });
 
 // Orbiter-2: die eigene Rakete wird groß genug für Stationsmodule (bis 10 t in den Erdorbit, 9,5 km/s)

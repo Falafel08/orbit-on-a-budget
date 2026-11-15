@@ -122,7 +122,7 @@ export const rockets = [
 // 100 t: SpaceX Starship Users Guide (2020), gilt für niedrigen Orbit. 10 Mio. $: Musks Ziel (CNBC, 11.02.2022).
 // Erfolgsquote: 10 von 15 Testflügen (Wikipedia, Stand 14.11.2026). Kein Versicherer deckt Testflüge (Spiel-Annahme).
 export const starship = {
-  id: 'starship', name: 'Starship', cost: 100, maxPayload: 100000, reliability: 0.67, // 100 Mio. $ ohne Forschung, bis 10 Mio. $ mit (starshipCost)
+  id: 'starship', name: 'Starship', cost: 100, maxPayload: 100000, reliability: 0.67, // 100 Mio. $ ohne Forschung, bis 30 Mio. $ mit (starshipCost)
   capacity: { moon: 100000, mars: 100000 }, needsRefuel: true, // über den Erdorbit hinaus nur mit Betankung im Orbit
   claim: true, uninsurable: true,
   info: 'SpaceX\'s giant rocket, still in test flights. 100 t to low orbit is SpaceX\'s own figure and not shown yet. The price of $100M per flight is a game estimate; it gets cheaper with the research Starship reuse. 10 of 15 test flights worked. In the game no insurer covers it (assumption).',

@@ -85,3 +85,14 @@ export function boomSound() {
   const g = c.createGain(); g.gain.value = 1;
   src.connect(f).connect(g).connect(c.destination); src.start();
 }
+
+// Gesprochene Ansagen beim Flug (Linus und Freund 15.11.), Sprachausgabe des Browsers. Leicht tiefer und schneller wie Funk.
+export function say(text, lang = 'en') {
+  if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang === 'de' ? 'de-DE' : 'en-US'; u.rate = 1.05; u.pitch = 0.9; u.volume = 0.9;
+  const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(lang));
+  if (voice) u.voice = voice;
+  speechSynthesis.speak(u);
+}
+export function hush() { if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel(); }

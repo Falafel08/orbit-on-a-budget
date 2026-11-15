@@ -7,7 +7,7 @@ import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, con
 import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
-import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound } from './src/audio.js';
+import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush } from './src/audio.js';
 import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } from './src/research.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
@@ -17,20 +17,20 @@ import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } f
 // Man plant immer fürs nächste Level: Erde -> Station (Orbiter-2, Starship I), Station -> Mond (Betankung, Starship II),
 // Mond -> Mars (Mondeis, Starship III). helps = Ziele, denen das Projekt hilft (für die Pleite-Prüfung).
 const PROJECTS = [
-  { id: 'own-rocket', level: 1, rp: 15, cost: 20, seconds: 40, name: 'projOwn', info: 'projOwnInfo', helps: ['leo'] },
-  { id: 'reuse', level: 1, rp: 30, cost: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket', helps: ['leo'] },
-  { id: 'quality', level: 1, rp: 25, cost: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
-  { id: 'orbiter-2', level: 1, rp: 40, cost: 40, seconds: 70, name: 'projOrbiter2', info: 'projOrbiter2Info', needs: 'own-rocket', helps: ['leo'] },
-  { id: 'ss-reuse-1', level: 1, rp: 20, cost: 100, seconds: 50, name: 'projSs1', info: 'projSsInfo', helps: ['leo', 'moon', 'mars'] },
-  { id: 'refuel', level: 2, rp: 30, cost: 150, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo', helps: ['moon', 'mars'] },
-  { id: 'ss-reuse-2', level: 2, rp: 25, cost: 100, seconds: 50, name: 'projSs2', info: 'projSsInfo', needs: 'ss-reuse-1', helps: ['leo', 'moon', 'mars'] },
-  { id: 'lunar-ice', level: 3, rp: 30, cost: 200, seconds: 60, name: 'projIce', info: 'projIceInfo', helps: ['mars'] },
-  { id: 'ss-reuse-3', level: 3, rp: 30, cost: 100, seconds: 50, name: 'projSs3', info: 'projSsInfo', needs: 'ss-reuse-2', helps: ['leo', 'moon', 'mars'] },
-  { id: 'mars-fuel', level: 4, rp: 25, cost: 300, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo', helps: ['mars'] },
+  { id: 'own-rocket', level: 1, rp: 60, cost: 20, seconds: 40, name: 'projOwn', info: 'projOwnInfo', helps: ['leo'] },
+  { id: 'reuse', level: 1, rp: 120, cost: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket', helps: ['leo'] },
+  { id: 'quality', level: 1, rp: 100, cost: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
+  { id: 'orbiter-2', level: 1, rp: 160, cost: 40, seconds: 70, name: 'projOrbiter2', info: 'projOrbiter2Info', needs: 'own-rocket', helps: ['leo'] },
+  { id: 'ss-reuse-1', level: 1, rp: 80, cost: 100, seconds: 50, name: 'projSs1', info: 'projSsInfo', helps: ['leo', 'moon', 'mars'] },
+  { id: 'refuel', level: 2, rp: 120, cost: 150, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo', helps: ['moon', 'mars'] },
+  { id: 'ss-reuse-2', level: 2, rp: 100, cost: 100, seconds: 50, name: 'projSs2', info: 'projSsInfo', needs: 'ss-reuse-1', helps: ['leo', 'moon', 'mars'] },
+  { id: 'lunar-ice', level: 3, rp: 120, cost: 200, seconds: 60, name: 'projIce', info: 'projIceInfo', helps: ['mars'] },
+  { id: 'ss-reuse-3', level: 3, rp: 120, cost: 100, seconds: 50, name: 'projSs3', info: 'projSsInfo', needs: 'ss-reuse-2', helps: ['leo', 'moon', 'mars'] },
+  { id: 'mars-fuel', level: 4, rp: 100, cost: 300, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo', helps: ['mars'] },
 ];
 // Höchstes erreichtes Level der Kampagne
 const reachedLevel = () => (company.index >= contracts.length ? LEVELS.length : contracts[company.index].level);
-const SKIP_RP = 5;
+const SKIP_RP = 20; // Punkte x4 seit Wissenschaft = Forschungspunkte (15.11.)
 let research = { rp: 0, done: {}, flights: 0, active: null };
 try { research = { ...research, ...JSON.parse(localStorage.getItem('research') || '{}') }; } catch { /* Neustart */ }
 const saveResearch = () => { try { localStorage.setItem('research', JSON.stringify(research)); } catch { /* ohne Speicher */ } };
@@ -147,6 +147,8 @@ const ICONS = {
   retry: 'M4.5 12 A7.5 7.5 0 1 0 7 6.4 M4 3.5 L4.5 7.5 L8.5 7',
   shield: 'M12 3 L19 6 L19 11.5 C19 16 15.8 19.5 12 21 C8.2 19.5 5 16 5 11.5 L5 6 Z M9 12 L11.2 14.2 L15.5 9.8',
   lock: 'M7 11 L17 11 L17 20 L7 20 Z M9 11 L9 8 A3 3 0 0 1 15 8 L15 11',
+  antenna: 'M12 21 L12 11 M8 21 L16 21 M6 9 A8 8 0 0 1 18 9 M8.5 11 A5 5 0 0 1 15.5 11 M12 11 L12 11.1',
+  hangar: 'M3 20 L3 10 L12 4 L21 10 L21 20 Z M8 20 L8 13 L16 13 L16 20 M12 13 L12 9',
 };
 function icon(name) {
   const s = svg('svg', { viewBox: '0 0 24 24', class: 'icon', 'aria-hidden': 'true' });
@@ -254,7 +256,6 @@ function renderLevelSelect() {
   const next = contracts[company.index];
   const playable = open && next && next.level === i && !company.over;
   const needs = playable && contractLocked(next, research.done) ? PROJECTS.find((p) => p.id === next.requires) : null;
-  const toResearch = () => document.querySelector('.lvl-research')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   let label = [`🔒 ${t('locked')}`];
   if (open && pr.done >= pr.total) label = [t('levelDone')];
   else if (company.over) label = [t('bankrupt')];
@@ -274,16 +275,13 @@ function renderLevelSelect() {
         open ? el('p', { class: 'hint' }, `${t('contractsDone', { n: pr.done, m: pr.total })} · ${t('cash')}: ${money(company.cash)}`) : el('p', { class: 'hint' }, t('locked')),
         playable ? el('p', { class: 'hint' }, `${t('contractOf', { n: pr.done + 1, m: pr.total })}: ${tr(next, 'client')} · ${t('fee')} ${money(next.fee)}`) : '',
         el('button', { class: playable ? 'primary start-big go' : 'primary start-big', type: 'button', disabled: playable ? null : '',
-          onclick: () => { if (!playable) return; if (needs) { toResearch(); return; } startMission(contractMission(next)); } }, ...label),
+          onclick: () => { if (!playable) return; state.levelView = i; go('company'); } }, ...label), // weiter zur Basis mit den Gebäuden
         // Neue Firma: braucht man nach Fehlern, darum hier vor der Wahl (Linus 14.11.). Zweiter Klick bestätigt.
         el('button', { class: state.confirmRestart ? 'link-btn danger-text new-company' : 'link-btn new-company', type: 'button', onclick: () => {
           if (!state.confirmRestart) { state.confirmRestart = true; render(); return; }
           state.confirmRestart = false; company = freshCompany(); saveCompany(); state.levelPick = 1; render();
         } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany'))),
-      // Forschung dieses Ortes: man plant fürs nächste Level
-      open ? el('section', { class: 'lvl-research' },
-        el('h3', {}, icon('flask'), ` ${t('labOf', { x: t(PLACE_NAME[l.place]) })} · ${research.rp} ${t('rpShort')}`),
-        el('div', { class: 'project-rows' }, PROJECTS.filter((p) => p.level === i).map((p) => projectRow(p, reached)))) : ''));
+      ''));
 }
 
 function go(phase) {
@@ -1165,10 +1163,22 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
       ctx.fillStyle = '#8a8f96'; ctx.fillRect(sx0 - 200 * u, sy0 - 3 * u, 400 * u, 6 * u);
       for (const dx of [-200, -150, 120, 170]) { ctx.fillStyle = deliveredBefore >= 2 || dx > 0 ? '#2b3a6b' : 'rgba(43,58,107,0.35)'; ctx.fillRect(sx0 + dx * u, sy0 - 60 * u, 34 * u, 120 * u); }
       const cyl = (x, len, r, light) => { const g = ctx.createLinearGradient(0, sy0 - r, 0, sy0 + r); g.addColorStop(0, light); g.addColorStop(1, '#8f8a80'); ctx.fillStyle = g; ctx.fillRect(x, sy0 - r, len, 2 * r); };
-      for (let k = 0; k < deliveredBefore; k++) cyl(sx0 - 40 * u + k * 30 * u - (k % 2 ? 0 : 60 * u), 60 * u, 16 * u, '#f5efe6');
-      const dockX = sx0 - 60 * u - 70 * u, mx = -120 * u + (dockX + 120 * u) * ease(clamp((p - 0.12) / 0.6));
-      cyl(mx, 70 * u, 18 * u, '#ffffff');
-      if (p > 0.72) caption(t('capDocked'));
+      // Module reihen sich links an den Kern (Linus und Freund 15.11.: nicht mehr hineinkrachen). Kern = erstes Modul.
+      const L = 58 * u, gap = 6 * u, core = sx0 - 20 * u;
+      const slot = (k) => core - (k + 1) * (L + gap);
+      for (let k = 0; k < deliveredBefore; k++) { cyl(slot(k), L, 16 * u, '#f5efe6'); ctx.fillStyle = '#6f747b'; ctx.fillRect(slot(k) + L, sy0 - 8 * u, gap, 16 * u); }
+      // Anflug: schnell bis kurz vor die Andockstelle, dann langsam heranschieben, kleine Steuerdüsen bremsen
+      const target = slot(deliveredBefore), hold = target - 40 * u, start = -L - 40 * u;
+      const a1 = clamp((p - 0.1) / 0.4), a2 = clamp((p - 0.5) / 0.25);
+      const mx = a2 > 0 ? hold + (target - hold) * ease(a2) : start + (hold - start) * (1 - (1 - a1) * (1 - a1));
+      if (a1 > 0.6 && a2 < 1) { ctx.fillStyle = 'rgba(230,240,255,0.7)'; for (const dy of [-1, 1]) { ctx.beginPath(); ctx.arc(mx + L + 4 * u, sy0 + dy * 12 * u, (3 + Math.random() * 3) * u, 0, Math.PI * 2); ctx.fill(); } }
+      cyl(mx, L, 18 * u, '#ffffff');
+      ctx.fillStyle = '#6f747b'; ctx.fillRect(mx + L, sy0 - 8 * u, a2 >= 1 ? gap : 3 * u, 16 * u); // Andockring
+      if (a2 >= 1) {
+        const f = clamp((p - 0.75) / 0.1); // kurzes Aufleuchten beim Einrasten
+        if (f < 1) { ctx.strokeStyle = `rgba(143,224,166,${1 - f})`; ctx.lineWidth = 3 * u; ctx.strokeRect(mx - 4 * u, sy0 - 22 * u, L + gap + 8 * u, 44 * u); }
+        caption(t('capDocked'));
+      }
     } else {
       // Mond oder Mars: Boden unten, Lander bremst mit Feuer und setzt auf
       const surf = H * 0.78;
@@ -1193,7 +1203,12 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     if (fadeIn < 1) { ctx.fillStyle = `rgba(0,0,0,${1 - fadeIn})`; ctx.fillRect(0, 0, W, H); }
   }
 
+  // Jede Beschriftung wird einmal angesagt, wenn der Ton an ist (Funk-Stimme aus der Leitstelle)
+  const spoken = new Set();
+  const announce = (text) => { if (spoken.has(text)) return; spoken.add(text); if (isPlaying()) say(text, getLang()); };
+  hush();
   function caption(text) {
+    announce(text);
     ctx.font = '600 20px sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
     const x = Math.min(W * 0.76, W - ctx.measureText(text).width / 2 - 16); // rechts neben der Rakete, nie über den Rand
     ctx.strokeStyle = 'rgba(11,10,18,0.9)'; ctx.lineWidth = 5; ctx.strokeText(text, x, H * 0.3);
@@ -1208,7 +1223,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
   let last = begin, boomAt = null;
   rocketEl.style.transformOrigin = '50% 97.5%';                       // dreht um die Düse (y = 312 von 320)
   function frame(now) {
-    if (state.phase !== 'launch') { if (sound.rumble) sound.rumble(); if (sound.retro) sound.retro(); return; } // Szene verlassen
+    if (state.phase !== 'launch') { if (sound.rumble) sound.rumble(); if (sound.retro) sound.retro(); hush(); return; } // Szene verlassen
     fit();
     const wr = canvas.getBoundingClientRect();
     const dt = Math.min(50, now - last); last = now;
@@ -1235,7 +1250,8 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     const sx = (Math.random() - 0.5) * shakeAmp, sy = (Math.random() - 0.5) * shakeAmp;
 
     // Ton steuern
-    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); sound.beeps += 1; }
+    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); announce(t('vCount').split('|')[sound.beeps]); sound.beeps += 1; }
+    if (igniting) announce(t('vLiftoff'));
     if (igniting && !sound.rumble) sound.rumble = rumble(burnTime, mode === 'nofuel');
     if (boomAt !== null && !sound.boom) { boomSound(); sound.boom = true; }
 
@@ -1474,6 +1490,18 @@ function sprite(name, x, y, k = 0.7, foot = 0.22, extra = '') {
   return svg('image', { href: `assets/kenney/${name}.png`, x: x - w / 2, y: y - h * (1 - foot), width: w, height: h, class: `kenney ${extra}` });
 }
 
+// Montagehalle (Linus und Freund 15.11.): weiß, Tor halb offen, damit man sieht, dass hier gebaut und nicht gestartet wird
+function hallPicture(gx, gy) {
+  const g = isoBox(gx, gy, 1.6, 1.4, 64, ['#f5f3ee', '#d9d5cc', '#bdb8ae']);
+  const e = iso(gx, gy + 1.4), c = iso(gx + 1.6, gy + 1.4), at = (k, h) => [e[0] + (c[0] - e[0]) * k, e[1] + (c[1] - e[1]) * k - h];
+  g.append(svg('polygon', { points: pts([at(0.25, 0), at(0.75, 0), at(0.75, 46), at(0.25, 46)]), fill: '#24211f' }));      // offenes Tor
+  g.append(svg('polygon', { points: pts([at(0.25, 30), at(0.75, 30), at(0.75, 46), at(0.25, 46)]), fill: '#9c968c' }));    // Tor halb hochgefahren
+  const [rx, ry] = at(0.5, 0);
+  g.append(svg('path', { d: `M${rx - 4} ${ry - 2} L${rx - 4} ${ry - 22} Q${rx} ${ry - 30} ${rx + 4} ${ry - 22} L${rx + 4} ${ry - 2} Z`, fill: '#F5EFE6' })); // Rakete drinnen
+  g.append(svg('rect', { x: rx - 4, y: ry - 14, width: 8, height: 2, fill: '#A88FD6' }));
+  return g;
+}
+
 function baseSvg(c) {
   const s = svg('svg', { viewBox: '-270 -110 540 380', class: 'base', role: 'group', 'aria-label': t('baseLabel') });
   // Boden: 8 x 8 Felder, Straße zur Startrampe
@@ -1494,6 +1522,8 @@ function baseSvg(c) {
     svg('path', { d: `M${px - 6} ${py - 6} L${px - 6} ${py - 56} Q${px} ${py - 76} ${px + 6} ${py - 56} L${px + 6} ${py - 6} Z`, fill: '#F5EFE6' }),
     svg('rect', { x: px - 6, y: py - 36, width: 12, height: 4, fill: '#A88FD6' }),
   ]));
+  const [mx, my] = iso(1.8, 6.3);
+  s.append(building(t('bldgHall'), [mx, my - 92], padAction(c), [hallPicture(1, 5.6)]));
   s.append(sprite('machine_generatorLarge', ...iso(6.8, 5.4), 0.6));
   s.append(sprite('barrels', ...iso(7.2, 6.6), 0.7));
   s.append(sprite('astronautA', ...iso(5.2, 4.6), 0.55));
@@ -1503,7 +1533,7 @@ function baseSvg(c) {
 // ---------- Orte der Level: Raumstation, Mond, Mars (Linus 14.11.) ----------
 // Jeder Ort hat dieselben drei Funktionen: Leitstand (Auftrag), Labor (Forschung dieses Ortes), Start- bzw. Andockplatz.
 let sceneSeq = 0;
-const labAction = (level) => () => { state.returnTo = 'start'; state.researchView = level; go('research'); };
+const labAction = (level) => () => { state.returnTo = 'company'; state.researchView = level; go('research'); };
 const padAction = (c) => () => {
   if (c && !company.over && !contractLocked(c, research.done)) startMission(contractMission(c));
   else focusContract();
@@ -1659,48 +1689,34 @@ function placeSvg(level, c, delivered) {
 // ---------- Kampagne: Firmen-Bildschirm ----------
 // Links die Basis von oben, rechts Geld und Auftrag. Gebäude wählen Aufträge und Forschung.
 function renderCompany() {
-  const done = company.index >= contracts.length;
+  const current = reachedLevel(), view = Math.min(state.levelView || current, current);
   const c = contracts[company.index];
-  const best = bestCompany();
-  const current = reachedLevel();
-  const view = Math.min(state.levelView || current, current);
   const inLevel = contracts.filter((x) => x.level === view);
   const delivered = inLevel.filter((x) => contracts.indexOf(x) < company.index).length;
   const locked = c && contractLocked(c, research.done);
   const need = locked ? PROJECTS.find((p) => p.id === c.requires) : null;
-  return el('section', { class: 'company enter' },
-    el('div', { class: 'base-wrap' },
-      el('nav', { class: 'levels', 'aria-label': t('level') }, LEVELS.map((l) => el('button', {
-        type: 'button', class: l.n === view ? 'level on' : 'level', disabled: l.n > current ? '' : null,
-        title: l.n > current ? t('locked') : '',
-        onclick: () => { state.levelView = l.n; render(); },
-      }, `${l.n < current ? '✓ ' : ''}${t('level')} ${l.n} · ${tr(l, 'name')}`))),
-      // jedes Level hat seinen Ort: Erde, Raumstation, Mond, Mars
-      placeSvg(view, !done && view === current ? c : null, delivered),
-      el('p', { class: 'hint' }, t('baseHint'))),
+  const canFly = c && !company.over && !locked && c.level === view;
+  const toLab = () => { state.returnTo = 'company'; state.researchView = view; go('research'); };
+  const toBuild = () => { if (canFly) startMission(contractMission(c)); };
+  const row = (ic, name, text, btn) => el('div', { class: 'bldg-row' }, el('span', { class: 'bldg-icon' }, icon(ic)),
+    el('div', { class: 'bldg-text' }, el('strong', {}, name), el('p', { class: 'hint' }, text)), btn);
+  const firstHall = view === 1; // Montagehalle steht auf der Erde, an den anderen Orten startet man vom Lande- bzw. Andockplatz
+  return el('section', { class: 'company base-screen enter' },
+    el('div', { class: 'base-wrap' }, placeSvg(view, canFly ? c : null, delivered), el('p', { class: 'hint' }, t('baseHint2'))),
     el('div', { class: 'company-panel' },
-      el('h1', {}, t('company')),
-      el('p', { class: 'big-number rp' }, `${t('cash')}: ${money(company.cash)}`),
+      el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`),
+      el('p', { class: 'big-number rp' }, `${money(company.cash)} · ${research.rp} ${t('rpShort')}`),
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
-      done ? el('p', { class: 'result-msg ok' }, t('wonAll', { c: money(company.cash) })) : '',
-      view < current ? el('p', { class: 'result-msg ok' }, t('levelDone')) : '',
-      !done && !company.over && view === current ? el('div', { class: 'project card' },
-        el('h2', {}, el('span', {}, t('contractOf', { n: contracts.filter((x) => x.level === c.level).indexOf(c) + 1, m: contracts.filter((x) => x.level === c.level).length })), el('span', { class: 'price' }, `${t('fee')} ${money(c.fee)}`)),
-        el('p', {}, el('strong', {}, tr(c, 'client'))),
-        el('p', { class: 'hint' }, tr(c, 'goal')),
-        c.module ? el('p', { class: 'hint' }, `${kg(c.module.mass)} · ${money(c.module.cost)}`) : el('p', { class: 'hint' }, `${t('scienceNeeded')}: ${c.minScience}`),
-        need ? el('p', { class: 'hint warn' }, t('needsResearch', { x: t(need.name) })) : '',
-        el('button', { class: 'primary', type: 'button', disabled: locked ? '' : null, onclick: () => { if (!locked) startMission(contractMission(c)); } }, t('startContract'))) : '',
+      row('antenna', t('bldgControl'),
+        c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'),
+        el('button', { class: canFly ? 'primary small go' : 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild },
+          icon('rocket'), el('span', {}, need ? t('researchFirst', { x: t(need.name) }) : t('buildMission')))),
+      row('flask', t('bldgLab'), t('labRowText'), el('button', { class: need ? 'primary small go' : 'primary small', type: 'button', onclick: toLab }, icon('flask'), el('span', {}, t('openLab')))),
+      firstHall ? row('hangar', t('bldgHall'), t('hallText'), el('button', { class: 'primary small', type: 'button', disabled: canFly ? null : '', onclick: toBuild }, icon('hangar'), el('span', {}, t('toHall')))) : '',
       el('ol', { class: 'contracts' }, inLevel.map((x) => {
         const i = contracts.indexOf(x);
-        return el('li', { class: i < company.index ? 'is-done' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
-      })),
-      el('div', { class: 'research-actions' },
-        el('button', { class: state.confirmRestart ? 'secondary danger-text' : 'secondary', type: 'button', onclick: () => {
-          if (!state.confirmRestart) { state.confirmRestart = true; render(); return; } // zweiter Klick bestätigt
-          state.confirmRestart = false; company = freshCompany(); state.levelView = null; saveCompany(); render();
-        } }, state.confirmRestart ? t('confirmRestart') : t('restartCompany'))),
-      best ? el('p', { class: 'hint' }, `${t('bestCompany')}: ${money(best)}`) : ''));
+        return el('li', { class: i < company.index ? 'is-done' : i === company.index ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')} · ${money(x.fee)}`);
+      }))));
 }
 
 // ---------- Ergebnis ----------
@@ -1808,6 +1824,20 @@ function factIcon(kind) {
 
 
 
+// Konfetti für den Gewinn: einmal herabfallen, dann weg
+function confetti() {
+  const box = el('div', { class: 'confetti', 'aria-hidden': 'true' });
+  const colors = ['#e8c547', '#8fe0a6', '#A88FD6', '#e0605a', '#9fb3e8', '#F5EFE6'];
+  for (let i = 0; i < 70; i++) {
+    const c = el('span');
+    c.style.left = `${Math.random() * 100}%`; c.style.background = colors[i % colors.length];
+    c.style.animationDelay = `${Math.random() * 1.2}s`; c.style.animationDuration = `${2.5 + Math.random() * 2}s`;
+    box.append(c);
+  }
+  setTimeout(() => box.remove(), 5500);
+  return box;
+}
+
 function renderResult() {
   const r = state.result;
   const reasons = {
@@ -1816,7 +1846,12 @@ function renderResult() {
   };
   const best = loadBest(state.mission);
   const free = state.mission.free;
-  return el('section', { class: 'result enter' },
+  // Gewinn-Bildschirm (Linus 15.11.): letzter Auftrag geschafft, die Firma ist auf dem Mars angekommen
+  const won = state.mission.contract && r.success && company.index >= contracts.length;
+  if (won && !r.cheered) { r.cheered = true; document.body.append(confetti()); } // nur einmal, nicht bei jedem Neuzeichnen
+  return el('section', { class: `result enter${won ? ' won' : ''}` },
+    won ? el('div', { class: 'win' }, el('p', { class: 'win-title' }, `🏆 ${t('winTitle')}`), el('p', {}, t('winText', { c: money(company.cash) })),
+      el('button', { class: 'link-btn', type: 'button', onclick: () => { company = freshCompany(); saveCompany(); state.levelPick = 1; go('start'); } }, t('restartCompany'))) : '',
     el('p', { class: `big ${r.success ? 'ok' : 'fail'}` }, r.success ? t('complete') : (r.reachedOrbit ? t('notEnough') : t('failed'))),
     r.problems.length ? el('ul', {}, r.problems.map((p) => el('li', {}, reasons[p]))) : '',
     r.attempts === 2 && r.reachedOrbit ? el('p', { class: 'hint' }, t('secondTry')) : '',
@@ -1908,7 +1943,7 @@ function footer() {
   back.classList.toggle('hidden', state.phase === 'launch');
   next.classList.remove('hidden');
   if (state.phase === 'build') {
-    setBack(state.build === 0 || state.mission.module ? t('changeDifficulty') : t('back'));
+    setBack(state.build === 0 || state.mission.module ? (state.mission.contract ? t('toBase') : t('changeDifficulty')) : t('back'));
     const affordable = !state.mission.contract || budgetLeft(state.mission.budget, chosen()) >= 0; // Firma kann nicht mehr ausgeben, als sie hat
     const ready = affordable && (state.mission.module ? !!state.rocket : [state.instruments.length > 0, state.instruments.length > 0 && !!state.bus && (!!state.panel || state.bus.power > 0) && !!state.rocket][state.build]); // große Busse bringen eigenen Strom mit
     if (state.build === 1) setNext(t('launch'), 'rocket'); else setNext(t('next'), 'next', true);
@@ -1917,12 +1952,12 @@ function footer() {
   } else if (state.phase === 'launch') {
     next.classList.add('hidden'); // Ergebnis kommt automatisch
   } else if (state.phase === 'research' || state.phase === 'company') {
-    setBack(state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('backCompany') : t('changeDifficulty'));
+    setBack(state.phase === 'company' ? t('changeDifficulty') : state.returnTo === 'build' ? t('back') : state.returnTo === 'company' ? t('toBase') : t('changeDifficulty'));
     next.classList.add('hidden');
   } else if (state.phase === 'result') {
     setBack(t('changeDifficulty'));
     back.classList.toggle('hidden', !!state.mission.contract); // im Auftrag nur ein Knopf: zurück zur Levelauswahl
-    if (state.mission.contract) setNext(t('changeDifficulty'), 'next', true); else setNext(t('tryAgain'), 'retry');
+    if (state.mission.contract) setNext(t('toBase'), 'next', true); else setNext(t('tryAgain'), 'retry');
     next.classList.add('go');
     next.disabled = false;
   }
@@ -1992,7 +2027,7 @@ NEXT.addEventListener('click', () => {
     const previousBest = contract ? 0 : loadBest(state.mission);
     if (r.success && !contract) saveBest(state.mission, r.sciencePerMillion);
     // Stationsflüge und Basen bringen keine Wissenschaft, aber Erfahrung: feste Forschungspunkte
-    r.rp = contract && contract.module ? (r.success ? 10 : 0) : pointsForMission(r, state.mission, previousBest);
+    r.rp = contract && contract.module ? (r.success ? 40 : 0) : pointsForMission(r, state.mission, previousBest); // Module: feste Punkte, Satelliten: ihre Wissenschaft
     if (contract) {
       // Forschungspunkte gibt es pro Auftrag nur beim ersten Erfolg, sonst ließen sie sich durch Neustarts sammeln
       const paid = research.paid || [];
@@ -2015,7 +2050,7 @@ NEXT.addEventListener('click', () => {
     state.phase = 'launch';
   } else if (state.phase === 'launch') state.phase = 'result';
   else if (state.phase === 'result') {
-    if (state.mission.contract) { state.phase = 'start'; state.levelPick = reachedLevel(); } // zurück zur Levelauswahl
+    if (state.mission.contract) { state.phase = 'company'; state.levelView = reachedLevel(); state.levelPick = reachedLevel(); } // zurück zur Basis
     else { state.phase = 'build'; state.build = 0; }
   }
   render();
@@ -2025,7 +2060,7 @@ BACK.addEventListener('click', () => {
   if (state.phase === 'build' && state.build > 0 && !(state.mission && state.mission.module)) state.build -= 1;
   else if (state.phase === 'company') state.phase = 'start';
   else if (state.phase === 'research') state.phase = state.returnTo || 'start'; // auch zurück in die Bau-Ansicht
-  else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'start';
+  else if (state.mission && state.mission.contract && state.phase !== 'research') state.phase = 'company'; // aus dem Bau zurück zur Basis
   else state.phase = 'start';
   render();
 });

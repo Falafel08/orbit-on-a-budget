@@ -1,11 +1,11 @@
 // Forschung ohne DOM: Research Points, Preis der eigenen Rakete. Spielregeln aus der Besprechung Sa 13:10.
 
-// Eine erfolgreiche Mission bringt ein Fünftel ihrer Wissenschaft als Research Points,
+// Wissenschaft und Forschungspunkte sind eins (Linus 15.11.): eine erfolgreiche Mission bringt ihre Wissenschaft als Punkte,
 // aber nur, wenn sie den bisherigen Bestwert schlägt (kein Sammeln durch Wiederholen)
 export function pointsForMission(result, mission, previousBest = 0) {
   if (!result.success || mission.free) return 0;
   if (previousBest > 0 && !(result.sciencePerMillion > previousBest)) return 0;
-  return Math.round(result.science / 5);
+  return Math.round(result.science);
 }
 
 // Preis der eigenen Rakete in Mio. $: erster Flug 90, jeder weitere 15 % billiger, Boden 40 %.
@@ -24,12 +24,12 @@ export function ownRocketReliability(flights, quality) {
   return Math.min(cap, Math.round((start + 0.06 * flights) * 1000) / 1000);
 }
 
-// Starship-Preis (Linus 14.11.): 100 Mio. $, jede Stufe der Forschung „Wiederverwendung Starship“ halbiert ihn ungefähr.
-// 100 -> 50 -> 25 -> 10 Mio. $. 10 Mio. $ ist Musks Ziel (CNBC 2022), 100 Mio. $ eine Schätzung für heute (Spiel-Annahme).
+// Starship-Preis: 100 Mio. $ (Schätzung des Spiels), jede Stufe der Forschung „Wiederverwendung Starship“ macht ihn billiger.
+// 100 -> 60 -> 40 -> 30 Mio. $. Untergrenze 30 Mio. $ (Linus 15.11.), sonst wäre Starship trotz vieler Fehlstarts immer die beste Wahl.
 export function starshipCost(done) {
-  if (done['ss-reuse-3']) return 10;
-  if (done['ss-reuse-2']) return 25;
-  if (done['ss-reuse-1']) return 50;
+  if (done['ss-reuse-3']) return 30;
+  if (done['ss-reuse-2']) return 40;
+  if (done['ss-reuse-1']) return 60;
   return 100;
 }
 

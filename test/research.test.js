@@ -4,7 +4,7 @@ import { pointsForMission, ownRocketCost, ownRocketReliability } from '../src/re
 
 // Research Points: eine erfolgreiche Mission bringt Punkte nach Wissenschaft, freies Spiel bringt nichts
 test('a successful mission earns research points from its science', () => {
-  assert.equal(pointsForMission({ success: true, science: 125 }, { free: false }), 25);
+  assert.equal(pointsForMission({ success: true, science: 125 }, { free: false }), 125); // Wissenschaft = Forschungspunkte (Linus 15.11.)
 });
 
 test('free play and failed missions earn no research points', () => {
@@ -27,7 +27,7 @@ test('a reusable booster makes every flight 40 percent cheaper', () => {
 // Kein Punkte-Sammeln durch Wiederholen: nur ein neuer Bestwert bringt Punkte
 test('repeating a mission without beating your best earns no points', () => {
   assert.equal(pointsForMission({ success: true, science: 125, sciencePerMillion: 1.1 }, { free: false }, 1.1), 0);
-  assert.equal(pointsForMission({ success: true, science: 125, sciencePerMillion: 1.2 }, { free: false }, 1.1), 25);
+  assert.equal(pointsForMission({ success: true, science: 125, sciencePerMillion: 1.2 }, { free: false }, 1.1), 125);
 });
 
 // Eigene Rakete: wird mit jedem Flug zuverlässiger, bis 99 %. Mit Qualitätsprogramm bis 99,8 %,
