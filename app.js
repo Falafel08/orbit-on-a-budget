@@ -2299,8 +2299,16 @@ const TUT = [
 ];
 // Plan ohne Fehler (Geld zählt hier nicht, das sperrt der Startknopf ohnehin)
 const planOk = () => !!state.rocket && missionResult({ ...state, insurance: insuranceCost() }).problems.filter((p) => p !== 'budget' && p !== 'launch-failure').length === 0;
-const tutSeen = () => { try { return localStorage.getItem('tutorial-done') === '1'; } catch { return true; } };
-const tutFinish = () => { try { localStorage.setItem('tutorial-done', '1'); } catch { /* ohne Speicher */ } state.tut = null; tutorial(); };
+// Einführung Level 2 (Entscheidung 5): vier Hinweise beim ersten Besuch des Stationsplaners
+const TUT_ST = [
+  { sel: '.station-outline', key: 'tutSt1', next: true },
+  { sel: '.st-chips', key: 'tutSt2', next: true },
+  { sel: '.st-tabs', key: 'tutSt3', next: true },
+  { sel: '.st-right button', key: 'tutSt4', next: true },
+];
+const tutKey = () => (state.tutSet === 'station' ? 'tut-station' : 'tutorial-done');
+const tutSeen = (key = 'tutorial-done') => { try { return localStorage.getItem(key) === '1'; } catch { return true; } };
+const tutFinish = () => { try { localStorage.setItem(tutKey(), '1'); } catch { /* ohne Speicher */ } state.tut = null; tutorial(); };
 let tutSpot = null, tutTip = null;
 function tutorial() {
   if (!tutSpot) {
@@ -2308,12 +2316,16 @@ function tutorial() {
     tutTip = el('div', { class: 'tut-tip', role: 'status' });
     document.body.append(tutSpot, tutTip);
   }
-  const active = state.phase === 'build' && state.mission && state.mission.contract && company.index === 0 && !tutSeen();
-  if (!active && state.tut != null && state.phase === 'launch') tutFinish(); // erster Start: Einführung geschafft
+  const stationTut = state.phase === 'station' && !!company.station && !tutSeen('tut-station');
+  const active = stationTut || (state.phase === 'build' && state.mission && state.mission.contract && company.index === 0 && !tutSeen());
+  const set = stationTut ? 'station' : 'build';
+  if (active && state.tutSet !== set) { state.tutSet = set; state.tut = null; }
+  const TUTS = set === 'station' ? TUT_ST : TUT;
+  if (!active && state.tut != null && state.phase === 'launch' && state.tutSet !== 'station') tutFinish(); // erster Start: Einführung geschafft
   if (active && state.tut == null) state.tut = 0;
-  if (active) while (state.tut < TUT.length && TUT[state.tut].done && TUT[state.tut].done()) state.tut += 1;
-  if (active && state.tut >= TUT.length) { tutFinish(); return; }
-  const step = active ? TUT[state.tut] : null;
+  if (active) while (state.tut < TUTS.length && TUTS[state.tut].done && TUTS[state.tut].done()) state.tut += 1;
+  if (active && state.tut >= TUTS.length) { tutFinish(); return; }
+  const step = active ? TUTS[state.tut] : null;
   const target = step && document.querySelector(step.sel);
   if (step && !target && step.next) { state.tut += 1; tutorial(); return; } // Bereich fehlt (z. B. nicht versicherbar): überspringen
   tutSpot.classList.toggle('on', !!target); tutTip.classList.toggle('on', !!target);
@@ -2321,7 +2333,7 @@ function tutorial() {
   const r = target.getBoundingClientRect(), pad = 6, tw = 300;
   Object.assign(tutSpot.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + 2 * pad}px`, height: `${Math.min(r.height, innerHeight - r.top) + 2 * pad}px` });
   tutTip.replaceChildren(
-    el('span', { class: 'tut-count' }, `${state.tut + 1} / ${TUT.length}`),
+    el('span', { class: 'tut-count' }, `${state.tut + 1} / ${TUTS.length}`),
     el('p', {}, t(step.key)),
     el('div', { class: 'tut-actions' },
       el('button', { class: 'link-btn', type: 'button', onclick: tutFinish }, t('tutSkip')),
