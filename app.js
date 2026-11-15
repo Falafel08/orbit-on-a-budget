@@ -4,7 +4,7 @@ import { SPRITES } from './assets/kenney/sprites.js';
 import { nasaSources, otherSources } from './data/sources.js';
 import { missions, instruments, buses, panels, rockets, starship, falconHeavy, sls, contracts, LEVELS, CAMPAIGN_START, OWN_STAGES, OWN_STAGES_2, sideJobs } from './data/parts.js';
 import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, contractLocked, minCostToFinish } from './src/campaign.js';
-import { budgetLeft, deltaV, missionResult, launchOutcome } from './src/logic.js';
+import { budgetLeft, deltaV, missionResult, launchOutcome, maxPayload } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
 import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush } from './src/audio.js';
@@ -439,7 +439,8 @@ const catalogs = [
     rows: (r) => [...(r.maxPayload !== undefined
       ? [[t({ moon: 'carriesToMoon', mars: 'carriesToMars' }[state.mission && state.mission.dest] || 'carriesToOrbit'), kg(r.maxPayload)],
         [t(state.mission && state.mission.module ? 'yourPayload' : 'yourSatellite'), kg(payload())]]
-      : [[t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]),
+      : [[t('carriesToOrbit'), `≈ ${kg(maxPayload(r.stages, (state.mission && state.mission.requiredDv) || 9500))}`], // gleiche Einheit wie bei gekauften Raketen
+        [t('dvWithSat'), `${Math.round(deltaV(r.stages, payload()))} m/s`]]),
     [t('successRate'), `${(r.reliability * 100).toFixed(r.reliability > 0.99 ? 1 : 0)} %`],
     ...(r.claim ? [[t('dataSource'), t('spacexClaim')]] : [])], picked: (r) => !!state.rocket && state.rocket.id === r.id },
 ];
@@ -840,7 +841,7 @@ function rocketCarouselCenter() {
       r.placeholder ? placeholderRocket() : rocketPicture(r, role === 'mid'),
       role === 'mid' && !r.placeholder ? towerPicture(r, true) : '',
       el('figcaption', { class: 'banner' }, tr(r, 'name')),
-      r.placeholder ? el('span', { class: 'slot-price' }, t('researchFirstShort')) : el('span', { class: 'slot-price' }, r.maxPayload ? `${money(r.cost)} · ${kg(r.maxPayload)}` : money(r.cost)));
+      r.placeholder ? el('span', { class: 'slot-price' }, t('researchFirstShort')) : el('span', { class: 'slot-price' }, r.maxPayload ? `${money(r.cost)} · ${kg(r.maxPayload)}` : r.stages ? `${money(r.cost)} · ≈ ${kg(maxPayload(r.stages, (state.mission && state.mission.requiredDv) || 9500))}` : money(r.cost)));
   };
   const mid = items[i];
   return el('div', {
@@ -2090,7 +2091,13 @@ function footer() {
     if (warn) {
       const plan = state.build === 1 && ready ? missionResult({ ...state, insurance: insuranceCost() }).problems.filter((p) => p !== 'budget') : [];
       warn.hidden = !plan.length;
-      warn.textContent = plan.length ? `⚠ ${t({ 'rocket-mass': 'wHeavy', 'delta-v': 'wWeak', power: 'wPower', capacity: 'wCapacity', science: 'wScience' }[plan[0]])}` : '';
+      if (state.build === 1 && !affordable) { // zu teuer: sagen, wie viel fehlt, statt nur grau
+        warn.hidden = false;
+        warn.textContent = `⚠ ${t('wBudget', { c: money(-budgetLeft(state.mission.budget, chosen())) })}`;
+      }
+      const weakKey = state.rocket && state.rocket.id === 'own' && !research.done['orbiter-2'] ? 'wWeakOwn' : 'wWeak';
+      const heavyKey = state.side && state.side.length ? 'wHeavySide' : 'wHeavy';
+      if (!(state.build === 1 && !affordable)) warn.textContent = plan.length ? `⚠ ${t({ 'rocket-mass': heavyKey, 'delta-v': weakKey, power: 'wPower', capacity: 'wCapacity', science: 'wScience' }[plan[0]])}` : '';
       if (plan.length) next.classList.remove('go');
     }
   } else if (state.phase === 'launch') {

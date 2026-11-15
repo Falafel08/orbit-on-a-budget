@@ -152,3 +152,13 @@ test('side payloads add mass, so a full rocket can no longer reach orbit', () =>
   assert.equal(missionResult({ ...base, sideMass: 300 }).payload, 400);
   assert.ok(missionResult({ ...base, sideMass: 450 }).problems.includes('rocket-mass'));
 });
+
+// Eigene Rakete in kg vergleichbar machen (Linus 15.11.): größte Last, mit der die Rakete noch das nötige Delta-v schafft
+test('the payload of your own rocket is the heaviest load that still reaches the needed delta-v', async () => {
+  const { maxPayload } = await import('../src/logic.js');
+  const { OWN_STAGES, OWN_STAGES_2 } = await import('../data/parts.js');
+  const p1 = maxPayload(OWN_STAGES, 9500), p2 = maxPayload(OWN_STAGES_2, 9500);
+  assert.ok(p1 > 1400 && p1 < 1700, `Orbiter-1 ${p1}`);
+  assert.ok(deltaV(OWN_STAGES, p1) >= 9500 && deltaV(OWN_STAGES, p1 + 10) < 9500);
+  assert.ok(p2 > 9000 && p2 < 12000, `Orbiter-2 ${p2}`);
+});

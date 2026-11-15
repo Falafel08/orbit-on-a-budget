@@ -65,3 +65,11 @@ export function launchOutcome(reliability, insured, rng = Math.random) {
   if (insured && rng() < reliability) return { launched: true, attempts: 2 };
   return { launched: false, attempts: insured ? 2 : 1 };
 }
+
+// Größte Nutzlast in kg, mit der die Stufen noch requiredDv schaffen (Halbierungssuche, auf 10 kg genau abgerundet)
+export function maxPayload(stages, requiredDv) {
+  if (deltaV(stages, 0) < requiredDv) return 0;
+  let lo = 0, hi = 1000000;
+  while (hi - lo > 1) { const mid = (lo + hi) / 2; if (deltaV(stages, mid) >= requiredDv) lo = mid; else hi = mid; }
+  return Math.floor(lo / 10) * 10;
+}
