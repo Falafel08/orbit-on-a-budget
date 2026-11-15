@@ -761,8 +761,9 @@ function rocketView(items) {
 function moveRocket(items, d) {
   const i = rocketView(items);
   state.rocketView = (i + d + items.length) % items.length;
-  state.rocket = items[state.rocketView];
-  state.info = state.rocket;
+  const r = items[state.rocketView];
+  state.rocket = r.placeholder ? null : r; // Platzhalter (eigene Rakete) ist keine Wahl
+  state.info = state.rocket || state.info;
   state.slide = d;
   render();
 }
