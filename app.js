@@ -622,6 +622,14 @@ function towerPicture(r, front = false) {
   return s;
 }
 
+// Maße einer Rakete im Bild (viewBox 8 0 84 320, Rampe y = 312): Spitze, Rumpfbeginn, Trennstelle der Stufen
+function rocketGeom(r, withPayload) {
+  const look = ROCKET_LOOK[r.id] || ROCKET_LOOK.own, starship = r.id === 'starship';
+  const top = 312 - look.H, fh = starship ? 50 : 84, bodyTop = top + fh;
+  const fw = starship ? look.w : withPayload ? Math.max(look.w + 22, 46) : Math.max(look.w + 10, 30); // vorne breiter, damit der Satellit gut zu sehen ist
+  return { top, fh, fw, bodyTop, splitY: bodyTop + (304 - bodyTop) * 0.32 }; // Oberstufe = oberes Drittel des Rumpfs
+}
+
 function rocketPicture(r, withPayload = false) {
   const look = ROCKET_LOOK[r.id] || ROCKET_LOOK.own;
   const { H, w } = look;
@@ -635,9 +643,7 @@ function rocketPicture(r, withPayload = false) {
   defs.append(grad); s.append(defs);
   const fill = `url(#${id})`;
   const starship = r.id === 'starship';
-  const fh = starship ? 50 : 84;                       // Höhe der Spitze
-  const fw = starship ? w : withPayload ? Math.max(w + 22, 46) : Math.max(w + 10, 30); // vorne breiter, damit der Satellit gut zu sehen ist
-  const bodyTop = top + fh;
+  const { fh, fw, bodyTop } = rocketGeom(r, withPayload);
 
   // Seitliche Booster (Falcon Heavy: zwei Falcon-9-Stufen, SLS: zwei Feststoff-Booster)
   if (look.boosters) {
@@ -647,9 +653,9 @@ function rocketPicture(r, withPayload = false) {
     bg.append(svg('stop', { offset: '0', 'stop-color': b.color[0] }), svg('stop', { offset: '0.55', 'stop-color': b.color[0] }), svg('stop', { offset: '1', 'stop-color': b.color[1] }));
     defs.append(bg);
     for (const bx of [x - b.w, x + w]) {
-      s.append(svg('rect', { x: bx, y: btop, width: b.w, height: bh, fill: `url(#${bid})` }));
-      s.append(svg('path', { d: `M${bx} ${btop} Q${bx + b.w / 2} ${btop - b.w * 1.6} ${bx + b.w} ${btop} Z`, fill: `url(#${bid})` }));
-      s.append(svg('path', { d: `M${bx + b.w * 0.15} ${ground - 8} L${bx} ${ground} L${bx + b.w} ${ground} L${bx + b.w * 0.85} ${ground - 8} Z`, fill: '#4a4550' }));
+      s.append(svg('rect', { x: bx, y: btop, width: b.w, height: bh, fill: `url(#${bid})`, class: 'side-booster' }));
+      s.append(svg('path', { d: `M${bx} ${btop} Q${bx + b.w / 2} ${btop - b.w * 1.6} ${bx + b.w} ${btop} Z`, fill: `url(#${bid})`, class: 'side-booster' }));
+      s.append(svg('path', { d: `M${bx + b.w * 0.15} ${ground - 8} L${bx} ${ground} L${bx + b.w} ${ground} L${bx + b.w * 0.85} ${ground - 8} Z`, fill: '#4a4550', class: 'side-booster' }));
     }
   }
   // Triebwerk und Körper
@@ -676,8 +682,9 @@ function rocketPicture(r, withPayload = false) {
   // Spitze: bei der Rakete vorne durchsichtig, mit dem Satelliten darin
   const nose = `M${cx - fw / 2} ${bodyTop} L${cx - fw / 2} ${top + fh * 0.45} Q${cx - fw / 2} ${top} ${cx} ${top - 4} Q${cx + fw / 2} ${top} ${cx + fw / 2} ${top + fh * 0.45} L${cx + fw / 2} ${bodyTop} Z`;
   if (withPayload) {
-    s.append(svg('path', { d: nose, fill: 'rgba(245,239,230,0.08)', stroke: 'rgba(245,239,230,0.7)', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5' }));
-    payloadIn(s, cx, bodyTop, fw, fh * 0.75);
+    s.append(svg('path', { d: nose, fill: 'rgba(245,239,230,0.08)', stroke: 'rgba(245,239,230,0.7)', 'stroke-width': 0.8, 'stroke-dasharray': '2 1.5', class: 'nose-outline' }));
+    const pg = svg('g', { class: 'payload' }); s.append(pg); // eigene Gruppe: wird im All ausgesetzt
+    payloadIn(pg, cx, bodyTop, fw, fh * 0.75);
     // Hitzeschild: zwei Hälften, die sich beim Countdown schließen (CSS-Klasse .closed)
     const half = (side) => `M${cx + side * fw / 2} ${bodyTop} L${cx + side * fw / 2} ${top + fh * 0.45} Q${cx + side * fw / 2} ${top} ${cx} ${top - 4} L${cx} ${bodyTop} Z`;
     s.append(svg('path', { d: half(-1), fill, class: 'shield shield-l' }), svg('path', { d: half(1), fill, class: 'shield shield-r' }));
@@ -930,7 +937,12 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     return { cx: from.left + from.width / 2, ground: from.top + (from.height - 320 * u) / 2 + 312 * u, unit: u };
   })() : null;
   const smoke = [];
-  const flight = mode === 'heavy' ? 3200 : mode === 'nofuel' ? 3600 : 5200;
+  // Im All (Linus 15.11.): seitliche Booster und erste Stufe lösen sich, Oberstufe zündet, Hitzeschild fällt ab, Satellit wird ausgesetzt.
+  // Zeiten in Sekunden nach dem Abheben, nur beim geglückten Start.
+  const stagey = mode === 'ok' && !reduce;
+  const SEP = { side: 1.6, stage: 2.6, ignite2: 2.9, fairing: 3.5, cutoff: 4.6, deploy: 4.8 };
+  const G = rocketGeom(state.rocket, true);
+  const flight = mode === 'heavy' ? 3200 : mode === 'nofuel' ? 3600 : stagey ? 7000 : 5200;
   const back = reusable ? 3800 : 0;                                   // Rückflug des Boosters
   // Ankunft am Ziel (Josias 14.11.): Modul dockt an der Station an, Lander setzt auf Mond oder Mars auf
   const dest = state.mission.module ? (state.mission.dest || 'leo') : null;
@@ -945,7 +957,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     }
     return 0.5 * H * 0.6 * s * s;
   }
-  const burning = (s) => (mode === 'heavy' ? s < 2.2 : mode === 'nofuel' ? s < 1.6 && Math.sin(s * 40) + Math.sin(s * 23) > 0.2 : mode === 'explode' ? s < 2.3 : true);
+  const burning = (s) => (mode === 'heavy' ? s < 2.2 : mode === 'nofuel' ? s < 1.6 && Math.sin(s * 40) + Math.sin(s * 23) > 0.2 : mode === 'explode' ? s < 2.3 : stagey ? s < SEP.stage || (s >= SEP.ignite2 && s < SEP.cutoff) : true);
   const ease = (x) => x * x * (3 - 2 * x);
   const clamp = (x) => Math.max(0, Math.min(1, x));
   // Neigung nach dem Abheben (Gravity Turn): bis etwa 35°, nur wenn die Rakete wirklich fliegt
@@ -993,8 +1005,8 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
   }
 
   // Booster beim Rückflug: Körper mit Licht, Gitterflossen oben, Landebeine kurz vor dem Aufsetzen
-  function booster(cx, baseY, unit, legs) {
-    const w = look.w * unit, h = 170 * unit, x = cx - w / 2;
+  function booster(cx, baseY, unit, legs, h = 170 * unit) {
+    const w = look.w * unit, x = cx - w / 2;
     const g = ctx.createLinearGradient(x, 0, x + w, 0);
     g.addColorStop(0, look.body[0]); g.addColorStop(0.55, look.body[0]); g.addColorStop(1, look.body[1]);
     ctx.fillStyle = g; ctx.fillRect(x, baseY - h, w, h);
@@ -1013,6 +1025,43 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
       ctx.moveTo(x, baseY - 26 * unit); ctx.lineTo(x - 12 * unit * legs, baseY);
       ctx.moveTo(x + w, baseY - 26 * unit); ctx.lineTo(x + w + 12 * unit * legs, baseY);
       ctx.stroke();
+    }
+  }
+
+  // Teile, die sich im All lösen, auf der Leinwand (die Rakete selbst ist ein SVG darüber).
+  // N = Düse auf dem Bildschirm, U = Maßstab, angle = Neigung. Alles in Bild-Einheiten der Rakete, Ursprung an der Düse.
+  function pieces(sf, N, U, angle) {
+    const at = (fn) => { ctx.save(); ctx.translate(N.x, N.y); ctx.rotate(angle); fn(); ctx.restore(); };
+    const b = look.boosters;
+    if (b && sf >= SEP.side) { // seitliche Booster kippen nach außen weg
+      const t = sf - SEP.side, bh = (304 - G.top) * b.h * U;
+      for (const side of [-1, 1]) at(() => {
+        ctx.translate(side * ((look.w + b.w) / 2 + t * t * 60) * U, t * t * 140 * U); ctx.rotate(side * t * 0.6);
+        const x = (-b.w / 2) * U, bot = -8 * U, g = ctx.createLinearGradient(x, 0, x + b.w * U, 0);
+        g.addColorStop(0, b.color[0]); g.addColorStop(0.55, b.color[0]); g.addColorStop(1, b.color[1]);
+        ctx.fillStyle = g; ctx.fillRect(x, bot - bh, b.w * U, bh);
+        ctx.beginPath(); ctx.moveTo(x, bot - bh); ctx.quadraticCurveTo(0, bot - bh - b.w * 1.6 * U, x + b.w * U, bot - bh); ctx.fill();
+      });
+    }
+    if (sf >= SEP.stage) { // erste Stufe fällt zurück und dreht sich leicht
+      const t = sf - SEP.stage;
+      at(() => { ctx.translate(0, (t * 25 + t * t * 110) * U); ctx.rotate(t * 0.18); booster(0, 0, U, 0, (312 - G.splitY) * U); });
+    }
+    if (sf >= SEP.deploy && !state.mission.module) { // Satellit löst sich, richtet sich auf, klappt die Solarflügel aus
+      const t = sf - SEP.deploy, open = ease(clamp((t - 0.4) / 1.2)), k = Math.max(14, G.fw * 0.6) * U; // etwas größer als in der Spitze, damit man das Ausklappen sieht
+      at(() => {
+        ctx.translate(t * 8 * U, (G.bodyTop - G.fh * 0.3 - 312 - t * 34) * U); ctx.rotate(-angle * clamp(t / 1.5));
+        if (state.panel) for (const side of [-1, 1]) {
+          const L = Math.max(3 * U, k * 2.6 * open), x0 = side * (k / 2 + U);
+          ctx.fillStyle = '#2b3a6b'; ctx.fillRect(Math.min(x0, x0 + side * L), -k * 0.35, L, k * 0.7);
+          ctx.strokeStyle = '#9fb3e8'; ctx.lineWidth = Math.max(0.6, 0.5 * U); ctx.beginPath();
+          for (let j = 1; j < 3; j++) { const xx = x0 + side * (L * j) / 3; ctx.moveTo(xx, -k * 0.35); ctx.lineTo(xx, k * 0.35); }
+          ctx.strokeRect(Math.min(x0, x0 + side * L), -k * 0.35, L, k * 0.7); ctx.stroke();
+        }
+        ctx.fillStyle = '#b08d3c'; ctx.fillRect(-k / 2, -k / 2, k, k);
+        ctx.strokeStyle = '#e0c070'; ctx.lineWidth = Math.max(0.6, 0.5 * U); ctx.strokeRect(-k / 2, -k / 2, k, k);
+        if (state.instruments.length) { ctx.fillStyle = '#3a3245'; ctx.fillRect(-k * 0.25, -k * 0.85, k * 0.5, k * 0.35); }
+      });
     }
   }
 
@@ -1078,7 +1127,7 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
 
   // Ton (Linus/Josias 14.11.): Piepen beim Countdown, Grollen ab der Zündung, Knall bei Explosion
   const sound = { beeps: 0, rumble: null, boom: false, retro: null };
-  const burnTime = (mode === 'heavy' ? ignite + 2200 : mode === 'nofuel' ? ignite + 1600 : mode === 'explode' ? ignite + 2300 : ignite + flight) / 1000;
+  const burnTime = (mode === 'heavy' ? ignite + 2200 : mode === 'nofuel' ? ignite + 1600 : mode === 'explode' ? ignite + 2300 : ignite + (stagey ? SEP.cutoff * 1000 : flight)) / 1000; // Ton endet mit dem Brennschluss der Oberstufe
 
   const begin = performance.now();
   let last = begin, boomAt = null;
@@ -1149,7 +1198,17 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
       if (p.life > 0) { ctx.fillStyle = `rgba(200,195,188,${p.life * 0.45})`; ctx.beginPath(); ctx.arc(cx + p.x, gy - 4 * unit + p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
     }
     const baseY = groundY - alt + cam;
-    if (fire && boomAt === null) { ctx.save(); ctx.translate(cx, baseY); ctx.rotate(angle); flame(s, unit); ctx.restore(); }
+    // Nach der Stufentrennung zoomt die Kamera heraus und hält Oberstufe und Spitze in der Bildmitte
+    const sf = Math.min(s, flight / 1000);
+    const zoomE = stagey && !returning ? ease(clamp((sf - SEP.stage) / 1.6)) : 0;
+    const U = unit * (1 - 0.35 * zoomE), dC = ((G.top + G.splitY) / 2 - 312) * U;
+    const Nn = { x: cx + (W / 2 + dC * Math.sin(angle) - cx) * zoomE, y: baseY + (H * 0.45 - dC * Math.cos(angle) - baseY) * zoomE }; // Düse ohne Wackeln
+    if (fire && boomAt === null) {
+      ctx.save(); ctx.translate(Nn.x, Nn.y); ctx.rotate(angle);
+      if (stagey && sf >= SEP.stage) { ctx.translate(0, (G.splitY - 312) * U); flame(s, U, 0.55); } else flame(s, U); // Oberstufe: kleineres Feuer
+      ctx.restore();
+    }
+    if (stagey && !returning && !arriving && sf >= SEP.side) pieces(sf, Nn, U, angle);
     if (mode === 'explode' && s >= 2.3 && boomAt === null) boomAt = now;
     if (mode === 'nofuel' && s > 1.6 && alt === 0 && boomAt === null) boomAt = now;
     if (boomAt !== null) {
@@ -1173,10 +1232,14 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     if (arriving) arrival(Math.min(1, ta / arrive));
 
     // Rakete (SVG): Größe und Lage aus Maßstab und Boden, dazu Flug, Neigung und Wackeln. Beim Rückflug ist sie im All.
-    rocketEl.style.height = `${320 * unit}px`;
-    rocketEl.style.left = `${cx}px`;
-    rocketEl.style.top = `${groundY - 312 * unit}px`;
-    rocketEl.style.transform = `translate(calc(-50% + ${sx}px), ${-(alt - camUp) + sy}px) rotate(${angle}rad)`;
+    rocketEl.style.height = `${320 * U}px`;
+    rocketEl.style.left = `${Nn.x + sx}px`;
+    rocketEl.style.top = `${Nn.y + sy - 312 * U}px`;
+    rocketEl.style.transform = `translateX(-50%) rotate(${angle}rad)`;
+    rocketEl.style.clipPath = stagey && sf >= SEP.stage ? `inset(0 0 ${((320 - G.splitY) / 320) * 100}% 0)` : ''; // erste Stufe ist weg
+    rocketEl.classList.toggle('no-boosters', stagey && sf >= SEP.side);
+    rocketEl.classList.toggle('jettison', stagey && sf >= SEP.fairing);
+    rocketEl.classList.toggle('deployed', stagey && sf >= SEP.deploy && !state.mission.module);
     rocketEl.style.opacity = (mode === 'explode' && boomAt !== null) || returning || arriving ? '0' : '1';
 
     if (tc >= 0 && !igniting) {
@@ -1186,7 +1249,12 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     if (mode === 'heavy' && s > 0) caption(t('capHeavy'));
     if (mode === 'nofuel' && s > 0) caption(t('capNoFuel'));
     if (mode === 'explode' && boomAt !== null) caption(t('capExplode'));
-    if (mode === 'ok' && s > 3.5 && !returning && !arriving) caption(t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit'));
+    const goal = t({ moon: 'capMoon', mars: 'capMars' }[state.mission.dest] || 'capOrbit');
+    if (stagey && !returning && !arriving) {
+      if (sf >= SEP.stage && sf < SEP.fairing) caption(t('capStage'));
+      else if (sf >= SEP.fairing && sf < SEP.deploy) caption(t('capFairing'));
+      else if (sf >= SEP.deploy) caption(state.mission.module ? goal : t('capDeploy'));
+    } else if (mode === 'ok' && s > 3.5 && !returning && !arriving) caption(goal);
     if (landed) caption(t('capLanded'));
     if (tc >= count + ignite + flight + arrive + back) { // nach kurzer Pause von selbst zum Ergebnis
       setTimeout(() => { if (state.phase === 'launch') { state.phase = 'result'; render(); } }, 1200);

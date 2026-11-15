@@ -632,3 +632,10 @@ button.primary.action { flex: none; min-width: 280px; min-height: 56px; padding:
 .slot.mid .rocket-pic, .slot.mid .tower-pic, .slot.mid .tower-front { height: max(240px, calc(100vh - 460px)); } /* Rest der Mitte (Zahlen, Versicherung, Platz für den Knopf) braucht etwa 460 px */
 .slot.side .rocket-pic { height: max(160px, calc((100vh - 460px) * 0.66)); }
 .carousel { gap: 10px; padding-bottom: 80px; } /* unten Platz, damit der Knopf die Versicherung nicht verdeckt */
+
+/* Im All (Linus 15.11.): Booster weg, Hitzeschild-Hälften fliegen nach außen, Satellit verlässt die Spitze */
+.launch-rocket.no-boosters .side-booster, .launch-rocket.deployed .payload { display: none; }
+.launch-rocket.jettison .nose-outline { opacity: 0; }
+.launch-rocket.jettison .shield { opacity: 0; transform-origin: 50% 100%; transition: transform 1.6s ease-in, opacity 1.6s ease-in; }
+.launch-rocket.jettison .shield-l { transform: translate(-110%, 20%) rotate(-40deg); }
+.launch-rocket.jettison .shield-r { transform: translate(110%, 20%) rotate(40deg); }
