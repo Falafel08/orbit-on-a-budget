@@ -15,6 +15,7 @@ import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlig
 import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS, BATTERY_PACK } from './data/station.js';
 import { showStation3D } from './src/station3d.js';
 import { showWorld, hasWebGL } from './src/world3d.js';
+import { BADGES, newBadges } from './src/badges.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -2066,7 +2067,7 @@ function renderWorldBase({ view, c, inLevel, need, canFly, toLab, toBuild, first
   const actions = { control: () => widgets[0].el.focus(), lab: toLab, hall: toBuild, pad: toBuild };
   queueMicrotask(() => showWorld(world, { level: view, station: company.station, widgets, onBuilding: (id) => actions[id] && actions[id](), flight }));
   return el('section', { class: 'company world-screen' }, world,
-    el('div', { class: 'world-title' }, el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`), el('p', {}, t(`levelGoal${view}`)), needLine(),
+    el('div', { class: 'world-title' }, el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`), el('p', {}, t(`levelGoal${view}`)), needLine(), badgeRow(),
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : ''),
     el('p', { class: 'world-hint' }, t('worldHint')));
 }
@@ -2179,6 +2180,10 @@ function factIcon(kind) {
 
 // Konfetti für den Gewinn: einmal herabfallen, dann weg
 // 3 Sterne: höchstens 15 % teurer als der billigste mögliche Weg, 2 Sterne: höchstens 60 % teurer
+const loadBadges = () => { try { return JSON.parse(localStorage.getItem('badges') || '[]'); } catch { return []; } };
+// Leiste aller Abzeichen: verdiente leuchten, offene sind dunkel
+const badgeRow = () => { const have = loadBadges();
+  return el('div', { class: 'badge-row', role: 'list', 'aria-label': t('badgesTitle') }, BADGES.map((b) => el('span', { class: have.includes(b.id) ? 'badge on' : 'badge', role: 'listitem', title: tr({ name: b.en, de: { name: b.de } }, 'name') }, icon(b.icon)))); };
 const stars = (r) => { const net = r.spent - (r.sideFee || 0); return net <= r.minCost * 1.15 ? 3 : net <= r.minCost * 1.6 ? 2 : 1; }; // Nebenaufträge senken die Kosten
 
 function confetti() {
@@ -2234,6 +2239,8 @@ function renderResult() {
     r.success && r.minCost && Number.isFinite(r.minCost) ? el('div', { class: 'stars-box' },
       el('p', { class: 'stars', 'aria-label': t('starsLabel', { n: stars(r) }) }, ...[0, 1, 2].map((i) => el('span', { class: i < stars(r) ? 'star-on' : 'star-off', 'aria-hidden': 'true' }, i < stars(r) ? '★' : '☆'))), // Sterne ploppen nacheinander auf
       el('p', { class: 'hint' }, t('cheapestWay', { c: money(r.minCost) }))) : '',
+    (r.badges || []).length ? el('div', { class: 'badge-won', role: 'status' }, ...r.badges.map((id) => { const b = BADGES.find((x) => x.id === id);
+      return el('div', { class: 'badge-new' }, el('span', { class: 'badge on big' }, icon(b.icon)), el('span', {}, el('small', {}, t('badgeNew')), el('strong', {}, tr({ name: b.en, de: { name: b.de } }, 'name')))); })) : '',
     r.round ? stationRoundBox(r) : '',
     r.success && state.mission.contract ? el('p', { class: 'why' }, icon('star'), el('span', {}, el('strong', {}, t('whyTitle')), ' ', t(`why_${whyKind(state.mission.contract)}`), ' '),
       el('a', { href: WHY[whyKind(state.mission.contract)], target: '_blank', rel: 'noopener' }, t('whySource'))) : '',
@@ -2514,6 +2521,13 @@ NEXT.addEventListener('click', () => {
       if (!next) { try { if (company.cash > bestCompany()) localStorage.setItem('best-company', String(company.cash)); } catch { /* ohne Speicher */ } }
       saveCompany();
       r.fee = r.success ? contract.fee : 0;
+    }
+    if (contract) { // Meilensteine: neue Abzeichen nach dem Flug (gespeichert im Browser)
+      const have = loadBadges();
+      const e = { success: r.success, stars: r.minCost ? stars(r) : 0, kind: contract.station ? 'station' : contract.module ? 'module' : 'satellite',
+        crew: company.station ? company.station.crew : 0, stationDone: !!r.stationDone, reuse: !!research.done.reuse, dest: contract.dest };
+      r.badges = newBadges(e, have);
+      if (r.badges.length) try { localStorage.setItem('badges', JSON.stringify([...have, ...r.badges])); } catch { /* ohne Speicher */ }
     }
     r.repeat = r.success && !r.rp && !state.mission.free && !contract;
     research.rp += r.rp;
