@@ -2427,7 +2427,7 @@ function render() {
   if (ambient) {
     const lvl = state.phase === 'station' ? 2 : state.phase === 'research' ? (state.researchView || reachedLevel())
       : state.mission && state.mission.contract ? state.mission.contract.level : 1;
-    queueMicrotask(() => showWorld($('world-bg'), { level: lvl, station: company.station, widgets: [], ambient: true }));
+    queueMicrotask(() => showWorld($('world-bg'), { level: lvl, station: company.station, widgets: [], ambient: true, hideStation: state.phase === 'station' }));
   }
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');

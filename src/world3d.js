@@ -114,7 +114,7 @@ async function stationScene(station) {
   // Anker für die Widgets: Kern = Leitstand, Labor = Labor, Knoten oder Kern = Andockstelle
   const anchor = (id, x, y, z) => { const a = new T.Object3D(); a.position.set(x, y, z); a.userData.building = id; s.add(a); };
   anchor('control', 0, 1.2, 0); anchor('lab', 2, 1.2, 0); anchor('pad', 0, 1.2, -2);
-  return { scene: s, anims: [(t) => { st.rotation.y = t / 40000; earth.rotation.y = t / 90000; }], radius: 13, height: 6 };
+  return { scene: s, anims: [(t) => { st.rotation.y = t / 40000; earth.rotation.y = t / 90000; }], radius: 13, height: 6, stationGroup: st };
 }
 
 async function moonScene(mars = false) {
@@ -256,10 +256,11 @@ export async function showWorld(container, opts) {
   const key = `${opts.level}|${opts.station ? opts.station.modules.length + ':' + opts.station.crew : ''}`;
   const attach = (built) => {
     w.scene = built.scene; w.anims = built.anims; w.info = built; w.key = key;
+    if (built.stationGroup) built.stationGroup.visible = !opts.hideStation; // Planer zeigt die Station schon als Umriss
     w.widgets = opts.widgets.map((x) => { let target = null; built.scene.traverse((o) => { if (!target && o.userData.building === x.building) target = o; }); return { ...x, target }; });
   };
   const prevInfo = w.info;
-  const built = w.key === key && w.scene ? { scene: w.scene, anims: w.anims, radius: w.info.radius, height: w.info.height } : await sceneFor(opts.level, opts.station);
+  const built = w.key === key && w.scene ? w.info : await sceneFor(opts.level, opts.station);
   if (opts.flight && opts.flight.from && prevInfo && w.scene) flyTransition(fade, prevInfo, built, () => attach(built), FADE[opts.level]);
   else { attach(built); if (opts.flight) flyIntro(built, opts.flight === 'intro'); else if (!w.flying && w.camera.position.lengthSq() === 0) w.camera.position.copy(orbitPos(built, 0.85)); }
   if (!w.loop) w.loop = requestAnimationFrame(frame);
