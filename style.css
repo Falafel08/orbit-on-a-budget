@@ -796,3 +796,44 @@ button.primary.small { min-height: 34px; font-size: 0.85rem; padding: 0 12px; wi
 .lvl-bottom { grid-template-columns: minmax(0, 620px); justify-content: center; }
 .lvl-scene { height: min(32vh, 320px); }
 .lvl-card.side .lvl-scene { height: min(22vh, 230px); }
+
+/* Hover-Infos und Leuchten wie in Spielen (Linus und Freund 15.11.) */
+.info { border: 1px solid rgba(168, 143, 214, 0.45); background: linear-gradient(180deg, rgba(116, 95, 154, 0.25), rgba(38, 34, 32, 0.95)); }
+.info .info-head { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+.info .info-head .icon { color: var(--akzent-text); width: 22px; height: 22px; }
+.info p { margin: 0 0 6px; color: var(--text); line-height: 1.45; }
+.info .hint { color: var(--nebentext); font-size: 0.82rem; }
+.info.flash { animation: info-flash 700ms ease; }
+@keyframes info-flash { 0% { box-shadow: 0 0 0 0 rgba(168,143,214,0.9); } 100% { box-shadow: 0 0 0 10px rgba(168,143,214,0); } }
+.card:hover, .insure:hover, .bldg-row:hover { animation: edge-glow 1.8s ease-in-out infinite; }
+@keyframes edge-glow { 0%, 100% { box-shadow: 0 0 0 1px rgba(168,143,214,0.6), 0 0 10px rgba(168,143,214,0.25); } 50% { box-shadow: 0 0 0 2px rgba(168,143,214,0.95), 0 0 22px rgba(168,143,214,0.55); } }
+.slot.mid:hover .rocket-pic { filter: drop-shadow(0 0 12px rgba(168,143,214,0.6)); }
+@media (prefers-reduced-motion: reduce) { .card:hover, .insure:hover, .bldg-row:hover, .info.flash { animation: none; } }
+
+/* Größer und klarer (Linus und Freund 15.11.): breitere linke Leiste, größere Kacheln, große Basis */
+.stage { grid-template-columns: 410px 1fr 290px; }
+.stage.full, .stage.launching { grid-template-columns: 0 1fr 0; }
+#left .catalog { gap: 10px; }
+#left .card.with-pic { grid-template-columns: 52px minmax(0, 1fr); column-gap: 8px; padding: 8px 8px 8px 6px; }
+#left .card .part-pic { width: 52px; height: 46px; }
+#left .card h2 { font-size: 0.88rem; }
+#left .card h2 .price { font-size: 0.84rem; margin-top: 2px; }
+#left .card dl { font-size: 0.76rem; line-height: 1.35; }
+#left .infobox p { font-size: 0.86rem; }
+.drag-ghost { position: fixed; top: -400px; left: -400px; width: 140px; height: 120px; display: grid; place-items: center; border-radius: 18px;
+  background: radial-gradient(circle, rgba(168,143,214,0.45), rgba(23,21,20,0) 70%); }
+.drag-ghost .part-pic { width: 130px; height: 112px; animation: none; filter: drop-shadow(0 0 10px #A88FD6) drop-shadow(0 0 4px #F5EFE6); }
+/* Basis groß, rechts mehr Platz für Text */
+.base-screen { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); max-width: 1400px; gap: 28px; }
+.base-screen .base { max-height: calc(100vh - 140px); }
+.base-screen .bldg-text p { font-size: 0.95rem; }
+.base-screen .bldg-text strong { font-size: 1.05rem; }
+.base-screen .lvl-desc { margin: 0; color: var(--text); font-size: 1rem; line-height: 1.5; }
+
+/* Icons an den Balken und an der Zahlung */
+.meter-name { display: inline-flex; align-items: center; gap: 6px; }
+.meter-name .icon { width: 16px; height: 16px; color: var(--akzent-text); }
+.fee-line { display: flex; align-items: center; gap: 6px; margin: 4px 0 2px; font-weight: 800; font-size: 1rem; color: #e8c547; }
+.fee-line .icon { width: 20px; height: 20px; }
+#left .card dl { grid-template-columns: auto auto; justify-content: start; column-gap: 6px; }
+#left .card dd { white-space: nowrap; }

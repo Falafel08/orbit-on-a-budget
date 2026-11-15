@@ -147,6 +147,10 @@ const ICONS = {
   retry: 'M4.5 12 A7.5 7.5 0 1 0 7 6.4 M4 3.5 L4.5 7.5 L8.5 7',
   shield: 'M12 3 L19 6 L19 11.5 C19 16 15.8 19.5 12 21 C8.2 19.5 5 16 5 11.5 L5 6 Z M9 12 L11.2 14.2 L15.5 9.8',
   lock: 'M7 11 L17 11 L17 20 L7 20 Z M9 11 L9 8 A3 3 0 0 1 15 8 L15 11',
+  bolt: 'M13 3 L5 13 L11 13 L10 21 L19 10 L13 10 Z',
+  weight: 'M6 20 L8 9 L16 9 L18 20 Z M10 9 A2 2 0 1 1 14 9',
+  sat: 'M9.5 9.5 L14.5 14.5 M3 7 L7 3 L11 7 L7 11 Z M13 17 L17 13 L21 17 L17 21 Z M15 6 A3 3 0 0 1 18 9',
+  coin: 'M12 3 A9 9 0 1 0 12.01 3 Z M14.5 9 C14 7.8 10 7.6 10 9.5 C10 11.5 14.5 11 14.5 13.5 C14.5 15.6 10.2 15.4 9.5 14 M12 6.5 L12 17.5',
   antenna: 'M12 21 L12 11 M8 21 L16 21 M6 9 A8 8 0 0 1 18 9 M8.5 11 A5 5 0 0 1 15.5 11 M12 11 L12 11.1',
   hangar: 'M3 20 L3 10 L12 4 L21 10 L21 20 Z M8 20 L8 13 L16 13 L16 20 M12 13 L12 9',
 };
@@ -156,7 +160,7 @@ function icon(name) {
   return s;
 }
 // Hinweis als Infobox mit Icon statt losem Textblock
-const infobox = (text) => el('div', { class: 'infobox' }, icon('info'), el('p', {}, text));
+const infobox = (text, ic = 'info') => el('div', { class: 'infobox' }, icon(ic), el('p', {}, text));
 const NEXT = document.getElementById('next'), BACK = document.getElementById('back');
 const setBack = (text) => BACK.replaceChildren(el('span', { class: 'round' }, icon('back')), el('span', { class: 'back-label' }, text));
 const setNext = (text, ic, after = false) => NEXT.replaceChildren(...(after ? [el('span', {}, text), icon(ic)] : [icon(ic), el('span', {}, text)]));
@@ -502,16 +506,18 @@ function card(cat, item) {
     onmouseenter: () => showInfo(item), onfocus: () => showInfo(item),
     ondragstart: (e) => {
       e.dataTransfer.setData('text/plain', `${cat.kind}:${item.id}`); node.classList.add('dragging');
-      const pic = node.querySelector('.part-pic');
-      if (pic && e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(pic, 38, 35);
+      // großes, leuchtendes Bild am Mauszeiger (Linus und Freund 15.11.: nicht miniklein)
+      const ghost = el('div', { class: 'drag-ghost' }, partPicture(cat.kind, item));
+      document.body.append(ghost);
+      if (e.dataTransfer.setDragImage) e.dataTransfer.setDragImage(ghost, 70, 60);
+      setTimeout(() => ghost.remove(), 0); // Browser hat das Bild dann schon kopiert
       document.body.dataset.drag = cat.kind;
     },
     ondragend: () => { node.classList.remove('dragging'); delete document.body.dataset.drag; },
   },
   partPicture(cat.kind, item),
   el('div', { class: 'card-body' },
-    el('h2', {}, el('span', {}, tr(item, 'name'), el('button', { class: 'qmark', type: 'button', 'aria-label': `${t('whatIsThis')} ${tr(item, 'name')}`,
-      onclick: (e) => { e.stopPropagation(); openInfo(item); }, onkeydown: (e) => e.stopPropagation() }, '?')), el('span', { class: 'price' }, money(item.cost))),
+    el('h2', {}, el('span', {}, tr(item, 'name')), el('span', { class: 'price' }, money(item.cost))),
     el('dl', {}, cat.rows(item).map(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))]))));
   node.classList.add('with-pic');
   return node;
@@ -789,7 +795,8 @@ function rocketCarouselCenter() {
   const slide = state.slide; state.slide = null;
   const slot = (k, role) => {
     const r = items[(i + k + n) % n];
-    return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}`, onclick: () => (k ? moveRocket(items, k) : null) },
+    return el('figure', { class: `slot ${role}${k < 0 ? ' prev' : k > 0 ? ' next' : ''}`, onclick: () => (k ? moveRocket(items, k) : null),
+      onmouseenter: () => showInfo(r.placeholder ? { name: tr(r, 'name'), info: t('ownLater') } : r) },
       role === 'mid' ? towerPicture(r) : '',
       r.placeholder ? placeholderRocket() : rocketPicture(r, role === 'mid'),
       role === 'mid' && !r.placeholder ? towerPicture(r, true) : '',
@@ -820,7 +827,8 @@ function rocketCarouselCenter() {
 function insuranceBox() {
   if (!state.rocket) return '';
   if (state.rocket.uninsurable) return el('p', { class: 'hint' }, t('noInsurance'));
-  return el('label', { class: 'insure card' },
+  const why = { name: t('insure'), info: t('insureHover', { c: money(insurancePrice(state.rocket)), r: `${Math.round(state.rocket.reliability * 1000) / 10} %` }) };
+  return el('label', { class: 'insure card', onmouseenter: () => showInfo(why) },
     el('input', { type: 'checkbox', ...(state.insured ? { checked: '' } : {}), onchange: (e) => { state.insured = e.target.checked; render(); } }),
     el('span', { class: 'insure-icon' }, icon('shield')),
     el('span', {}, el('strong', {}, t('insure')), el('br'), t('insureInfo', { c: money(insurancePrice(state.rocket)) })));
@@ -840,7 +848,8 @@ function contractBox() {
       const i = contracts.indexOf(x);
       return el('li', { class: i < company.index ? 'is-done' : x === c ? 'is-now' : '' }, `${i < company.index ? '✓ ' : ''}${tr(x, 'client')}`);
     })),
-    el('p', { class: 'hint' }, `${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.`),
+    el('p', { class: 'hint' }, tr(c, 'goal')),
+    el('p', { class: 'fee-line' }, icon('coin'), `${t('fee')} ${money(c.fee)}`),
     helpful.length ? el('button', { class: 'link-btn', type: 'button', onclick: () => { state.returnTo = 'build'; state.researchView = helpful[0].level; go('research'); } },
       icon('flask'), el('span', {}, t('researchAvailable', { x: t(helpful[0].name) }))) : '');
 }
@@ -864,7 +873,7 @@ function renderLeft() {
         type: 'button', 'aria-current': i === state.build ? 'step' : 'false',
         onclick: () => { state.build = i; render(); },
       }, name))),
-    infobox(cats.length ? t(cats[0].hint) : t('hintRocket')),
+    infobox(cats.length ? t(cats[0].hint) : t('hintRocket'), state.build === 0 ? 'flask' : 'sat'), // Icon passend zum Schritt
     ...cats.flatMap((cat) => [
       cat.group ? el('h3', { class: 'group' }, t(cat.group)) : null,
       el('div', { class: sameStep ? 'catalog' : 'catalog enter' }, offered(cat.items).map((item) => card(cat, item)))]).filter(Boolean),
@@ -873,34 +882,43 @@ function renderLeft() {
   if (focusIndex >= 0) focusables()[focusIndex]?.focus({ preventScroll: true });
 }
 
-function meter(label, value, max, text, atLeast = false) {
+function meter(label, value, max, text, atLeast = false, ic = null) {
   const fill = el('span');
   fill.style.width = `${Math.min(100, max ? (value / max) * 100 : 0)}%`; // CSSOM, erlaubt unter style-src 'self'
   return el('div', {},
-    el('div', { class: 'meter-label' }, el('span', {}, label), el('span', {}, text)),
+    el('div', { class: 'meter-label' }, el('span', { class: 'meter-name' }, ic ? icon(ic) : '', label), el('span', {}, text)),
     el('div', { class: `bar${(atLeast ? value < max : value > max) ? ' over' : ''}` }, fill));
 }
 
+// Info rechts (Linus und Freund 15.11.: Hover statt ?-Knöpfe): Name, Text, Herkunft der Zahlen. Leuchtet kurz auf.
+function infoContent(item) {
+  if (!item) return [el('span', { class: 'info-head' }, icon('info'), t('infoTitle')), el('p', {}, t('pointAt'))];
+  const origin = item.verified === false ? t('assumedValues') : item.verified === 'mass' ? t('massFromNasa') : item.claim ? t('spacexClaim') : '';
+  return [el('span', { class: 'info-head' }, icon('info'), tr(item, 'name')), el('p', {}, tr(item, 'info') || ''), origin ? el('p', { class: 'hint' }, origin) : ''];
+}
 function showInfo(item) {
+  if (state.info === item) return;
   state.info = item;
   const box = document.querySelector('.info');
-  if (box) box.replaceChildren(el('strong', {}, tr(item, 'name')), tr(item, 'info') || '');
+  if (!box) return;
+  box.replaceChildren(...infoContent(item));
+  box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); // Animation neu starten
 }
 
 function renderRight() {
   const m = state.mission;
   const left = budgetLeft(m.budget, chosen());
   const meters = [];
-  if (!m.free && !m.module) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('minimum')}`, true));
+  if (!m.free && !m.module) meters.push(meter(t('science'), science(), m.minScience, `${science()} / ${m.minScience} ${t('minimum')}`, true, 'flask'));
   if (state.bus && !m.module) {
-    meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`));
-    meters.push(meter(t('powerDraw'), instPower(), powerAvailable(), `${instPower()} / ${powerAvailable()} W`));
+    meters.push(meter(t('instMass'), instMass(), state.bus.capacity, `${kg(instMass())} / ${kg(state.bus.capacity)}`, false, 'weight'));
+    meters.push(meter(t('powerDraw'), instPower(), powerAvailable(), `${instPower()} / ${powerAvailable()} W`, false, 'bolt'));
   }
   if (state.rocket && state.bus) {
-    if (state.rocket.maxPayload !== undefined) meters.push(meter(t('satMass'), payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`));
+    if (state.rocket.maxPayload !== undefined) meters.push(meter(t('satMass'), payload(), state.rocket.maxPayload, `${kg(payload())} / ${kg(state.rocket.maxPayload)}`, false, 'sat'));
     else {
       const dv = deltaV(state.rocket.stages, payload());
-      meters.push(meter('Delta-v', m.requiredDv, dv, `${Math.round(dv)} / ${m.requiredDv} m/s ${t('needed')}`));
+      meters.push(meter('Delta-v', m.requiredDv, dv, `${Math.round(dv)} / ${m.requiredDv} m/s ${t('needed')}`, false, 'rocket'));
     }
   }
   $('right').replaceChildren(
@@ -911,7 +929,7 @@ function renderRight() {
       el('strong', {}, m.budget - left > 0 ? (science() / (m.budget - left)).toFixed(1) : '0.0'),
       el('p', { class: 'hint' }, t('scoreHint'))) : '',
     el('div', { class: 'meters' }, meters),
-    el('div', { class: 'info' }, state.info ? [el('strong', {}, tr(state.info, 'name')), tr(state.info, 'info') || ''] : t('pointAt')));
+    el('div', { class: 'info', 'aria-live': 'polite' }, infoContent(state.info)));
 }
 
 // Mitte: Rakete als Umriss, zeigt die gewählten Teile und nimmt gezogene Teile an
@@ -1209,11 +1227,29 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
   }
 
   // Jede Beschriftung wird einmal angesagt, wenn der Ton an ist (Funk-Stimme aus der Leitstelle)
+  // Echte Funksprüche wie bei Starts von NASA und Raketenfirmen, immer auf Englisch (Linus 15.11.: „keine 0815-Sätze“).
+  // Die Bildunterschrift bleibt in der Spielsprache, gesprochen wird der Funkspruch.
+  const RADIO = {
+    [t('capStage')]: 'MECO. Stage separation confirmed. Second stage ignition.',
+    [t('capFairing')]: 'Fairing separation confirmed.',
+    [t('capDoor')]: 'Payload bay door open.',
+    [t('capDeploy')]: 'SECO. Spacecraft separation confirmed.',
+    [t('capOrbit')]: 'Orbit insertion confirmed.',
+    [t('capMoon')]: 'Trans-lunar injection complete.',
+    [t('capMars')]: 'Trans-Mars injection complete.',
+    [t('capLanded')]: 'Landing burn. Touchdown. Booster is secured.',
+    [t('capDocked')]: 'Capture confirmed. Hard dock.',
+    [t('capMoonLanded')]: 'Contact light. Engine stop. We are on the Moon.',
+    [t('capMarsLanded')]: 'Touchdown confirmed. Safe on the surface of Mars.',
+    [t('capHeavy')]: 'Hold, hold, hold. Engine shutdown on the pad.',
+    [t('capNoFuel')]: 'Loss of thrust. Vehicle is not on trajectory.',
+    [t('capExplode')]: 'We have had a vehicle anomaly.',
+  };
   const spoken = new Set();
-  const announce = (text) => { if (spoken.has(text)) return; spoken.add(text); if (isPlaying()) say(text, getLang()); };
+  const announce = (text) => { if (!text || spoken.has(text)) return; spoken.add(text); if (isPlaying()) say(text, 'en'); };
   hush();
   function caption(text) {
-    announce(text);
+    announce(RADIO[text]);
     ctx.font = '600 20px sans-serif'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';
     const x = Math.min(W * 0.76, W - ctx.measureText(text).width / 2 - 16); // rechts neben der Rakete, nie über den Rand
     ctx.strokeStyle = 'rgba(11,10,18,0.9)'; ctx.lineWidth = 5; ctx.strokeText(text, x, H * 0.3);
@@ -1255,8 +1291,10 @@ function launch(canvas, rocketEl, mode, from, frontCanvas) {
     const sx = (Math.random() - 0.5) * shakeAmp, sy = (Math.random() - 0.5) * shakeAmp;
 
     // Ton steuern
-    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); announce(t('vCount').split('|')[sound.beeps]); sound.beeps += 1; }
-    if (igniting) announce(t('vLiftoff'));
+    if (tc >= 0 && sound.beeps < 3 && tc >= sound.beeps * 1000) { beep(sound.beeps === 2 ? 990 : 660); announce(['Three', 'Two', 'One'][sound.beeps]); sound.beeps += 1; }
+    if (igniting) announce('Ignition. And liftoff!');
+    if (mode === 'ok' && s > 1.0 && s < 2.5) announce('Vehicle is supersonic.');
+    if (mode === 'ok' && s > 1.8 && s < 2.5) announce('Max Q.');
     if (igniting && !sound.rumble) sound.rumble = rumble(burnTime, mode === 'nofuel');
     if (boomAt !== null && !sound.boom) { boomSound(); sound.boom = true; }
 
@@ -1711,6 +1749,7 @@ function renderCompany() {
     el('div', { class: 'company-panel' },
       el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`),
       el('p', { class: 'big-number rp' }, `${money(company.cash)} · ${research.rp} ${t('rpShort')}`),
+      el('p', { class: 'lvl-desc' }, t(`levelGoal${view}`)), // mehr Platz für beschreibenden Text
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
       row('antenna', t('bldgControl'),
         c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'),
