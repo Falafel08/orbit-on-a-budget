@@ -900,3 +900,5 @@ html.big-text .fact-label { font-size: 13px; }
 .side-meta { font-size: 0.76rem; color: var(--nebentext); }
 #left .card.side-job strong { overflow-wrap: anywhere; }
 body[data-drag] .zone-side { opacity: 0.6; }
+.rp-line { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-weight: 700; font-size: 0.9rem; color: var(--akzent-text); }
+.rp-line .icon { width: 18px; height: 18px; }

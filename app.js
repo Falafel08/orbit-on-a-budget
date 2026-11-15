@@ -883,6 +883,9 @@ function insuranceBox() {
 
 // Fortschritt im Auftrag (Linus 14.11.): alle Aufträge des Levels mit Haken, Ziel und Zahlung.
 // Forschungs-Hinweis nur, wenn gerade Forschung bezahlbar ist, die diesem Ziel hilft (unauffällig, Wunsch des Teams).
+// Feste Forschungspunkte für einen Modulflug (Station, Mond, Mars): beim ersten Erfolg
+const MODULE_RP = 40;
+
 function contractBox() {
   const c = state.mission && state.mission.contract;
   if (!c) return null;
@@ -897,6 +900,7 @@ function contractBox() {
     })),
     el('p', { class: 'hint' }, tr(c, 'goal')),
     el('p', { class: 'fee-line' }, icon('coin'), `${t('fee')} ${money(c.fee)}`),
+    c.module ? el('p', { class: 'rp-line' }, icon('flask'), (research.paid || []).includes(c.id) ? t('rpAlready') : t('rpModule', { n: MODULE_RP })) : '', // Linus 15.11.: vorher sichtbar
     helpful.length ? el('button', { class: 'link-btn', type: 'button', onclick: () => { state.returnTo = 'build'; state.researchView = helpful[0].level; go('research'); } },
       icon('flask'), el('span', {}, t('researchAvailable', { x: t(helpful[0].name) }))) : '');
 }
@@ -1998,7 +2002,7 @@ function renderResult() {
         r.sideFee ? [el('dt', {}, t('sideIncome')), el('dd', {}, `+${money(r.sideFee)}`)] : '',
         el('dt', { class: 'profit' }, t('profit')), el('dd', { class: `profit ${(r.fee || 0) + (r.sideFee || 0) - r.spent >= 0 ? 'plus' : 'minus'}` }, money((r.fee || 0) + (r.sideFee || 0) - r.spent))] : []),
       free || state.mission.contract ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))], // im Auftrag zählt nur das Firmengeld
-      ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
+      ...(state.mission.module ? [el('dt', {}, t('pointsEarned')), el('dd', {}, String(r.rp || 0))] : [ // Modulflug: feste Punkte
         el('dt', {}, t(r.rp ? 'pointsEarned' : 'missionPoints')), el('dd', {}, String(r.science)), // „verdient“ nur, wenn sie wirklich gutgeschrieben werden
         el('dt', {}, t('scoreLabel')), el('dd', {}, r.sciencePerMillion.toFixed(1))]), // Unterschied klar benannt (Linus 15.11.)
       free || state.mission.contract ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
@@ -2185,7 +2189,7 @@ NEXT.addEventListener('click', () => {
     const previousBest = contract ? 0 : loadBest(state.mission);
     if (r.success && !contract) saveBest(state.mission, r.sciencePerMillion);
     // Stationsflüge und Basen bringen keine Wissenschaft, aber Erfahrung: feste Forschungspunkte
-    r.rp = contract && contract.module ? (r.success ? 40 : 0) : pointsForMission(r, state.mission, previousBest); // Module: feste Punkte, Satelliten: ihre Wissenschaft
+    r.rp = contract && contract.module ? (r.success ? MODULE_RP : 0) : pointsForMission(r, state.mission, previousBest); // Module: feste Punkte, Satelliten: ihre Wissenschaft
     if (contract) {
       // Forschungspunkte gibt es pro Auftrag nur beim ersten Erfolg, sonst ließen sie sich durch Neustarts sammeln
       const paid = research.paid || [];
