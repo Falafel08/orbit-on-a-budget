@@ -60,6 +60,14 @@ export function beep(freq = 660, dur = 0.14) {
   g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.05);
 }
+// Kurzer, weicher Klick für Knöpfe (Spielgefühl). Folgt der Ton-Einstellung.
+export function clickSound() {
+  const c = sfxCtx(); if (!c) return;
+  const o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime;
+  o.type = 'triangle'; o.frequency.setValueAtTime(880, t0); o.frequency.exponentialRampToValueAtTime(440, t0 + 0.06);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.08, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+  o.connect(g).connect(c.destination); o.start(t0); o.stop(t0 + 0.1);
+}
 // Rauschen, tief gefiltert: klingt wie ein Triebwerk. Gibt eine Funktion zum Abbrechen zurück.
 export function rumble(seconds, stutter = false) {
   const c = sfxCtx(); if (!c) return () => {};

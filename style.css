@@ -977,3 +977,5 @@ body[data-drag] .zone-side { opacity: 0.6; }
 .stars .star-on:nth-child(3) { animation-delay: 440ms; }
 @keyframes star-pop { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .stars .star-on { animation: none; } }
+.hud-item.up { color: #4CAF6A; box-shadow: 0 0 0 1px rgba(76,175,106,0.6), 0 0 18px rgba(76,175,106,0.45); transition: box-shadow 200ms; }
+.hud-item.down { color: #E0605A; box-shadow: 0 0 0 1px rgba(224,96,90,0.6), 0 0 18px rgba(224,96,90,0.4); transition: box-shadow 200ms; }

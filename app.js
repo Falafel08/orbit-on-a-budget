@@ -7,7 +7,9 @@ import { settleContract, isBankrupt, cheapestMission, moduleBus, rocketsFor, con
 import { budgetLeft, deltaV, missionResult, launchOutcome, maxPayload } from './src/logic.js';
 import { t, tr, getLang, setLang } from './src/i18n.js';
 import { startSpace } from './src/space.js';
-import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush } from './src/audio.js';
+import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush, clickSound } from './src/audio.js';
+// Klickton für alle Knöpfe und Karten, ein Zuhörer für die ganze Seite
+document.addEventListener('click', (e) => { if (e.target.closest('button, [role="button"], .card, .st-slot')) clickSound(); }, true);
 import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } from './src/research.js';
 import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlight, endRound, isComplete, foodPerRound, stationFee, GRID } from './src/station.js';
 import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS } from './data/station.js';
@@ -2341,7 +2343,26 @@ function hud(moneyText, low = false) {
   return [el('span', { class: `hud-item${low ? ' low' : ''}`, title: t('cash') }, icon('coin'), moneyText),
     el('span', { class: 'hud-item', title: t('rpLong') }, icon('flask'), String(research.rp))];
 }
-const setHud = (moneyText, low) => $('budget').replaceChildren(...hud(moneyText, low));
+const setHud = (moneyText, low) => $('budget').replaceChildren(...hud(moneyText, low)); // im Bau: Restbudget; das Firmengeld merkt sich setHudCash
+// Firmengeld oben rechts: ändert es sich, zählt es sichtbar hoch oder runter und leuchtet grün oder rot (Spielgefühl)
+let hudShown = null, hudAnim = 0;
+function setHudCash(value, low = false) {
+  const from = hudShown;
+  $('budget').replaceChildren(...hud(money(from ?? value), low));
+  const item = $('budget').querySelector('.hud-item');
+  if (from === null || from === value || matchMedia('(prefers-reduced-motion: reduce)').matches) { hudShown = value; item.lastChild.textContent = money(value); return; }
+  item.classList.add(value > from ? 'up' : 'down');
+  cancelAnimationFrame(hudAnim);
+  const start = performance.now(), dur = 900;
+  const step = (now) => {
+    const k = Math.min(1, (now - start) / dur), v = from + (value - from) * (1 - (1 - k) ** 3);
+    const node = $('budget').querySelector('.hud-item');
+    if (node) node.lastChild.textContent = money(Math.round(v * 1000) / 1000);
+    if (k < 1) hudAnim = requestAnimationFrame(step); else { hudShown = value; node && node.classList.remove('up', 'down'); }
+  };
+  hudShown = value; // nächster Aufruf rechnet ab dem Zielwert
+  hudAnim = requestAnimationFrame(step);
+}
 
 let lastPhase = null; // weicher Übergang, wenn der Bildschirm wechselt (Spielgefühl: keine harten Schnitte)
 function render() {
@@ -2364,21 +2385,21 @@ function render() {
   stage.classList.toggle('launching', state.phase === 'launch');
   if (state.phase === 'company') {
     $('mission-label').textContent = t('company');
-    setHud(money(company.cash), company.over);
+    setHudCash(company.cash, company.over);
     $('center').replaceChildren(renderCompany());
     footer();
     return;
   }
   if (state.phase === 'station') {
     $('mission-label').textContent = company.station ? company.station.name : t('stationLabel');
-    setHud(money(company.cash), company.over);
+    setHudCash(company.cash, company.over);
     $('center').replaceChildren(renderStationPlanner());
     footer();
     return;
   }
   if (state.phase === 'research') {
     $('mission-label').textContent = t('research');
-    setHud(money(company.cash));
+    setHudCash(company.cash);
     $('center').replaceChildren(renderResearch());
     footer();
     return;
@@ -2387,7 +2408,7 @@ function render() {
   $('mission-label').textContent = m.contract ? `${t('level')} ${m.contract.level}: ${tr(m, 'name')}` : `${t(`lvl${m.level}`)}: ${tr(m, 'name')}`;
   const left = budgetLeft(m.budget, chosen());
   // im Bau: Geld nach den gewählten Teilen; im Ergebnis: Firmengeld nach der Abrechnung (Prüfbericht H1)
-  if (state.phase === 'result' && m.contract) setHud(money(company.cash), company.cash < 0);
+  if (state.phase === 'result' && m.contract) setHudCash(company.cash, company.cash < 0);
   else setHud(m.free ? t('noLimit') : money(left), !m.free && left < 0);
 
   if (state.phase === 'build') {
