@@ -17,16 +17,18 @@ import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } f
 // Man plant immer fürs nächste Level: Erde -> Station (Orbiter-2, Starship I), Station -> Mond (Betankung, Starship II),
 // Mond -> Mars (Mondeis, Starship III). helps = Ziele, denen das Projekt hilft (für die Pleite-Prüfung).
 const PROJECTS = [
-  { id: 'own-rocket', level: 1, rp: 60, cost: 20, seconds: 40, name: 'projOwn', info: 'projOwnInfo', helps: ['leo'] },
-  { id: 'reuse', level: 1, rp: 120, cost: 30, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket', helps: ['leo'] },
-  { id: 'quality', level: 1, rp: 100, cost: 25, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
-  { id: 'orbiter-2', level: 1, rp: 160, cost: 40, seconds: 70, name: 'projOrbiter2', info: 'projOrbiter2Info', needs: 'own-rocket', helps: ['leo'] },
-  { id: 'ss-reuse-1', level: 1, rp: 80, cost: 100, seconds: 50, name: 'projSs1', info: 'projSsInfo', helps: ['leo', 'moon', 'mars'] },
-  { id: 'refuel', level: 2, rp: 120, cost: 150, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo', helps: ['moon', 'mars'] },
-  { id: 'ss-reuse-2', level: 2, rp: 100, cost: 100, seconds: 50, name: 'projSs2', info: 'projSsInfo', needs: 'ss-reuse-1', helps: ['leo', 'moon', 'mars'] },
-  { id: 'lunar-ice', level: 3, rp: 120, cost: 200, seconds: 60, name: 'projIce', info: 'projIceInfo', helps: ['mars'] },
-  { id: 'ss-reuse-3', level: 3, rp: 120, cost: 100, seconds: 50, name: 'projSs3', info: 'projSsInfo', needs: 'ss-reuse-2', helps: ['leo', 'moon', 'mars'] },
-  { id: 'mars-fuel', level: 4, rp: 100, cost: 300, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo', helps: ['mars'] },
+  // Geldkosten halbiert am 15.11. (Linus: Pleite nach dem Forschen), Punkte unverändert
+  { id: 'own-rocket', level: 1, rp: 60, cost: 10, seconds: 40, name: 'projOwn', info: 'projOwnInfo', helps: ['leo'] },
+  { id: 'reuse', level: 1, rp: 120, cost: 15, seconds: 60, name: 'projReuse', info: 'projReuseInfo', needs: 'own-rocket', helps: ['leo'] },
+  { id: 'quality', level: 1, rp: 100, cost: 12, seconds: 50, name: 'projQuality', info: 'projQualityInfo', needs: 'own-rocket' },
+  { id: 'orbiter-2', level: 1, rp: 160, cost: 20, seconds: 70, name: 'projOrbiter2', info: 'projOrbiter2Info', needs: 'own-rocket', helps: ['leo'] },
+  { id: 'ss-reuse-1', level: 1, rp: 80, cost: 50, seconds: 50, name: 'projSs1', info: 'projSsInfo', helps: ['leo', 'moon', 'mars'] },
+  { id: 'refuel', level: 2, rp: 120, cost: 75, seconds: 60, name: 'projRefuel', info: 'projRefuelInfo', helps: ['moon', 'mars'] },
+  { id: 'ss-reuse-2', level: 2, rp: 100, cost: 50, seconds: 50, name: 'projSs2', info: 'projSsInfo', needs: 'ss-reuse-1', helps: ['leo', 'moon', 'mars'] },
+  { id: 'lunar-ice', level: 3, rp: 120, cost: 100, seconds: 60, name: 'projIce', info: 'projIceInfo', helps: ['mars'] },
+  { id: 'ss-reuse-3', level: 3, rp: 120, cost: 50, seconds: 50, name: 'projSs3', info: 'projSsInfo', needs: 'ss-reuse-2', helps: ['leo', 'moon', 'mars'] },
+  { id: 'mars-fuel', level: 4, rp: 0, // Pflicht für den letzten Auftrag: keine Punkte, sonst Sackgasse (15.11.)
+    cost: 150, seconds: 60, name: 'projMarsFuel', info: 'projMarsFuelInfo', helps: ['mars'] },
 ];
 // Höchstes erreichtes Level der Kampagne
 const reachedLevel = () => (company.index >= contracts.length ? LEVELS.length : contracts[company.index].level);
@@ -1432,6 +1434,13 @@ function researchTeam() {
 
 // Forschung je Ort (Linus 14.11.): Reiter für Erde, Raumstation, Mond, Mars; oben die Kulisse des Ortes.
 const PLACE_NAME = { earth: 'placeEarth', station: 'placeStation', moon: 'placeMoon', mars: 'placeMars' };
+// Was der nächste Auftrag mindestens kostet (billigster Weg samt nötiger Forschung) und was man hat
+function needLine() {
+  if (company.index >= contracts.length || company.over) return '';
+  const need = minCostFor(company.index);
+  return el('p', { class: `budget-need${company.cash < need * 1.5 ? ' tight' : ''}` }, icon('coin'), t('needNext', { x: money(need), y: money(company.cash) }));
+}
+
 function renderResearch() {
   const a = research.active;
   const reached = reachedLevel();
@@ -1439,6 +1448,7 @@ function renderResearch() {
   const place = LEVELS[view - 1].place;
   const delivered = contracts.filter((x) => x.level === view && contracts.indexOf(x) < company.index).length;
   return el('section', { class: 'research enter' },
+    needLine(),
     el('nav', { class: 'levels', 'aria-label': t('research') }, LEVELS.map((l) => el('button', {
       type: 'button', class: l.n === view ? 'level on' : 'level', disabled: l.n > reached ? '' : null,
       title: l.n > reached ? t('reachLevel') : '', onclick: () => { state.researchView = l.n; render(); },
@@ -1486,6 +1496,11 @@ function projectCard(pr, reached) {
       return el('div', { class: `project card${done ? ' done-card' : ''}` },
         el('h2', {}, el('span', {}, t(pr.name)), el('span', { class: 'price' }, done ? `✓ ${t('doneLbl')}` : `${pr.rp} ${t('rpShort')} · ${money(pr.cost)}`)),
         el('p', { class: 'hint' }, t(pr.info)),
+        // was nach dieser Forschung übrig bleibt, im Vergleich zum Mindestbudget des nächsten Auftrags
+        !done && !locked && company.index < contracts.length ? (() => {
+          const after = company.cash - pr.cost, need = minCostFor(company.index, { ...research.done, [pr.id]: true });
+          return el('p', { class: `after-research${after < need ? ' bad' : after < need * 1.5 ? ' tight' : ''}` }, t('afterResearch', { a: money(after), n: money(need) }));
+        })() : '',
         locked && pr.needs && !research.done[pr.needs] ? el('p', { class: 'hint' }, t('needs', { x: t(PROJECTS.find((x) => x.id === pr.needs).name) })) : '',
         done && pr.id === 'own-rocket' ? el('form', { class: 'name-form', onsubmit: (e) => {
           e.preventDefault();
@@ -1761,6 +1776,7 @@ function renderCompany() {
     el('div', { class: 'company-panel' },
       el('h1', {}, `${t('level')} ${view} · ${tr(LEVELS[view - 1], 'name')}`),
       el('p', { class: 'lvl-desc' }, t(`levelGoal${view}`)), // mehr Platz für beschreibenden Text
+      needLine(),
       company.over ? el('p', { class: 'result-msg fail' }, t('bankrupt')) : '',
       row('antenna', t('bldgControl'), c && c.level === view ? `${tr(c, 'client')}: ${tr(c, 'goal')} ${t('fee')} ${money(c.fee)}.` : t('levelDone'), ''),
       row('flask', t('bldgLab'), t('labRowText'), el('button', { class: need ? 'primary small go' : 'primary small', type: 'button', onclick: toLab }, icon('flask'), el('span', {}, t('openLab')))),
@@ -1941,6 +1957,7 @@ function renderResult() {
     r.rp ? el('p', { class: 'rp-earned' }, t('rpEarned', { n: r.rp })) : '',
     state.mission.contract ? el('p', { class: 'hint' }, t('cashNow', { c: money(company.cash) })) : '',
     r.repeat ? el('p', { class: 'hint' }, t('noRpRepeat')) : '',
+    free ? el('p', { class: 'hint' }, t('freeNoRp')) : '', // freies Spiel bringt keine Punkte fürs Labor (Linus 15.11.)
     el('dl', {},
       ...(r.cost ? [ // was der Start gekostet hat, im Vergleich zur Zahlung (Linus 15.11.)
         el('dt', { class: 'sub' }, t('costRocket', { r: tr(state.rocket, 'name') })), el('dd', { class: 'sub' }, money(r.cost.rocket)),
@@ -1951,7 +1968,7 @@ function renderResult() {
         el('dt', { class: 'profit' }, t('profit')), el('dd', { class: `profit ${(r.fee || 0) - r.spent >= 0 ? 'plus' : 'minus'}` }, money((r.fee || 0) - r.spent))] : []),
       free || state.mission.contract ? '' : [el('dt', {}, t('budgetLeft')), el('dd', {}, money(r.budgetLeft))], // im Auftrag zählt nur das Firmengeld
       ...(state.mission.module ? [] : [ // Stationsflug: keine Wissenschaft
-        el('dt', {}, t('pointsEarned')), el('dd', {}, String(r.science)),
+        el('dt', {}, t(r.rp ? 'pointsEarned' : 'missionPoints')), el('dd', {}, String(r.science)), // „verdient“ nur, wenn sie wirklich gutgeschrieben werden
         el('dt', {}, t('scoreLabel')), el('dd', {}, r.sciencePerMillion.toFixed(1))]), // Unterschied klar benannt (Linus 15.11.)
       free || state.mission.contract ? '' : [el('dt', {}, t('best')), el('dd', {}, best ? best.toFixed(1) : t('noneYet'))]));
 }

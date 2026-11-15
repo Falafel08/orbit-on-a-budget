@@ -223,13 +223,13 @@ export const contracts = [
   { id: 'c1', level: 1, dest: 'leo', base: 'cubesat', minScience: 8, fee: 2,
     client: 'University space club', goal: 'Launch a small CubeSat with a camera for students.',
     de: { client: 'Raumfahrt-AG einer Uni', goal: 'Starte einen kleinen CubeSat mit Kamera für Studierende.' } },
-  { id: 'c2', level: 1, dest: 'leo', base: 'weather', minScience: 55, fee: 60, // gesenkt 15.11.: neue billige Raketen (Electron, H3, PSLV)
+  { id: 'c2', level: 1, dest: 'leo', base: 'weather', minScience: 55, fee: 75, // 15.11.: erst gesenkt (billige Raketen), dann wieder angehoben (Pleite beim Forschen)
     client: 'National weather service', goal: 'Put a weather satellite into an 800 km orbit.',
     de: { client: 'Nationaler Wetterdienst', goal: 'Bring einen Wettersatelliten in einen Orbit in 800 km Höhe.' } },
-  { id: 'c3', level: 1, dest: 'leo', base: 'ocean', minScience: 125, fee: 110,
+  { id: 'c3', level: 1, dest: 'leo', base: 'ocean', minScience: 125, fee: 130,
     client: 'Ocean research institute', goal: 'Measure sea level with a radar satellite.',
     de: { client: 'Institut für Meeresforschung', goal: 'Miss die Meereshöhe mit einem Radar-Satelliten.' } },
-  { id: 'c4', level: 1, dest: 'leo', base: 'weather', minScience: 100, fee: 90,
+  { id: 'c4', level: 1, dest: 'leo', base: 'weather', minScience: 100, fee: 110,
     client: 'Storm warning network', goal: 'A weather satellite with more instruments to warn of storms earlier.',
     de: { client: 'Sturmwarn-Netz', goal: 'Ein Wettersatellit mit mehr Instrumenten, der früher vor Stürmen warnt.' } },
   // Level 2: eine kleine Raumstation aus fünf Modulen (Idee Mentor und Josias, 14.11.).
@@ -242,7 +242,7 @@ export const contracts = [
     ['s4', 'Habitat module', 'Wohnmodul', 'Beds, kitchen and air for a crew of three.', 'Betten, Küche und Luft für drei Leute.', 9000, 55, 180],
     ['s5', 'Docking node', 'Andockknoten', 'Lets spacecraft dock. After this the station is complete.', 'Hier docken Raumschiffe an. Danach ist die Station fertig.', 3000, 25, 140],
   ].map(([id, name, nameDe, goal, goalDe, mass, cost, fee]) => ({
-    id, level: 2, dest: 'leo', module: { mass, cost, name, de: { name: nameDe } }, fee,
+    id, level: 2, dest: 'leo', module: { mass, cost, name, de: { name: nameDe } }, fee: fee + 60, // +60 je Modul (15.11.): Level 3 braucht Geld zum Einstieg
     client: name, goal, de: { client: nameDe, goal: goalDe },
   })),
   // Level 3: Mondbasis, Level 4: Mars. Massen, Baukosten und Zahlungen sind Spiel-Annahmen.
