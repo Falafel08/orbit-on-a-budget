@@ -11,6 +11,7 @@ import { setMusic, isPlaying, wantsMusic, beep, rumble, boomSound, say, hush } f
 import { pointsForMission, ownRocketCost, ownRocketReliability, starshipCost } from './src/research.js';
 import { emptyStation, canPlace, stationStats, flightCheck, payloadOf, applyFlight, endRound, isComplete, foodPerRound, stationFee, GRID } from './src/station.js';
 import { MODULES, ROBOTS, RESCUE_COST, STATION_MAX_MASS } from './data/station.js';
+import { showStation3D } from './src/station3d.js';
 
 // ---------- Forschung: Stand über alle Missionen im Browser gespeichert ----------
 // Eigene Rakete: zwei Stufen, ausgelegt mit der Raketengleichung (etwa 1,6 t in 800 km)
@@ -1935,7 +1936,7 @@ function renderStationPlanner() {
       el('div', { class: 'st-tabs', role: 'group' }, ['module', 'supplies', 'crew', 'robot'].map(tab)),
       options, info ? infobox(info, f.kind === 'crew' ? 'sat' : 'info') : '',
       el('p', { class: 'hint' }, st.crew ? t('stRound', { kg: kg(foodPerRound(st.crew)) }) : t('stRoundEmpty'))),
-    el('div', { class: 'st-right' }, stationGridSvg(st, needsCell ? f : null),
+    el('div', { class: 'st-right' }, station3dBox(st, needsCell ? { ...f, check: (x, y) => canPlace(st, x, y, f.type).ok } : null), stationGridSvg(st, needsCell ? f : null),
       el('p', { class: check.ok || !check.reason ? 'hint' : 'launch-warn' }, check.reason ? `⚠ ${t(`st_${check.reason}`)}` : fee ? t('stFee', { c: money(fee) }) : t('stNoFee')),
       el('button', { class: check.ok ? 'primary go' : 'primary', type: 'button', disabled: check.ok ? null : '', onclick: goRocket }, icon('rocket'), el('span', {}, t('stToRocket')))));
 }
@@ -1953,7 +1954,17 @@ function stationRoundBox(r) {
     rd.rescue ? el('p', { class: 'result-msg fail' }, t('stRescue', { c: money(RESCUE_COST) })) : st.crew || rd.rp ? el('p', {}, t('stRoundResult', { kg: kg(foodPerRound(st.crew)), rp: rd.rp })) : '',
     rd.noPower ? el('p', { class: 'launch-warn' }, `⚠ ${t('stNoPower')}`) : '',
     r.stationDone ? el('p', { class: 'result-msg' }, t('stComplete', { name: st.name })) : missing.length ? el('p', { class: 'hint' }, t('stStillMissing', { x: missing.join(', ') })) : '',
-    stationGridSvg(st));
+    station3dBox(st, null, r.success && state.mission.flight.kind === 'module' ? state.mission.flight : null, true));
+}
+
+// 3D-Ansicht der Station (src/station3d.js). Klick auf ein grünes Feld wählt es wie im 2D-Raster darunter.
+function station3dBox(st, pick, dock = null, gridFallback = false) {
+  const box = el('div', { class: 'st-3d', 'aria-hidden': 'true' });
+  queueMicrotask(async () => {
+    const ok = await showStation3D(box, st, { pick, dock, onPick: (x, y) => { state.flight = { ...state.flight, x, y }; render(); } });
+    if (!ok) box.replaceWith(gridFallback ? stationGridSvg(st) : ''); // ohne WebGL: 2D-Raster
+  });
+  return box;
 }
 
 // ---------- Ergebnis ----------
